@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1284" height="2778" viewBox="0 0 1284 2778">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#fafbfc"/>
+      <stop offset="55%" stop-color="#f5f7f9"/>
+      <stop offset="100%" stop-color="#eef1f4"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1284" height="2778" fill="url(#bg)"/>
+
+  <!-- Center logo group -->
+  <g transform="translate(642 1080)">
+    <!-- Rounded icon -->
+    <g transform="translate(-90 -90)">
+      <rect width="180" height="180" rx="40" fill="#e9eef5"/>
+      <g transform="scale(0.3515625)">
+        <path
+          d="M284 84 L144 268 C138 276 144 288 154 288 H252 L228 428 C226 440 240 447 248 438 L388 244 C394 236 388 224 378 224 H280 L304 94 C306 82 292 75 284 84 Z"
+          fill="#0f766e"/>
+      </g>
+    </g>
+
+    <!-- GridFlow -->
+    <text
+      y="130"
+      text-anchor="middle"
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+      font-size="64"
+      font-weight="700"
+      letter-spacing="-1">
+      <tspan fill="#1c1c1e">Grid</tspan><tspan fill="#0f766e">Flow</tspan>
+    </text>
+
+    <!-- Loading dots -->
+    <circle cx="-22" cy="190" r="6" fill="#5aab9e"/>
+    <circle cx="0" cy="190" r="6" fill="#5aab9e"/>
+    <circle cx="22" cy="190" r="6" fill="#5aab9e"/>
+  </g>
+
+  <!-- Footer -->
+  <text
+    x="642"
+    y="2620"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    font-size="22"
+    font-weight="500"
+    letter-spacing="4.4"
+    fill="#a8b0b9">POWERED BY GRIDFLOW</text>
+  <text
+    x="642"
+    y="2660"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    font-size="20"
+    font-weight="400"
+    fill="#b8c0c8">v1.0.0</text>
+</svg>
