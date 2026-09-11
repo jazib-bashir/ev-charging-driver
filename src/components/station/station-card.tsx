@@ -37,6 +37,7 @@ export function StationCard({ station }: StationCardProps) {
   const chargerLabel = formatChargerAvailability(station);
   const showPower = hasValue(station.maxPowerKw);
   const showDistance = hasValue(station.distanceMi);
+  const showCity = hasValue(station.city);
 
   return (
     <View
@@ -48,18 +49,12 @@ export function StationCard({ station }: StationCardProps) {
       ]}
     >
       <View style={styles.imageContainer}>
-        {imageSource ? (
-          <Image
-            source={imageSource}
-            style={[styles.image, isUnavailable && styles.imageUnavailable]}
-            contentFit="cover"
-            transition={200}
-          />
-        ) : (
-          <View style={[styles.imagePlaceholder, isUnavailable && styles.imageUnavailable]}>
-            <Icon name="image" size={36} color={theme.colors.placeholderIcon} />
-          </View>
-        )}
+        <Image
+          source={imageSource}
+          style={[styles.image, isUnavailable && styles.imageUnavailable]}
+          contentFit="cover"
+          transition={200}
+        />
 
         <Badge
           label={status.label}
@@ -94,6 +89,12 @@ export function StationCard({ station }: StationCardProps) {
         <Text style={styles.address} numberOfLines={1}>
           {formatText(address)}
         </Text>
+
+        {showCity ? (
+          <Text style={styles.city} numberOfLines={1}>
+            {formatText(station.city)}
+          </Text>
+        ) : null}
 
         <View style={styles.divider} />
 
@@ -200,6 +201,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textMuted,
     lineHeight: 18,
+  },
+  city: {
+    marginTop: 2,
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    lineHeight: 16,
   },
   navigateButton: {
     width: 32,

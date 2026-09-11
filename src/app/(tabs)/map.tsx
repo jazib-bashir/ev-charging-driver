@@ -1,5 +1,5 @@
-import { ComingSoonScreen } from '@/components/coming-soon-screen';
+import { StationDiscoveryScreen } from '@/components/station/station-discovery-screen';
 
 export default function MapScreen() {
-  return <ComingSoonScreen title="Map" />;
+  return <StationDiscoveryScreen initialViewMode="map" />;
 }

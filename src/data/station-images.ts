@@ -3,19 +3,28 @@ import type { ImageSource } from 'expo-image';
 import type { Station } from '@/types/station';
 
 /**
- * Local demo images keyed by station id.
- * When the API provides imageUrl, that takes precedence.
+ * Static local images for station cards.
+ * Kept separate from API data so it can be removed when real station images are available.
  */
-export const stationImageAssets: Record<string, ImageSource> = {
-  '6aa2bc39799688a97ec3146f': require('@/assets/images/stations/charger-2.jpg'),
-  '6aa3ba01799688a97ec31473': require('@/assets/images/stations/mark-station.jpg'),
-  '6aa3f59eba100f9f30563a99': require('@/assets/images/stations/charger-6.png'),
-};
+const STATION_IMAGE_ASSETS: ImageSource[] = [
+  require('@/assets/images/stations/charger-2.jpg'),
+  require('@/assets/images/stations/mark-station.jpg'),
+  require('@/assets/images/stations/charger-6.png'),
+];
 
-export function getStationImageSource(station: Station): ImageSource | null {
+function getStableImageIndex(stationId: string): number {
+  let hash = 0;
+  for (let index = 0; index < stationId.length; index += 1) {
+    hash = (hash + stationId.charCodeAt(index)) % STATION_IMAGE_ASSETS.length;
+  }
+  return hash;
+}
+
+export function getStationImageSource(station: Station): ImageSource {
   if (station.imageUrl) {
     return { uri: station.imageUrl };
   }
 
-  return stationImageAssets[station.id] ?? null;
+  const imageIndex = getStableImageIndex(station.id);
+  return STATION_IMAGE_ASSETS[imageIndex % STATION_IMAGE_ASSETS.length];
 }
