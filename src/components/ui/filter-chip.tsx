@@ -37,8 +37,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   chipActive: {
-    backgroundColor: theme.colors.brand,
-    borderColor: theme.colors.brand,
+    backgroundColor: theme.colors.selectionForeground,
+    borderColor: theme.colors.selectionForeground,
   },
   label: {
     fontSize: theme.typography.fontSize.sm,

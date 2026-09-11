@@ -8,10 +8,10 @@ export const lightColors = {
   surface: '#ffffff',
   iconBackground: '#e9eef5',
 
-  brand: '#0d6b5d',
-  brandDark: '#0a5a4f',
+  brand: '#0d9488',
+  brandDark: '#0f766e',
   brandLight: '#5aab9e',
-  brandMuted: '#e6f3f1',
+  brandMuted: '#f0fdfa',
 
   textPrimary: '#1c1c1e',
   textSecondary: '#4b5563',
@@ -24,14 +24,18 @@ export const lightColors = {
 
   shadow: 'rgba(15, 23, 42, 0.06)',
 
-  tabActive: '#e8f0fe',
-  tabActiveIcon: '#1a73e8',
+  selectionBackground: '#f0fdfa',
+  selectionForeground: '#0d9488',
+  selectionBorder: '#99f6e4',
+
+  tabActive: '#f0fdfa',
+  tabActiveIcon: '#0d9488',
   tabInactive: '#8b95a1',
 
   notification: '#ef4444',
 
-  statusAvailable: '#0d6b5d',
-  statusAvailableBg: '#0d6b5d',
+  statusAvailable: '#0d9488',
+  statusAvailableBg: '#0d9488',
   statusUnavailable: '#6b7280',
   statusUnavailableBg: '#9ca3af',
   statusDot: '#22c55e',
@@ -40,7 +44,7 @@ export const lightColors = {
   distanceBadgeText: '#374151',
 
   connectorBg: '#f0f4f8',
-  connectorText: '#0d6b5d',
+  connectorText: '#0d9488',
   connectorBorder: '#e2e8f0',
 
   placeholder: '#e9eef5',

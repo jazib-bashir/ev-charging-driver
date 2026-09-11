@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import MapView, { Callout, Marker } from 'react-native-maps';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { Icon } from '@/components/ui/icon';
 import { theme } from '@/theme';
-import type { Station } from '@/types/station';
-import { formatText } from '@/utils/station';
+import { formatText, getStationAddress } from '@/utils/station';
 import { getMapRegionForStations, getStationsWithCoordinates } from '@/utils/map-region';
 
-type StationMapProps = {
-  stations: Station[];
-};
+import type { StationMapProps } from './station-map';
 
-export function StationMap({ stations }: StationMapProps) {
+export function StationMap({ stations, variant = 'embedded' }: StationMapProps) {
   const mapRef = useRef<MapView>(null);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
 
@@ -26,6 +23,13 @@ export function StationMap({ stations }: StationMapProps) {
     [stations],
   );
 
+  const selectedStation = useMemo(
+    () => stations.find((station) => station.id === selectedStationId) ?? null,
+    [selectedStationId, stations],
+  );
+
+  const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined;
+
   useEffect(() => {
     if (mappableStations.length === 0) {
       return;
@@ -38,8 +42,15 @@ export function StationMap({ stations }: StationMapProps) {
     <View style={styles.container}>
       <MapView
         ref={mapRef}
+        provider={mapProvider}
         style={styles.map}
         initialRegion={mapRegion}
+        mapPadding={{
+          top: variant === 'fullscreen' ? 72 : 0,
+          bottom: variant === 'fullscreen' ? 120 : 0,
+          left: 0,
+          right: 0,
+        }}
         onPress={() => setSelectedStationId(null)}
       >
         {mappableStations.map((station) => (
@@ -71,13 +82,26 @@ export function StationMap({ stations }: StationMapProps) {
         ))}
       </MapView>
 
-      {selectedStationId ? (
-        <View style={styles.selectedBanner}>
-          <Text style={styles.selectedBannerText} numberOfLines={1}>
-            {formatText(
-              stations.find((station) => station.id === selectedStationId)?.name,
-            )}
-          </Text>
+      {selectedStation ? (
+        <View
+          style={[
+            styles.selectedCard,
+            variant === 'fullscreen' && styles.selectedCardFullscreen,
+          ]}
+        >
+          <View style={styles.selectedCardHeader}>
+            <View style={styles.selectedCardIcon}>
+              <Icon name="charger" size={18} color={theme.colors.textInverse} />
+            </View>
+            <View style={styles.selectedCardCopy}>
+              <Text style={styles.selectedCardTitle} numberOfLines={1}>
+                {formatText(selectedStation.name)}
+              </Text>
+              <Text style={styles.selectedCardAddress} numberOfLines={2}>
+                {formatText(getStationAddress(selectedStation))}
+              </Text>
+            </View>
+          </View>
         </View>
       ) : null}
     </View>
@@ -118,23 +142,46 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },
-  selectedBanner: {
+  selectedCard: {
     position: 'absolute',
     left: theme.spacing.lg,
     right: theme.spacing.lg,
     bottom: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    padding: theme.spacing.md,
     ...theme.shadows.card,
   },
-  selectedBannerText: {
+  selectedCardFullscreen: {
+    bottom: theme.spacing.xl,
+  },
+  selectedCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  selectedCardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.selectionForeground,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedCardCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  selectedCardTitle: {
     fontSize: theme.typography.fontSize.md,
     fontWeight: theme.typography.fontWeight.semibold,
     color: theme.colors.textPrimary,
-    textAlign: 'center',
+  },
+  selectedCardAddress: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
   },
 });

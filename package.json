@@ -39,7 +39,8 @@
     "android": "expo start --android --go",
     "ios": "expo start --ios --go",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:android:preview": "eas build -p android --profile preview"
   },
   "private": true
 }

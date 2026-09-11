@@ -1,9 +1,5 @@
 import { EmptyState } from '@/components/ui/empty-state';
-import type { Station } from '@/types/station';
-
-type StationMapProps = {
-  stations: Station[];
-};
+import type { StationMapProps } from './station-map';
 
 export function StationMap(_props: StationMapProps) {
   return (

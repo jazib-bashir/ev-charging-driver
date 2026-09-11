@@ -31,7 +31,7 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
             <Icon
               name={icon}
               size={16}
-              color={active ? theme.colors.tabActiveIcon : theme.colors.textMuted}
+              color={active ? theme.colors.selectionForeground : theme.colors.textMuted}
             />
           </Pressable>
         );
@@ -59,6 +59,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonActive: {
-    backgroundColor: theme.colors.tabActive,
+    backgroundColor: theme.colors.selectionBackground,
   },
 });

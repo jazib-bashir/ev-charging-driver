@@ -1,5 +1,5 @@
-import { StationDiscoveryScreen } from '@/components/station/station-discovery-screen';
+import { StationMapScreen } from '@/components/station/station-map-screen';
 
 export default function MapScreen() {
-  return <StationDiscoveryScreen initialViewMode="map" />;
+  return <StationMapScreen />;
 }

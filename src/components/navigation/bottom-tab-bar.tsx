@@ -56,7 +56,7 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
               <Icon
                 name={tab.icon}
                 size={22}
-                color={active ? theme.colors.tabActiveIcon : theme.colors.tabInactive}
+                color={active ? theme.colors.selectionForeground : theme.colors.tabInactive}
               />
             </View>
             <Text style={[styles.label, active && styles.labelActive]}>{tab.label}</Text>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapActive: {
-    backgroundColor: theme.colors.tabActive,
+    backgroundColor: theme.colors.selectionBackground,
   },
   label: {
     fontSize: theme.typography.fontSize.xs,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.medium,
   },
   labelActive: {
-    color: theme.colors.tabActiveIcon,
+    color: theme.colors.selectionForeground,
     fontWeight: theme.typography.fontWeight.semibold,
   },
 });
