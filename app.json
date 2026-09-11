@@ -4,7 +4,7 @@
     "slug": "ev-charging-driver",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/gridflow-logo-icon.png",
+    "icon": "./assets/images/splash-full.png",
     "scheme": "evchargingdriver",
     "userInterfaceStyle": "light",
     "ios": {
@@ -13,13 +13,13 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#f5f7f9",
-        "foregroundImage": "./assets/images/gridflow-logo-icon.png"
+        "foregroundImage": "./assets/images/splash-full.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/gridflow-logo-icon.png"
+      "favicon": "./assets/images/splash-full.png"
     },
     "plugins": [
       "expo-router",
