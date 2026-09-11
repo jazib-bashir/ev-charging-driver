@@ -16,7 +16,16 @@ export type IconName =
   | 'charger'
   | 'home'
   | 'user'
-  | 'image';
+  | 'image'
+  | 'back'
+  | 'share'
+  | 'location'
+  | 'checkmark'
+  | 'wifi'
+  | 'coffee'
+  | 'dining'
+  | 'restroom'
+  | 'car';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -38,6 +47,15 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   home: { family: 'ionicons', name: 'home' },
   user: { family: 'ionicons', name: 'person' },
   image: { family: 'ionicons', name: 'image-outline' },
+  back: { family: 'ionicons', name: 'chevron-back' },
+  share: { family: 'ionicons', name: 'share-social-outline' },
+  location: { family: 'ionicons', name: 'location-outline' },
+  checkmark: { family: 'ionicons', name: 'checkmark-circle' },
+  wifi: { family: 'ionicons', name: 'wifi' },
+  coffee: { family: 'ionicons', name: 'cafe-outline' },
+  dining: { family: 'ionicons', name: 'restaurant-outline' },
+  restroom: { family: 'ionicons', name: 'male-female-outline' },
+  car: { family: 'ionicons', name: 'car-outline' },
 };
 
 type IconProps = {

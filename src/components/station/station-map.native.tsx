@@ -1,5 +1,6 @@
+import { type Href, router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { Icon } from '@/components/ui/icon';
@@ -83,10 +84,14 @@ export function StationMap({ stations, variant = 'embedded' }: StationMapProps) 
       </MapView>
 
       {selectedStation ? (
-        <View
-          style={[
+        <Pressable
+          onPress={() => router.push(`/stations/${selectedStation.id}` as Href)}
+          accessibilityRole="button"
+          accessibilityLabel={`View details for ${selectedStation.name}`}
+          style={({ pressed }) => [
             styles.selectedCard,
             variant === 'fullscreen' && styles.selectedCardFullscreen,
+            pressed && styles.selectedCardPressed,
           ]}
         >
           <View style={styles.selectedCardHeader}>
@@ -102,7 +107,7 @@ export function StationMap({ stations, variant = 'embedded' }: StationMapProps) 
               </Text>
             </View>
           </View>
-        </View>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -156,6 +161,9 @@ const styles = StyleSheet.create({
   },
   selectedCardFullscreen: {
     bottom: theme.spacing.xl,
+  },
+  selectedCardPressed: {
+    opacity: 0.94,
   },
   selectedCardHeader: {
     flexDirection: 'row',

@@ -15,7 +15,7 @@ export class PublicStationsApiError extends Error {
   }
 }
 
-function mapApiStation(raw: Record<string, unknown>): Station {
+export function mapApiStation(raw: Record<string, unknown>): Station {
   return {
     id: String(raw.id ?? ''),
     organizationId: raw.organizationId as string | undefined,
@@ -103,4 +103,36 @@ export async function fetchPublicStations(
       hasMore: Boolean(rawPagination?.hasMore),
     },
   };
+}
+
+export async function fetchPublicStation(id: string): Promise<Station | null> {
+  const url = `${env.apiBaseUrl}/api/public/stations/${encodeURIComponent(id)}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new PublicStationsApiError('Network request failed');
+  }
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new PublicStationsApiError(`Request failed with status ${response.status}`);
+  }
+
+  let json: Record<string, unknown>;
+  try {
+    json = await response.json();
+  } catch {
+    throw new PublicStationsApiError('Invalid response from server');
+  }
+
+  if (!json.id) {
+    return null;
+  }
+
+  return mapApiStation(json);
 }

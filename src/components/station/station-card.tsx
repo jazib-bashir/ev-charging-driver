@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { type Href, router } from 'expo-router';
 
 import { Badge } from '@/components/ui/badge';
 import { ConnectorTag } from '@/components/ui/connector-tag';
@@ -39,13 +40,21 @@ export function StationCard({ station }: StationCardProps) {
   const showDistance = hasValue(station.distanceMi);
   const showCity = hasValue(station.city);
 
+  const handlePress = () => {
+    router.push(`/stations/${station.id}` as Href);
+  };
+
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`View details for ${station.name}`}
+      style={({ pressed }) => [
         styles.card,
         isTablet && styles.cardTablet,
         { maxWidth: isTablet ? MAX_CARD_WIDTH : undefined },
         isUnavailable && styles.cardUnavailable,
+        pressed && styles.cardPressed,
       ]}
     >
       <View style={styles.imageContainer}>
@@ -130,7 +139,7 @@ export function StationCard({ station }: StationCardProps) {
           </View>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -149,6 +158,9 @@ const styles = StyleSheet.create({
   },
   cardUnavailable: {
     opacity: 0.88,
+  },
+  cardPressed: {
+    opacity: 0.94,
   },
   imageContainer: {
     position: 'relative',
