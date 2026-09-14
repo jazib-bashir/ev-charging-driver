@@ -47,10 +47,20 @@ export type StationsResponse = {
   };
 };
 
+export type StationSortBy = 'power' | 'price';
+export type StationSortOrder = 'asc' | 'desc';
+
+/** UI + request state for GET /api/public/stations filter params (excl. pagination). */
 export type PublicStationFilterState = {
   radiusKm?: number | null;
   city?: string | null;
   isPrimarySite?: boolean | null;
   lat?: number | null;
   lng?: number | null;
+  connectorTypes?: string[] | null;
+  isFastCharger?: boolean | null;
+  /** Selected driver vehicle id → API `vehicleId`. */
+  vehicleId?: string | null;
+  sortBy?: StationSortBy | null;
+  sortOrder?: StationSortOrder | null;
 };

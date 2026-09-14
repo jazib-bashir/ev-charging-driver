@@ -15,7 +15,6 @@ type FilterRowProps = {
 
 const FILTER_OPTIONS: { key: keyof StationFilters; label: string; icon?: boolean }[] = [
   { key: 'fast', label: 'Fast', icon: true },
-  { key: 'available', label: 'Available' },
   { key: 'tesla', label: 'Tesla' },
   { key: 'ccs', label: 'CCS' },
 ];

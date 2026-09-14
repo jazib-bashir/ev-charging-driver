@@ -8,6 +8,11 @@ export type FetchPublicStationsParams = {
   search?: string;
   city?: string;
   isPrimarySite?: boolean;
+  vehicleId?: string;
+  connectorType?: string;
+  isFastCharger?: boolean;
+  sortBy?: 'power' | 'price';
+  sortOrder?: 'asc' | 'desc';
   lat?: number;
   lng?: number;
   radius?: number;
@@ -65,6 +70,11 @@ export async function fetchPublicStations(
     search,
     city,
     isPrimarySite,
+    vehicleId,
+    connectorType,
+    isFastCharger,
+    sortBy,
+    sortOrder,
     lat,
     lng,
     radius,
@@ -88,6 +98,28 @@ export async function fetchPublicStations(
 
   if (typeof isPrimarySite === 'boolean') {
     query.set('isPrimarySite', String(isPrimarySite));
+  }
+
+  const trimmedVehicleId = vehicleId?.trim();
+  if (trimmedVehicleId) {
+    query.set('vehicleId', trimmedVehicleId);
+  }
+
+  const trimmedConnectorType = connectorType?.trim();
+  if (trimmedConnectorType) {
+    query.set('connectorType', trimmedConnectorType);
+  }
+
+  if (typeof isFastCharger === 'boolean') {
+    query.set('isFastCharger', String(isFastCharger));
+  }
+
+  if (sortBy === 'power' || sortBy === 'price') {
+    query.set('sortBy', sortBy);
+  }
+
+  if (sortOrder === 'asc' || sortOrder === 'desc') {
+    query.set('sortOrder', sortOrder);
   }
 
   const hasGeoTriplet =

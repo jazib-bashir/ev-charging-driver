@@ -11,6 +11,13 @@ module.exports = {
     ...(expo.plugins ?? []),
     'expo-secure-store',
     [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Allow GridFlow to use your location to find nearby chargers.',
+      },
+    ],
+    [
       'react-native-maps',
       {
         androidGoogleMapsApiKey: googleMapsApiKey,
@@ -20,6 +27,11 @@ module.exports = {
   ],
   ios: {
     ...expo.ios,
+    infoPlist: {
+      ...expo.ios?.infoPlist,
+      NSLocationWhenInUseUsageDescription:
+        'Allow GridFlow to use your location to find nearby chargers.',
+    },
     config: {
       ...expo.ios?.config,
       googleMapsApiKey,
@@ -27,6 +39,11 @@ module.exports = {
   },
   android: {
     ...expo.android,
+    permissions: [
+      ...(expo.android?.permissions ?? []),
+      'ACCESS_COARSE_LOCATION',
+      'ACCESS_FINE_LOCATION',
+    ],
     config: {
       ...expo.android?.config,
       googleMaps: {

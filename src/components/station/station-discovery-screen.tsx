@@ -1,6 +1,7 @@
 import { router, type Href } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
+import { useAuth } from '@/auth/auth-context';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { SearchInput } from '@/components/ui/search-input';
 import type { ViewMode } from '@/components/ui/view-toggle';
@@ -21,6 +22,8 @@ type StationDiscoveryScreenProps = {
 export function StationDiscoveryScreen({
   initialViewMode = 'list',
 }: StationDiscoveryScreenProps) {
+  const { token } = useAuth();
+
   const {
     searchQuery,
     setSearchQuery,
@@ -110,6 +113,7 @@ export function StationDiscoveryScreen({
         onApplyFilters={applyAdvancedFilters}
         onClearAll={clearAllFilters}
         stationCount={totalCount}
+        authToken={token}
       />
     </ScreenContainer>
   );

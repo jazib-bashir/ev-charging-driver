@@ -84,7 +84,7 @@ function StationErrorState({ onRetry }: { onRetry: () => void }) {
 function showBookingComingSoonAlert() {
   Alert.alert(
     'Booking coming soon',
-    'Booking will be available once backend support is ready.',
+    'Booking will be available soon.',
   );
 }
 

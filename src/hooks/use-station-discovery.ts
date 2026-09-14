@@ -3,24 +3,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchPublicStations } from '@/api/publicStations';
 import type { ViewMode } from '@/components/ui/view-toggle';
 import type { PublicStationFilterState, Station } from '@/types/station';
-import {
-  applyStationFilters,
-  type StationFilters,
-} from '@/utils/station';
+import { GeolocationError, getCurrentCoordinates } from '@/utils/geolocation';
+import type { StationFilters } from '@/utils/station';
 
-const DEFAULT_FILTERS: StationFilters = {
-  fast: false,
-  available: false,
-  tesla: false,
-  ccs: false,
-};
-
-const DEFAULT_ADVANCED_FILTERS: PublicStationFilterState = {
+const EMPTY_ADVANCED_FILTERS: PublicStationFilterState = {
   radiusKm: null,
   city: null,
   isPrimarySite: null,
-  lat: 31.4697,
-  lng: 74.2728,
+  lat: null,
+  lng: null,
+  connectorTypes: null,
+  isFastCharger: null,
+  vehicleId: null,
+  sortBy: null,
+  sortOrder: null,
 };
 
 const PAGE_LIMIT = 20;
@@ -30,14 +26,28 @@ type UseStationDiscoveryOptions = {
   initialViewMode?: ViewMode;
 };
 
+function toggleConnectorType(
+  current: string[] | null | undefined,
+  connector: string,
+  enabled: boolean,
+): string[] | null {
+  const list = current ?? [];
+  if (enabled) {
+    if (list.includes(connector)) return list.length > 0 ? list : null;
+    const next = [...list, connector];
+    return next.length > 0 ? next : null;
+  }
+  const next = list.filter((item) => item !== connector);
+  return next.length > 0 ? next : null;
+}
+
 export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
   const { initialViewMode = 'list' } = options;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filters, setFilters] = useState<StationFilters>(DEFAULT_FILTERS);
   const [advancedFilters, setAdvancedFilters] =
-    useState<PublicStationFilterState>(DEFAULT_ADVANCED_FILTERS);
+    useState<PublicStationFilterState>(EMPTY_ADVANCED_FILTERS);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [stations, setStations] = useState<Station[]>([]);
@@ -48,6 +58,7 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const requestIdRef = useRef(0);
   const isLoadingMoreRef = useRef(false);
@@ -93,12 +104,16 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
         const hasRadius =
           typeof currentAdvancedFilters.radiusKm === 'number' &&
           currentAdvancedFilters.radiusKm > 0;
-        const lat = hasRadius
-          ? (currentAdvancedFilters.lat ?? DEFAULT_ADVANCED_FILTERS.lat ?? undefined)
-          : undefined;
-        const lng = hasRadius
-          ? (currentAdvancedFilters.lng ?? DEFAULT_ADVANCED_FILTERS.lng ?? undefined)
-          : undefined;
+        const hasCoords =
+          typeof currentAdvancedFilters.lat === 'number' &&
+          Number.isFinite(currentAdvancedFilters.lat) &&
+          typeof currentAdvancedFilters.lng === 'number' &&
+          Number.isFinite(currentAdvancedFilters.lng);
+
+        const lat = hasRadius && hasCoords ? currentAdvancedFilters.lat! : undefined;
+        const lng = hasRadius && hasCoords ? currentAdvancedFilters.lng! : undefined;
+
+        const connectorTypes = (currentAdvancedFilters.connectorTypes ?? []).filter(Boolean);
 
         const response = await fetchPublicStations({
           limit: PAGE_LIMIT,
@@ -110,9 +125,19 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
             typeof currentAdvancedFilters.isPrimarySite === 'boolean'
               ? currentAdvancedFilters.isPrimarySite
               : undefined,
+          vehicleId: currentAdvancedFilters.vehicleId || undefined,
+          connectorType: connectorTypes.length > 0 ? connectorTypes.join(',') : undefined,
+          isFastCharger:
+            typeof currentAdvancedFilters.isFastCharger === 'boolean'
+              ? currentAdvancedFilters.isFastCharger
+              : undefined,
+          sortBy: currentAdvancedFilters.sortBy || undefined,
+          sortOrder: currentAdvancedFilters.sortBy
+            ? currentAdvancedFilters.sortOrder || undefined
+            : undefined,
           lat,
           lng,
-          radius: hasRadius ? (currentAdvancedFilters.radiusKm ?? undefined) : undefined,
+          radius: hasRadius && hasCoords ? currentAdvancedFilters.radiusKm! : undefined,
         });
 
         if (requestId !== requestIdRef.current) {
@@ -161,16 +186,42 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
     });
   }, [debouncedSearch, advancedFilters, loadStations]);
 
-  const filteredStations = useMemo(
-    () => applyStationFilters(stations, '', filters),
-    [stations, filters],
-  );
+  const toggleFilter = useCallback((key: keyof StationFilters) => {
+    if (key === 'fast') {
+      setAdvancedFilters((prev) => {
+        const nextIsFastCharger = prev.isFastCharger === true ? null : true;
+        return {
+          ...prev,
+          isFastCharger: nextIsFastCharger,
+        };
+      });
+      return;
+    }
 
-  const toggleFilter = (key: keyof StationFilters) => {
-    setFilters((current) => ({ ...current, [key]: !current[key] }));
-  };
+    if (key === 'tesla') {
+      setAdvancedFilters((prev) => {
+        const enabled = !(prev.connectorTypes ?? []).includes('NACS');
+        return {
+          ...prev,
+          connectorTypes: toggleConnectorType(prev.connectorTypes, 'NACS', enabled),
+        };
+      });
+      return;
+    }
+
+    if (key === 'ccs') {
+      setAdvancedFilters((prev) => {
+        const enabled = !(prev.connectorTypes ?? []).includes('CCS2');
+        return {
+          ...prev,
+          connectorTypes: toggleConnectorType(prev.connectorTypes, 'CCS2', enabled),
+        };
+      });
+    }
+  }, []);
 
   const applyAdvancedFilters = useCallback((newFilters: PublicStationFilterState) => {
+    setLocationError(null);
     setAdvancedFilters((prev) => ({
       ...prev,
       ...newFilters,
@@ -186,26 +237,31 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
   }, []);
 
   const clearAllFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTERS);
-    setAdvancedFilters({
-      radiusKm: null,
-      city: null,
-      isPrimarySite: null,
-      lat: DEFAULT_ADVANCED_FILTERS.lat,
-      lng: DEFAULT_ADVANCED_FILTERS.lng,
-    });
+    setAdvancedFilters(EMPTY_ADVANCED_FILTERS);
+    setLocationError(null);
     setSearchQuery('');
     setDebouncedSearch('');
   }, []);
 
-  const searchNearby = useCallback(() => {
-    setAdvancedFilters((prev) => ({
-      ...prev,
-      radiusKm: 10,
-      lat: DEFAULT_ADVANCED_FILTERS.lat,
-      lng: DEFAULT_ADVANCED_FILTERS.lng,
-      city: null,
-    }));
+  const searchNearby = useCallback(async () => {
+    setLocationError(null);
+    try {
+      const coords = await getCurrentCoordinates();
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        radiusKm: 10,
+        lat: coords.lat,
+        lng: coords.lng,
+        city: null,
+      }));
+    } catch (err) {
+      const message =
+        err instanceof GeolocationError
+          ? err.message
+          : 'Unable to read your current location. Please try again.';
+      setLocationError(message);
+      setError(message);
+    }
   }, []);
 
   const refresh = useCallback(() => {
@@ -249,24 +305,39 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
     });
   }, [debouncedSearch, advancedFilters, loadStations]);
 
+  const quickChipState: StationFilters = useMemo(
+    () => ({
+      fast: Boolean(advancedFilters.isFastCharger),
+      tesla: (advancedFilters.connectorTypes ?? []).includes('NACS'),
+      ccs: (advancedFilters.connectorTypes ?? []).includes('CCS2'),
+    }),
+    [advancedFilters.connectorTypes, advancedFilters.isFastCharger],
+  );
+
   const hasActiveSearch = debouncedSearch.length > 0;
-  const hasActiveQuickFilters = Object.values(filters).some(Boolean);
   const hasActiveAdvancedFilters = Boolean(
     advancedFilters.radiusKm ||
-    advancedFilters.city ||
-    typeof advancedFilters.isPrimarySite === 'boolean',
+      advancedFilters.city ||
+      typeof advancedFilters.isPrimarySite === 'boolean' ||
+      typeof advancedFilters.isFastCharger === 'boolean' ||
+      (advancedFilters.connectorTypes && advancedFilters.connectorTypes.length > 0) ||
+      advancedFilters.vehicleId ||
+      advancedFilters.sortBy,
   );
 
   const activeFilterCount =
-    (Object.values(filters).filter(Boolean).length) +
     (advancedFilters.radiusKm ? 1 : 0) +
     (advancedFilters.city ? 1 : 0) +
-    (typeof advancedFilters.isPrimarySite === 'boolean' ? 1 : 0);
+    (typeof advancedFilters.isPrimarySite === 'boolean' ? 1 : 0) +
+    (typeof advancedFilters.isFastCharger === 'boolean' ? 1 : 0) +
+    (advancedFilters.connectorTypes?.length ? 1 : 0) +
+    (advancedFilters.vehicleId ? 1 : 0) +
+    (advancedFilters.sortBy ? 1 : 0);
 
   return {
     searchQuery,
     setSearchQuery,
-    filters,
+    filters: quickChipState,
     toggleFilter,
     advancedFilters,
     applyAdvancedFilters,
@@ -277,20 +348,20 @@ export function useStationDiscovery(options: UseStationDiscoveryOptions = {}) {
     searchNearby,
     viewMode,
     setViewMode,
-    stations: filteredStations,
+    stations,
     allStations: stations,
-    totalCount: totalCount ?? filteredStations.length,
+    totalCount: totalCount ?? stations.length,
     isInitialLoading,
     isRefreshing,
     isLoadingMore,
     error,
+    locationError,
     hasMore,
     hasActiveSearch,
-    hasActiveFilters: hasActiveQuickFilters || hasActiveAdvancedFilters,
+    hasActiveFilters: hasActiveAdvancedFilters,
     activeFilterCount,
     refresh,
     loadMore,
     retry,
   };
 }
-

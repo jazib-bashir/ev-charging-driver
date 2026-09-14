@@ -6,21 +6,30 @@ export const DISTANCE_OPTIONS = [
   { label: '100km', value: 100 },
 ];
 
-export const DEFAULT_FALLBACK_CITIES = [
-  'New York',
-  'Los Angeles',
-  'Chicago',
-  'Houston',
-  'Phoenix',
-  'Philadelphia',
-  'San Antonio',
+export const PAKISTAN_CITIES = [
+  'Karachi',
+  'Lahore',
+  'Islamabad',
+  'Rawalpindi',
+  'Faisalabad',
+  'Multan',
+  'Peshawar',
+  'Gujranwala',
+  'Hyderabad',
+  'Quetta',
+  'Sialkot',
+  'Bahawalpur',
 ];
 
+/** Default city chips for the driver app (Pakistan). */
+export const DEFAULT_FALLBACK_CITIES = PAKISTAN_CITIES;
+
 /**
- * Determines the country based on coordinates and returns the 7 largest/popular cities.
+ * Returns popular cities for the filter sheet.
+ * Defaults to Pakistani cities; still switches by coords when available.
  */
 export function getPopularCitiesByLocation(lat?: number | null, lng?: number | null): string[] {
-  let countryCode = 'US';
+  let countryCode = 'PK';
 
   if (typeof lat === 'number' && typeof lng === 'number') {
     if (lat >= 23 && lat <= 37 && lng >= 61 && lng <= 78) {
@@ -31,20 +40,12 @@ export function getPopularCitiesByLocation(lat?: number | null, lng?: number | n
       countryCode = 'UK';
     } else if (lat >= 35 && lat <= 46 && lng >= 129 && lng <= 146) {
       countryCode = 'JP';
+    } else if (lat >= 24 && lat <= 50 && lng >= -125 && lng <= -66) {
+      countryCode = 'US';
     }
   }
 
   switch (countryCode) {
-    case 'PK':
-      return [
-        'Karachi',
-        'Lahore',
-        'Faisalabad',
-        'Rawalpindi',
-        'Gujranwala',
-        'Peshawar',
-        'Multan',
-      ];
     case 'AU':
       return [
         'Sydney',
@@ -76,13 +77,23 @@ export function getPopularCitiesByLocation(lat?: number | null, lng?: number | n
         'Kobe',
       ];
     case 'US':
+      return [
+        'New York',
+        'Los Angeles',
+        'Chicago',
+        'Houston',
+        'Phoenix',
+        'Philadelphia',
+        'San Antonio',
+      ];
+    case 'PK':
     default:
-      return DEFAULT_FALLBACK_CITIES;
+      return PAKISTAN_CITIES;
   }
 }
 
 /**
- * Async wrapper used by the filter sheet to load nearby popular cities.
+ * Async wrapper used by the filter sheet to load city chips.
  */
 export async function getCitiesForUser(
   lat?: number | null,

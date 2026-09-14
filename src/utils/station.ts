@@ -89,7 +89,6 @@ export function formatChargerAvailability(station: Station): string | null {
 
 export type StationFilters = {
   fast: boolean;
-  available: boolean;
   tesla: boolean;
   ccs: boolean;
 };
@@ -109,36 +108,4 @@ export function matchesSearch(station: Station, query: string): boolean {
   ];
 
   return fields.some((field) => field?.toLowerCase().includes(normalized));
-}
-
-export function applyStationFilters(
-  stations: Station[],
-  searchQuery: string,
-  filters: StationFilters,
-): Station[] {
-  return stations.filter((station) => {
-    if (!matchesSearch(station, searchQuery)) return false;
-
-    if (filters.available && station.setupStatus !== 'completed') {
-      return false;
-    }
-
-    if (filters.fast && !hasValue(station.maxPowerKw)) {
-      return false;
-    }
-
-    if (filters.tesla) {
-      const connectors = station.connectors ?? [];
-      const hasTesla = connectors.some((c) => c.type.toLowerCase().includes('tesla'));
-      if (!hasTesla) return false;
-    }
-
-    if (filters.ccs) {
-      const connectors = station.connectors ?? [];
-      const hasCcs = connectors.some((c) => c.type.toLowerCase().includes('ccs'));
-      if (!hasCcs) return false;
-    }
-
-    return true;
-  });
 }

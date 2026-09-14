@@ -15,9 +15,12 @@ export function SearchInput({
   activeFilterCount = 0,
   placeholderTextColor = theme.colors.textMuted,
   style,
+  value,
+  onChangeText,
   ...props
 }: SearchInputProps) {
   const hasActiveFilters = activeFilterCount > 0;
+  const hasText = typeof value === 'string' && value.length > 0;
 
   return (
     <View style={styles.container}>
@@ -27,10 +30,22 @@ export function SearchInput({
         placeholderTextColor={placeholderTextColor}
         autoCapitalize="none"
         autoCorrect={false}
-        clearButtonMode="while-editing"
         returnKeyType="search"
+        value={value}
+        onChangeText={onChangeText}
         {...props}
       />
+      {hasText && (
+        <Pressable
+          onPress={() => onChangeText?.('')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+          style={styles.clearButton}
+        >
+          <Icon name="close" size={16} color={theme.colors.textMuted} />
+        </Pressable>
+      )}
       {showFilterIcon && (
         <Pressable
           onPress={onFilterPress}
@@ -74,6 +89,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textPrimary,
     padding: 0,
+  },
+  clearButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.iconBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterButton: {
     position: 'relative',
