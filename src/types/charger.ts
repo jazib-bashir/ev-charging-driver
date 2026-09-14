@@ -1,3 +1,10 @@
+export type ChargerConnector = {
+  id: string;
+  connectorType: string;
+  connectorNumber?: number | null;
+  displayName?: string | null;
+};
+
 export type Charger = {
   id: string;
   organizationId?: string;
@@ -14,9 +21,11 @@ export type Charger = {
   model?: string | null;
   maxPowerKw?: number | null;
   pricePerKwh?: number | null;
+  effectivePricePerKwh?: number | null;
   completedAt?: string | null;
   statusLabel?: string | null;
   statusEstimate?: string | null;
+  connectors?: ChargerConnector[];
 };
 
 export type ChargersResponse = {

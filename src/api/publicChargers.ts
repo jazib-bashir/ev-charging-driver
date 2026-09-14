@@ -1,5 +1,5 @@
 import { env } from '@/config/env';
-import type { Charger, ChargersResponse } from '@/types/charger';
+import type { Charger, ChargerConnector, ChargersResponse } from '@/types/charger';
 
 export class PublicChargersApiError extends Error {
   constructor(message: string) {
@@ -8,7 +8,19 @@ export class PublicChargersApiError extends Error {
   }
 }
 
+function mapConnector(raw: Record<string, unknown>): ChargerConnector {
+  return {
+    id: String(raw.id ?? ''),
+    connectorType: String(raw.connectorType ?? ''),
+    connectorNumber:
+      typeof raw.connectorNumber === 'number' ? raw.connectorNumber : null,
+    displayName: (raw.displayName as string | null | undefined) ?? null,
+  };
+}
+
 export function mapApiCharger(raw: Record<string, unknown>): Charger {
+  const rawConnectors = Array.isArray(raw.connectors) ? raw.connectors : [];
+
   return {
     id: String(raw.id ?? ''),
     organizationId: raw.organizationId as string | undefined,
@@ -25,9 +37,13 @@ export function mapApiCharger(raw: Record<string, unknown>): Charger {
     model: raw.model as string | null | undefined,
     maxPowerKw: raw.maxPowerKw as number | null | undefined,
     pricePerKwh: raw.pricePerKwh as number | null | undefined,
+    effectivePricePerKwh: raw.effectivePricePerKwh as number | null | undefined,
     completedAt: raw.completedAt as string | null | undefined,
     statusLabel: raw.statusLabel as string | null | undefined,
     statusEstimate: raw.statusEstimate as string | null | undefined,
+    connectors: rawConnectors.map((item) =>
+      mapConnector(item as Record<string, unknown>),
+    ),
   };
 }
 
@@ -80,4 +96,28 @@ export async function fetchPublicChargers(
       hasMore: Boolean(rawPagination?.hasMore),
     },
   };
+}
+
+export async function fetchPublicCharger(chargerId: string): Promise<Charger> {
+  const url = `${env.apiBaseUrl}/api/public/chargers/${encodeURIComponent(chargerId)}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new PublicChargersApiError('Network request failed');
+  }
+
+  if (!response.ok) {
+    throw new PublicChargersApiError(`Request failed with status ${response.status}`);
+  }
+
+  let json: Record<string, unknown>;
+  try {
+    json = await response.json();
+  } catch {
+    throw new PublicChargersApiError('Invalid response from server');
+  }
+
+  return mapApiCharger(json);
 }

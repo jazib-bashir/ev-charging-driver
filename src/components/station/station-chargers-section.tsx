@@ -17,14 +17,17 @@ type StationChargersSectionProps = {
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onViewCharger: (charger: Charger) => void;
 };
 
 function ChargerRow({
   charger,
   index,
+  onViewCharger,
 }: {
   charger: Charger;
   index: number;
+  onViewCharger: (charger: Charger) => void;
 }) {
   const status = getChargerStatus(charger);
   const estimate = formatChargerEstimate(charger);
@@ -65,10 +68,11 @@ function ChargerRow({
               styles.selectButton,
               pressed && styles.selectButtonPressed,
             ]}
+            onPress={() => onViewCharger(charger)}
             accessibilityRole="button"
-            accessibilityLabel={`Select ${getChargerDisplayName(charger)}`}
+            accessibilityLabel={`View ${getChargerDisplayName(charger)}`}
           >
-            <Text style={styles.selectButtonText}>Select</Text>
+            <Text style={styles.selectButtonText}>View</Text>
           </Pressable>
         ) : estimate ? (
           <Text style={styles.estimateText}>{estimate}</Text>
@@ -83,6 +87,7 @@ export function StationChargersSection({
   isLoading,
   isError,
   onRetry,
+  onViewCharger,
 }: StationChargersSectionProps) {
   const groups = groupChargersByType(chargers);
   let globalIndex = 0;
@@ -142,6 +147,7 @@ export function StationChargersSection({
                     <ChargerRow
                       charger={charger}
                       index={groupStartIndex + chargerIndex}
+                      onViewCharger={onViewCharger}
                     />
                   </View>
                 ))}

@@ -9,6 +9,7 @@ module.exports = {
   ...expo,
   plugins: [
     ...(expo.plugins ?? []),
+    'expo-secure-store',
     [
       'react-native-maps',
       {

@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,11 +11,14 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
+import { useAuth } from '@/auth/auth-context';
 import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationImageSource } from '@/data/station-images';
 import { useStationDetails } from '@/hooks/use-station-details';
 import { theme } from '@/theme';
+import type { Charger } from '@/types/charger';
 import {
   formatDetailDistance,
   formatDetailPricePerKwh,
@@ -25,6 +30,7 @@ import {
   hasValue,
 } from '@/utils/station';
 
+import { ChargerDetailsSheet } from './charger-details-sheet';
 import { StationAmenitiesSection } from './station-amenities-section';
 import { StationChargersSection } from './station-chargers-section';
 import { StationDetailsHeader } from './station-details-header';
@@ -36,6 +42,8 @@ const HERO_HEIGHT = 220;
 
 type StationDetailsScreenProps = {
   stationId: string;
+  resumeChargerId?: string;
+  resumeBooking?: boolean;
 };
 
 function StationNotFoundState({ onBack }: { onBack: () => void }) {
@@ -73,9 +81,26 @@ function StationErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function StationDetailsContent({ stationId }: StationDetailsScreenProps) {
+function showBookingComingSoonAlert() {
+  Alert.alert(
+    'Booking coming soon',
+    'Booking will be available once backend support is ready.',
+  );
+}
+
+function StationDetailsContent({
+  stationId,
+  resumeChargerId,
+  resumeBooking = false,
+}: StationDetailsScreenProps) {
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_BREAKPOINT;
+  const {
+    ensureAuthenticatedUser,
+    setPendingBooking,
+    refreshUser,
+    isLoading: isAuthLoading,
+  } = useAuth();
 
   const {
     station,
@@ -89,6 +114,11 @@ function StationDetailsContent({ stationId }: StationDetailsScreenProps) {
     retryChargers,
   } = useStationDetails(stationId);
 
+  const [selectedCharger, setSelectedCharger] = useState<Charger | null>(null);
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const resumeHandledRef = useRef(false);
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -97,6 +127,152 @@ function StationDetailsContent({ stationId }: StationDetailsScreenProps) {
 
     router.replace('/');
   };
+
+  const openChargerSheet = useCallback((charger: Charger) => {
+    setSelectedCharger(charger);
+    setIsSheetVisible(true);
+  }, []);
+
+  const closeChargerSheet = useCallback(() => {
+    setIsSheetVisible(false);
+  }, []);
+
+  const completeBookingPlaceholder = useCallback(() => {
+    setPendingBooking(null);
+    showBookingComingSoonAlert();
+  }, [setPendingBooking]);
+
+  const handleBook = useCallback(async () => {
+    if (!selectedCharger || isBooking) {
+      return;
+    }
+
+    setPendingBooking({
+      stationId,
+      chargerId: selectedCharger.id,
+    });
+    setIsBooking(true);
+
+    try {
+      let user = await ensureAuthenticatedUser();
+
+      if (!user) {
+        setIsSheetVisible(false);
+        router.push('/auth' as Href);
+        return;
+      }
+
+      user = (await refreshUser()) ?? user;
+
+      if (!user) {
+        Alert.alert(
+          'Unable to book',
+          'We could not verify your account. Please try again.',
+        );
+        return;
+      }
+
+      if (!resolveIsOnboarded(user)) {
+        setIsSheetVisible(false);
+        router.push('/auth/onboarding' as Href);
+        return;
+      }
+
+      if (!resolveHasDefaultVehicle(user)) {
+        setIsSheetVisible(false);
+        router.push('/auth/vehicles' as Href);
+        return;
+      }
+
+      completeBookingPlaceholder();
+    } catch {
+      Alert.alert(
+        'Unable to book',
+        'Something went wrong while starting your booking. Please try again.',
+      );
+    } finally {
+      setIsBooking(false);
+    }
+  }, [
+    selectedCharger,
+    isBooking,
+    stationId,
+    setPendingBooking,
+    ensureAuthenticatedUser,
+    refreshUser,
+    completeBookingPlaceholder,
+  ]);
+
+  useEffect(() => {
+    if (
+      resumeHandledRef.current ||
+      !resumeBooking ||
+      !resumeChargerId ||
+      isAuthLoading ||
+      isChargersLoading ||
+      chargers.length === 0
+    ) {
+      return;
+    }
+
+    const charger = chargers.find((item) => item.id === resumeChargerId);
+    if (!charger) {
+      resumeHandledRef.current = true;
+      setPendingBooking(null);
+      return;
+    }
+
+    resumeHandledRef.current = true;
+    openChargerSheet(charger);
+
+    (async () => {
+      try {
+        let user = await ensureAuthenticatedUser();
+        if (!user) {
+          router.push('/auth' as Href);
+          return;
+        }
+
+        user = (await refreshUser()) ?? user;
+
+        if (!user) {
+          Alert.alert(
+            'Unable to book',
+            'We could not verify your account. Please try again.',
+          );
+          return;
+        }
+
+        if (!resolveIsOnboarded(user)) {
+          router.push('/auth/onboarding' as Href);
+          return;
+        }
+
+        if (!resolveHasDefaultVehicle(user)) {
+          router.push('/auth/vehicles' as Href);
+          return;
+        }
+
+        completeBookingPlaceholder();
+      } catch {
+        Alert.alert(
+          'Unable to book',
+          'Something went wrong while starting your booking. Please try again.',
+        );
+      }
+    })();
+  }, [
+    resumeBooking,
+    resumeChargerId,
+    isAuthLoading,
+    isChargersLoading,
+    chargers,
+    openChargerSheet,
+    ensureAuthenticatedUser,
+    refreshUser,
+    completeBookingPlaceholder,
+    setPendingBooking,
+  ]);
 
   if (isStationLoading) {
     return (
@@ -224,14 +400,25 @@ function StationDetailsContent({ stationId }: StationDetailsScreenProps) {
           isLoading={isChargersLoading}
           isError={isChargersError}
           onRetry={retryChargers}
+          onViewCharger={openChargerSheet}
         />
       </ScrollView>
+
+      <ChargerDetailsSheet
+        visible={isSheetVisible}
+        charger={selectedCharger}
+        stationName={station.name}
+        stationDefaultPricePerKwh={station.defaultPricePerKwh}
+        isBooking={isBooking}
+        onClose={closeChargerSheet}
+        onBook={handleBook}
+      />
     </ScreenContainer>
   );
 }
 
-export function StationDetailsScreen({ stationId }: StationDetailsScreenProps) {
-  return <StationDetailsContent stationId={stationId} />;
+export function StationDetailsScreen(props: StationDetailsScreenProps) {
+  return <StationDetailsContent {...props} />;
 }
 
 const styles = StyleSheet.create({
