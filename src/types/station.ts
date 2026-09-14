@@ -46,3 +46,11 @@ export type StationsResponse = {
     hasMore: boolean;
   };
 };
+
+export type PublicStationFilterState = {
+  radiusKm?: number | null;
+  city?: string | null;
+  isPrimarySite?: boolean | null;
+  lat?: number | null;
+  lng?: number | null;
+};

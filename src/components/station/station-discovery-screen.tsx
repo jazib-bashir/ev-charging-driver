@@ -1,12 +1,13 @@
 import { StyleSheet } from 'react-native';
 
 import { EmptyState } from '@/components/ui/empty-state';
-import { SearchInput } from '@/components/ui/search-input';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
+import { SearchInput } from '@/components/ui/search-input';
+import type { ViewMode } from '@/components/ui/view-toggle';
 import { useStationDiscovery } from '@/hooks/use-station-discovery';
 import { theme } from '@/theme';
-import type { ViewMode } from '@/components/ui/view-toggle';
 
+import { FilterBottomSheet } from './filter-bottom-sheet';
 import { FilterRow } from './filter-row';
 import { StationErrorState } from './station-error-state';
 import { StationHeader } from './station-header';
@@ -26,10 +27,18 @@ export function StationDiscoveryScreen({
     setSearchQuery,
     filters,
     toggleFilter,
+    advancedFilters,
+    applyAdvancedFilters,
+    isFilterSheetOpen,
+    openFilterSheet,
+    closeFilterSheet,
+    clearAllFilters,
+    searchNearby,
     viewMode,
     setViewMode,
     stations,
     allStations,
+    totalCount,
     isInitialLoading,
     isRefreshing,
     isLoadingMore,
@@ -37,6 +46,7 @@ export function StationDiscoveryScreen({
     hasMore,
     hasActiveSearch,
     hasActiveFilters,
+    activeFilterCount,
     refresh,
     loadMore,
     retry,
@@ -55,12 +65,19 @@ export function StationDiscoveryScreen({
       if (stations.length === 0) {
         return (
           <EmptyState
-            title={hasActiveSearch || hasActiveFilters ? 'No stations found' : 'No charging stations found'}
+            title="No Stations Found"
             message={
               hasActiveSearch || hasActiveFilters
-                ? 'Try adjusting your search or filters.'
+                ? 'Try adjusting your filters or searching in a different area to find a place to charge.'
                 : 'Check back later for newly added charging locations.'
             }
+            iconName="search-off"
+            primaryActionLabel={
+              hasActiveSearch || hasActiveFilters ? 'Clear All Filters' : undefined
+            }
+            onPrimaryAction={clearAllFilters}
+            secondaryActionLabel="Search Nearby"
+            onSecondaryAction={searchNearby}
           />
         );
       }
@@ -78,6 +95,8 @@ export function StationDiscoveryScreen({
         hasActiveFilters={hasActiveFilters}
         onRefresh={refresh}
         onEndReached={loadMore}
+        onClearAllFilters={clearAllFilters}
+        onSearchNearby={searchNearby}
       />
     );
   };
@@ -89,6 +108,8 @@ export function StationDiscoveryScreen({
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Search charging stations..."
+        onFilterPress={openFilterSheet}
+        activeFilterCount={activeFilterCount}
       />
       <FilterRow
         filters={filters}
@@ -100,6 +121,15 @@ export function StationDiscoveryScreen({
       <ScreenContent style={styles.contentArea}>
         {renderContent()}
       </ScreenContent>
+
+      <FilterBottomSheet
+        visible={isFilterSheetOpen}
+        onClose={closeFilterSheet}
+        appliedFilters={advancedFilters}
+        onApplyFilters={applyAdvancedFilters}
+        onClearAll={clearAllFilters}
+        stationCount={totalCount}
+      />
     </ScreenContainer>
   );
 }

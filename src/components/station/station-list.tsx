@@ -22,6 +22,8 @@ type StationListProps = {
   hasActiveFilters?: boolean;
   onRefresh?: () => void;
   onEndReached?: () => void;
+  onClearAllFilters?: () => void;
+  onSearchNearby?: () => void;
 };
 
 const TABLET_BREAKPOINT = 768;
@@ -35,22 +37,28 @@ export function StationList({
   hasActiveFilters = false,
   onRefresh,
   onEndReached,
+  onClearAllFilters,
+  onSearchNearby,
 }: StationListProps) {
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_BREAKPOINT;
 
   if (stations.length === 0) {
-    const title = hasActiveSearch || hasActiveFilters
-      ? 'No stations found'
-      : 'No charging stations found';
-    const message = hasActiveSearch || hasActiveFilters
-      ? 'Try adjusting your search or filters.'
-      : 'Check back later for newly added charging locations.';
-
     return (
       <EmptyState
-        title={title}
-        message={message}
+        title="No Stations Found"
+        message={
+          hasActiveSearch || hasActiveFilters
+            ? 'Try adjusting your filters or searching in a different area to find a place to charge.'
+            : 'Check back later for newly added charging locations.'
+        }
+        iconName="search-off"
+        primaryActionLabel={
+          hasActiveSearch || hasActiveFilters ? 'Clear All Filters' : undefined
+        }
+        onPrimaryAction={onClearAllFilters}
+        secondaryActionLabel="Search Nearby"
+        onSecondaryAction={onSearchNearby}
       />
     );
   }

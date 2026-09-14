@@ -6,6 +6,11 @@ export type FetchPublicStationsParams = {
   offset?: number;
   all?: boolean;
   search?: string;
+  city?: string;
+  isPrimarySite?: boolean;
+  lat?: number;
+  lng?: number;
+  radius?: number;
 };
 
 export class PublicStationsApiError extends Error {
@@ -58,6 +63,11 @@ export async function fetchPublicStations(
     offset = 0,
     all = false,
     search,
+    city,
+    isPrimarySite,
+    lat,
+    lng,
+    radius,
   } = params;
 
   const query = new URLSearchParams({
@@ -69,6 +79,30 @@ export async function fetchPublicStations(
   const trimmedSearch = search?.trim();
   if (trimmedSearch) {
     query.set('search', trimmedSearch);
+  }
+
+  const trimmedCity = city?.trim();
+  if (trimmedCity) {
+    query.set('city', trimmedCity);
+  }
+
+  if (typeof isPrimarySite === 'boolean') {
+    query.set('isPrimarySite', String(isPrimarySite));
+  }
+
+  const hasGeoTriplet =
+    typeof lat === 'number' &&
+    Number.isFinite(lat) &&
+    typeof lng === 'number' &&
+    Number.isFinite(lng) &&
+    typeof radius === 'number' &&
+    Number.isFinite(radius) &&
+    radius > 0;
+
+  if (hasGeoTriplet) {
+    query.set('lat', String(lat));
+    query.set('lng', String(lng));
+    query.set('radius', String(radius));
   }
 
   const url = `${env.apiBaseUrl}/api/public/stations?${query.toString()}`;
