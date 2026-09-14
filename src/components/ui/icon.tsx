@@ -25,7 +25,11 @@ export type IconName =
   | 'coffee'
   | 'dining'
   | 'restroom'
-  | 'car';
+  | 'car'
+  | 'close'
+  | 'locate'
+  | 'check'
+  | 'search-off';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -51,6 +55,10 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   share: { family: 'ionicons', name: 'share-social-outline' },
   location: { family: 'ionicons', name: 'location-outline' },
   checkmark: { family: 'ionicons', name: 'checkmark-circle' },
+  check: { family: 'ionicons', name: 'checkmark' },
+  close: { family: 'ionicons', name: 'close' },
+  locate: { family: 'ionicons', name: 'locate-outline' },
+  'search-off': { family: 'material', name: 'magnify-close' },
   wifi: { family: 'ionicons', name: 'wifi' },
   coffee: { family: 'ionicons', name: 'cafe-outline' },
   dining: { family: 'ionicons', name: 'restaurant-outline' },

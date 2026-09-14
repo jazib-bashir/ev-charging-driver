@@ -1,18 +1,24 @@
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { theme } from '@/theme';
 
 type SearchInputProps = TextInputProps & {
   showFilterIcon?: boolean;
+  onFilterPress?: () => void;
+  activeFilterCount?: number;
 };
 
 export function SearchInput({
   showFilterIcon = true,
+  onFilterPress,
+  activeFilterCount = 0,
   placeholderTextColor = theme.colors.textMuted,
   style,
   ...props
 }: SearchInputProps) {
+  const hasActiveFilters = activeFilterCount > 0;
+
   return (
     <View style={styles.container}>
       <Icon name="search" size={18} color={theme.colors.textMuted} />
@@ -26,7 +32,24 @@ export function SearchInput({
         {...props}
       />
       {showFilterIcon && (
-        <Icon name="sliders" size={18} color={theme.colors.textMuted} />
+        <Pressable
+          onPress={onFilterPress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Open filters"
+          style={styles.filterButton}
+        >
+          <Icon
+            name="sliders"
+            size={18}
+            color={hasActiveFilters ? theme.colors.brandDark : theme.colors.textMuted}
+          />
+          {hasActiveFilters && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </Pressable>
       )}
     </View>
   );
@@ -51,5 +74,28 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textPrimary,
     padding: 0,
+  },
+  filterButton: {
+    position: 'relative',
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.brandDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: theme.colors.textInverse,
+    fontSize: 9,
+    fontWeight: theme.typography.fontWeight.bold,
   },
 });
