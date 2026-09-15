@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -28,6 +28,8 @@ import {
 import { useAuth } from '@/auth/auth-context';
 import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
 import { AuthScreenShell } from '@/components/auth/auth-screen-shell';
+import { LoginIllustration } from '@/components/auth/login-illustration';
+import { Icon } from '@/components/ui/icon';
 import {
   RequestStatusBanner,
   useRequestStatus,
@@ -37,30 +39,49 @@ import { theme } from '@/theme';
 type AuthStep = 'phone' | 'otp';
 
 const OTP_LENGTH = 6;
+const RESEND_COOLDOWN_SECONDS = 120;
+
+function formatResendCountdown(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 export function OtpAuthScreen() {
   const { setSession, pendingBooking } = useAuth();
   const otpInputRef = useRef<TextInputType>(null);
-  const { status, showError, showSuccess, clearStatus } = useRequestStatus(3000);
+  const { status, showError, clearStatus } = useRequestStatus(3000);
 
   const [step, setStep] = useState<AuthStep>('phone');
   const [localPhone, setLocalPhone] = useState('');
   const [e164Phone, setE164Phone] = useState('');
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
-  const [devAutoFilled, setDevAutoFilled] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
 
-  const title = step === 'phone' ? 'Phone number' : 'Enter OTP';
+  const title = step === 'phone' ? 'Phone number' : 'Verify Your Phone';
   const subtitle = useMemo(() => {
     if (step === 'phone') {
       return 'Enter your mobile number to continue.';
     }
 
-    return e164Phone
-      ? `Enter the verification code sent to ${maskE164ForDisplay(e164Phone)}.`
-      : 'Enter the verification code from your phone.';
-  }, [step, e164Phone]);
+    return undefined;
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 'otp' || resendIn <= 0) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setResendIn((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [step, resendIn]);
 
   const handlePhoneChange = (value: string) => {
     if (isSubmitting) {
@@ -86,7 +107,7 @@ export function OtpAuthScreen() {
     setStep('phone');
     setChallengeId(null);
     setOtpCode('');
-    setDevAutoFilled(false);
+    setResendIn(0);
     clearStatus();
   };
 
@@ -111,9 +132,34 @@ export function OtpAuthScreen() {
       setE164Phone(identifier);
       setChallengeId(response.challenge_id);
       setOtpCode(autoFill.slice(0, OTP_LENGTH));
-      setDevAutoFilled(Boolean(autoFill));
+      setResendIn(RESEND_COOLDOWN_SECONDS);
       setStep('otp');
-      showSuccess('Verification code sent. Enter it below to continue.');
+    } catch (err) {
+      const message =
+        err instanceof AuthApiError
+          ? err.message
+          : 'Unable to send verification code. Please try again.';
+      showError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (isSubmitting || resendIn > 0 || !e164Phone) {
+      return;
+    }
+
+    clearStatus();
+    setIsSubmitting(true);
+
+    try {
+      const response = await requestOtp(e164Phone);
+      const autoFill = getDevAutoFillOtp(response.code);
+
+      setChallengeId(response.challenge_id);
+      setOtpCode(autoFill.slice(0, OTP_LENGTH));
+      setResendIn(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       const message =
         err instanceof AuthApiError
@@ -184,12 +230,46 @@ export function OtpAuthScreen() {
     }
   };
 
+  const legalFooter =
+    step === 'phone' ? (
+      <Text style={styles.legalText}>
+        By continuing, you agree to GridFlow's{' '}
+        <Text style={styles.legalLink}>Terms of Service</Text> and{' '}
+        <Text style={styles.legalLink}>Privacy Policy</Text>.
+      </Text>
+    ) : (
+      <View style={styles.otpFooter}>
+        <AuthPrimaryButton
+          label="Verify & Continue →"
+          onPress={() => {
+            void handleOtpContinue();
+          }}
+          loading={isSubmitting}
+          disabled={otpCode.trim().length < 4 || !challengeId || isSubmitting}
+        />
+      </View>
+    );
+
   return (
     <AuthScreenShell
       title={title}
       subtitle={subtitle}
       showBack
+      showBrandBadge
+      centered={step === 'otp'}
+      hero={
+        step === 'phone' ? (
+          <LoginIllustration />
+        ) : (
+          <View style={styles.otpHero} pointerEvents="none">
+            <View style={styles.otpHeroBadge}>
+              <Icon name="bolt" size={28} color={theme.colors.brand} />
+            </View>
+          </View>
+        )
+      }
       onBack={step === 'otp' ? goBackToPhone : undefined}
+      footer={legalFooter}
     >
       {step === 'phone' ? (
         <View style={styles.stepBody}>
@@ -203,6 +283,11 @@ export function OtpAuthScreen() {
             <View style={styles.prefixChip}>
               <Text style={styles.flag}>🇵🇰</Text>
               <Text style={styles.dialCode}>{PAKISTAN_DIAL_CODE}</Text>
+              <Icon
+                name="chevron-down"
+                size={14}
+                color={theme.colors.textMuted}
+              />
             </View>
             <View style={styles.divider} />
             <TextInput
@@ -228,27 +313,39 @@ export function OtpAuthScreen() {
             loading={isSubmitting}
             disabled={!isValidPkMobile(localPhone) || isSubmitting}
           />
+          <View style={styles.smsHint}>
+            <Icon name="checkmark" size={16} color={theme.colors.brand} />
+            <Text style={styles.smsHintText}>
+              We'll send a 6-digit verification code via SMS.
+            </Text>
+          </View>
         </View>
       ) : (
         <View style={styles.stepBody}>
-          <Pressable
-            onPress={goBackToPhone}
-            disabled={isSubmitting}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Change phone number"
-          >
+          <Text style={styles.otpSentLine}>
+            We sent a 6-digit code to{'\n'}
+            <Text style={styles.otpPhone}>
+              {e164Phone
+                ? maskE164ForDisplay(e164Phone)
+                : 'your phone'}
+            </Text>{' '}
             <Text
+              onPress={() => {
+                if (!isSubmitting) {
+                  goBackToPhone();
+                }
+              }}
               style={[
-                styles.changeNumber,
-                isSubmitting && styles.changeNumberDisabled,
+                styles.editLink,
+                isSubmitting && styles.editLinkDisabled,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit phone number"
             >
-              Change phone number
+              Edit
             </Text>
-          </Pressable>
+          </Text>
 
-          <Text style={styles.fieldLabel}>OTP code</Text>
           <Pressable
             style={styles.otpBoxes}
             onPress={() => {
@@ -261,16 +358,18 @@ export function OtpAuthScreen() {
           >
             {Array.from({ length: OTP_LENGTH }).map((_, index) => {
               const digit = otpCode[index];
+              const isActive = otpCode.length === index;
               return (
                 <View
                   key={`otp-${index}`}
                   style={[
                     styles.otpBox,
                     digit ? styles.otpBoxFilled : null,
+                    isActive ? styles.otpBoxActive : null,
                     status?.tone === 'error' ? styles.otpBoxError : null,
                   ]}
                 >
-                  <Text style={styles.otpDigit}>{digit ? '*' : ''}</Text>
+                  <Text style={styles.otpDigit}>{digit ?? ''}</Text>
                 </View>
               );
             })}
@@ -285,27 +384,45 @@ export function OtpAuthScreen() {
             textContentType="oneTimeCode"
             autoComplete="one-time-code"
             maxLength={OTP_LENGTH}
-            secureTextEntry
             caretHidden
             autoFocus
             editable={!isSubmitting}
           />
 
-          <RequestStatusBanner status={status} />
-          {devAutoFilled ? (
-            <Text style={styles.devHint}>
-              Dev auto-fill enabled from API response. Replace with SMS OTP later.
-            </Text>
-          ) : null}
+          <Text style={styles.otpHint}>
+            Tap any slot or paste code from clipboard
+          </Text>
 
-          <AuthPrimaryButton
-            label="Continue"
-            onPress={() => {
-              void handleOtpContinue();
-            }}
-            loading={isSubmitting}
-            disabled={otpCode.trim().length < 4 || !challengeId || isSubmitting}
-          />
+          <View style={styles.resendCard}>
+            <Icon name="time" size={16} color={theme.colors.textMuted} />
+            <Text style={styles.resendPrompt}>Didn't receive the code?</Text>
+            {resendIn > 0 ? (
+              <Text style={styles.resendWait}>
+                Resend in {formatResendCountdown(resendIn)}
+              </Text>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  void handleResendCode();
+                }}
+                disabled={isSubmitting}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Resend verification code"
+              >
+                <Text
+                  style={[
+                    styles.resendAction,
+                    isSubmitting && styles.editLinkDisabled,
+                  ]}
+                >
+                  Resend
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          <RequestStatusBanner status={status} />
         </View>
       )}
     </AuthScreenShell>
@@ -340,7 +457,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: theme.spacing.md,
     height: '100%',
-    backgroundColor: theme.colors.brandMuted,
+    backgroundColor: theme.colors.surface,
   },
   flag: {
     fontSize: 18,
@@ -362,13 +479,58 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textPrimary,
   },
-  changeNumber: {
+  smsHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: -theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+  },
+  smsHintText: {
+    flex: 1,
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brand,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  legalText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: theme.spacing.md,
+  },
+  legalLink: {
+    color: theme.colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  otpHero: {
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.xs,
   },
-  changeNumberDisabled: {
+  otpHeroBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.brandMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpSentLine: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  otpPhone: {
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.textPrimary,
+  },
+  editLink: {
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.brand,
+  },
+  editLinkDisabled: {
     opacity: 0.45,
   },
   otpBoxes: {
@@ -378,9 +540,9 @@ const styles = StyleSheet.create({
   },
   otpBox: {
     flex: 1,
-    height: 52,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
+    height: 56,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1.5,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
@@ -388,7 +550,9 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: {
     borderColor: theme.colors.brand,
-    backgroundColor: theme.colors.brandMuted,
+  },
+  otpBoxActive: {
+    borderColor: theme.colors.brand,
   },
   otpBoxError: {
     borderColor: theme.colors.notification,
@@ -398,14 +562,43 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.textPrimary,
   },
+  otpHint: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+  },
+  resendCard: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.background,
+  },
+  resendPrompt: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  resendWait: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.brand,
+  },
+  resendAction: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.brand,
+  },
+  otpFooter: {
+    width: '100%',
+  },
   hiddenOtpInput: {
     position: 'absolute',
     opacity: 0,
     height: 1,
     width: 1,
-  },
-  devHint: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
   },
 });

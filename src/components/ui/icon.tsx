@@ -32,6 +32,7 @@ export type IconName =
   | 'search-off'
   | 'refresh'
   | 'chevron-forward'
+  | 'chevron-down'
   | 'warning'
   | 'time'
   | 'create'
@@ -75,6 +76,7 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   car: { family: 'ionicons', name: 'car-outline' },
   refresh: { family: 'ionicons', name: 'refresh' },
   'chevron-forward': { family: 'ionicons', name: 'chevron-forward' },
+  'chevron-down': { family: 'ionicons', name: 'chevron-down' },
   warning: { family: 'ionicons', name: 'warning-outline' },
   time: { family: 'ionicons', name: 'time-outline' },
   create: { family: 'ionicons', name: 'create-outline' },
