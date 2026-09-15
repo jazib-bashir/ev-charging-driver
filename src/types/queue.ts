@@ -40,11 +40,21 @@ export type JoinQueueRequest = {
   chargingPreference: ChargingPreference;
 };
 
+export type QueueMemberAllocationEvseSummary = {
+  id: string;
+  label: string;
+  connectorTypes: ConnectorType[];
+  maxPowerKw: number | null;
+  isFastCharger: boolean;
+  status: string;
+};
+
 export type QueueMemberAllocationSummary = {
   id: string;
   evseId: string;
   status: string;
   allocatedAt: string;
+  evse?: QueueMemberAllocationEvseSummary;
 } | null;
 
 export type QueueMember = {
@@ -56,6 +66,8 @@ export type QueueMember = {
   connectorPreference?: ConnectorType | null;
   chargingPreference: ChargingPreference;
   position: number;
+  sequenceNumber?: number;
+  currentRank?: number;
   state: QueueMemberState;
   joinedAt: string;
   estimatedTurnAt?: string | null;
@@ -75,7 +87,7 @@ export function formatQueueMemberState(state: string): string {
     case 'QUEUED':
       return 'Queued';
     case 'APPROACHING':
-      return 'Approaching';
+      return 'At station';
     case 'READY':
       return 'Ready';
     case 'GRACE':

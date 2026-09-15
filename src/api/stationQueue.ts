@@ -26,6 +26,40 @@ async function parseJsonBody<T>(response: Response): Promise<T> {
   }
 }
 
+function mapAllocation(
+  raw: Record<string, unknown> | null | undefined,
+): QueueMember['allocation'] {
+  if (!raw) {
+    return null;
+  }
+
+  const evseRaw = raw.evse as Record<string, unknown> | undefined;
+
+  return {
+    id: String(raw.id ?? ''),
+    evseId: String(raw.evseId ?? ''),
+    status: String(raw.status ?? ''),
+    allocatedAt: String(raw.allocatedAt ?? ''),
+    evse: evseRaw
+      ? {
+          id: String(evseRaw.id ?? ''),
+          label: String(evseRaw.label ?? ''),
+          connectorTypes: Array.isArray(evseRaw.connectorTypes)
+            ? (evseRaw.connectorTypes as QueueMember['connectorPreference'][]).filter(
+                Boolean,
+              ) as NonNullable<QueueMember['connectorPreference']>[]
+            : [],
+          maxPowerKw:
+            evseRaw.maxPowerKw === null || evseRaw.maxPowerKw === undefined
+              ? null
+              : Number(evseRaw.maxPowerKw),
+          isFastCharger: Boolean(evseRaw.isFastCharger),
+          status: String(evseRaw.status ?? ''),
+        }
+      : undefined,
+  };
+}
+
 function mapQueueMember(raw: Record<string, unknown>): QueueMember {
   return {
     id: String(raw.id ?? ''),
@@ -37,6 +71,14 @@ function mapQueueMember(raw: Record<string, unknown>): QueueMember {
       (raw.connectorPreference as QueueMember['connectorPreference']) ?? null,
     chargingPreference: raw.chargingPreference as QueueMember['chargingPreference'],
     position: Number(raw.position ?? 0),
+    sequenceNumber:
+      raw.sequenceNumber === undefined || raw.sequenceNumber === null
+        ? undefined
+        : Number(raw.sequenceNumber),
+    currentRank:
+      raw.currentRank === undefined || raw.currentRank === null
+        ? undefined
+        : Number(raw.currentRank),
     state: raw.state as QueueMember['state'],
     joinedAt: String(raw.joinedAt ?? ''),
     estimatedTurnAt: (raw.estimatedTurnAt as string | null | undefined) ?? null,
@@ -45,7 +87,7 @@ function mapQueueMember(raw: Record<string, unknown>): QueueMember {
     arrivalWindowEnd: (raw.arrivalWindowEnd as string | null | undefined) ?? null,
     createdAt: String(raw.createdAt ?? ''),
     updatedAt: String(raw.updatedAt ?? ''),
-    allocation: (raw.allocation as QueueMember['allocation']) ?? null,
+    allocation: mapAllocation(raw.allocation as Record<string, unknown> | null | undefined),
   };
 }
 
@@ -95,4 +137,22 @@ export function findActiveMembershipForStation(
         member.stationId === stationId && isActiveQueueMemberState(member.state),
     ) ?? null
   );
+}
+
+export async function leaveQueueMember(
+  token: string,
+  queueMemberId: string,
+): Promise<QueueMember> {
+  const response = await authFetch(
+    `/api/queue-members/${encodeURIComponent(queueMemberId)}/leave`,
+    token,
+    { method: 'POST' },
+  );
+
+  if (!response.ok) {
+    throw new AuthApiError(await parseErrorMessage(response), response.status);
+  }
+
+  const json = await parseJsonBody<Record<string, unknown>>(response);
+  return mapQueueMember(json);
 }

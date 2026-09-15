@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,18 +15,18 @@ import {
 import { resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
 import {
   findActiveMembershipForStation,
+  leaveQueueMember,
   listDriverQueueMembers,
 } from '@/api/stationQueue';
 import { useAuth } from '@/auth/auth-context';
 import { Icon } from '@/components/ui/icon';
-import { Badge } from '@/components/ui/badge';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationImageSource } from '@/data/station-images';
 import { useStationDetails } from '@/hooks/use-station-details';
 import { theme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import type { QueueMember } from '@/types/queue';
-import { formatQueueMemberState } from '@/types/queue';
+import { getQueueRank } from '@/utils/queue-display';
 import {
   formatDetailDistance,
   formatDetailPricePerKwh,
@@ -40,6 +40,7 @@ import {
 
 import { ChargerDetailsSheet } from './charger-details-sheet';
 import { QueueJoinSheet } from './queue-join-sheet';
+import { QueueStatusCard } from './queue-status-card';
 import { StationAmenitiesSection } from './station-amenities-section';
 import { StationChargersSection } from './station-chargers-section';
 import { StationDetailsHeader } from './station-details-header';
@@ -131,6 +132,7 @@ function StationDetailsContent({
   const [isOpeningQueue, setIsOpeningQueue] = useState(false);
   const [queueMembership, setQueueMembership] = useState<QueueMember | null>(null);
   const [isMembershipLoading, setIsMembershipLoading] = useState(false);
+  const [isLeavingQueue, setIsLeavingQueue] = useState(false);
   const resumeHandledRef = useRef(false);
 
   const handleBack = () => {
@@ -172,6 +174,24 @@ function StationDetailsContent({
   useEffect(() => {
     void loadQueueMembership();
   }, [loadQueueMembership]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadQueueMembership();
+    }, [loadQueueMembership]),
+  );
+
+  useEffect(() => {
+    if (!token || !queueMembership) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void loadQueueMembership();
+    }, 15_000);
+
+    return () => clearInterval(interval);
+  }, [token, queueMembership?.id, loadQueueMembership]);
 
   const handleJoinQueuePress = useCallback(async () => {
     if (isOpeningQueue || queueMembership || !station?.queue) {
@@ -227,11 +247,30 @@ function StationDetailsContent({
       void loadQueueMembership();
       Alert.alert(
         'Queue booked',
-        `You are in position ${member.position}. Status: ${formatQueueMemberState(member.state)}.`,
+        `You are #${getQueueRank(member)} in line at this station.`,
       );
     },
     [retryStation, loadQueueMembership],
   );
+
+  const handleLeaveQueue = useCallback(async () => {
+    if (!token || !queueMembership || isLeavingQueue) {
+      return;
+    }
+
+    setIsLeavingQueue(true);
+
+    try {
+      await leaveQueueMember(token, queueMembership.id);
+      setQueueMembership(null);
+      retryStation();
+      Alert.alert('Left queue', 'You have been removed from the station queue.');
+    } catch {
+      Alert.alert('Unable to leave queue', 'Please try again.');
+    } finally {
+      setIsLeavingQueue(false);
+    }
+  }, [token, queueMembership, isLeavingQueue, retryStation]);
 
   const completeBookingPlaceholder = useCallback(() => {
     setPendingBooking(null);
@@ -490,50 +529,13 @@ function StationDetailsContent({
 
           <View style={styles.queueSection}>
             {queueMembership ? (
-              <View style={styles.queueStatusCard}>
-                <View style={styles.queueStatusHeader}>
-                  <View style={styles.queueStatusIconWrap}>
-                    <Icon name="checkmark" size={18} color={theme.colors.brand} />
-                  </View>
-                  <View style={styles.queueStatusCopy}>
-                    <View style={styles.queueStatusTitleRow}>
-                      <Text style={styles.queueStatusTitle}>You're in the queue</Text>
-                      <Badge label="Booked" variant="available" />
-                    </View>
-                    <Text style={styles.queueStatusSubtitle}>
-                      We'll notify you when it's nearly your turn.
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.queueMetricRow}>
-                  <View style={styles.queueMetric}>
-                    <Text style={styles.queueMetricLabel}>Status</Text>
-                    <Text style={styles.queueMetricValue}>
-                      {formatQueueMemberState(queueMembership.state)}
-                    </Text>
-                  </View>
-                  <View style={styles.queueMetricDivider} />
-                  <View style={styles.queueMetric}>
-                    <Text style={styles.queueMetricLabel}>Position</Text>
-                    <Text style={styles.queueMetricValue}>
-                      #{queueMembership.position}
-                    </Text>
-                  </View>
-                  <View style={styles.queueMetricDivider} />
-                  <View style={styles.queueMetric}>
-                    <Text style={styles.queueMetricLabel}>Preference</Text>
-                    <Text style={styles.queueMetricValue} numberOfLines={1}>
-                      {[
-                        queueMembership.chargingPreference,
-                        queueMembership.connectorPreference,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || '—'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+              <QueueStatusCard
+                membership={queueMembership}
+                isLeaving={isLeavingQueue}
+                onLeave={() => {
+                  void handleLeaveQueue();
+                }}
+              />
             ) : station.queue ? (
               <View style={styles.bookQueueCard}>
                 <View style={styles.bookQueueCardHeader}>
@@ -885,78 +887,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.textMuted,
     lineHeight: 18,
-  },
-  queueStatusCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.selectionBorder,
-    backgroundColor: theme.colors.brandMuted,
-    padding: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  queueStatusHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-  },
-  queueStatusIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  queueStatusCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  queueStatusTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-  },
-  queueStatusTitle: {
-    flexShrink: 1,
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.brandDark,
-  },
-  queueStatusSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
-  queueMetricRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.xs,
-  },
-  queueMetric: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 4,
-  },
-  queueMetricDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.border,
-    marginVertical: 2,
-  },
-  queueMetricLabel: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  queueMetricValue: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
   },
   centeredState: {
     flex: 1,
