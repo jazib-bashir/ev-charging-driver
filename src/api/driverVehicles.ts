@@ -5,10 +5,13 @@ export type CreateDriverVehicleInput = {
   vehicleModelId?: string;
   customMake?: string;
   customModel?: string;
+  licensePlate?: string | null;
   acConnectorType?: ConnectorType;
   dcConnectorType?: ConnectorType;
   isDefault?: boolean;
 };
+
+export type UpdateDriverVehicleInput = Partial<CreateDriverVehicleInput>;
 
 async function parseErrorMessage(response: Response): Promise<string> {
   try {
@@ -60,6 +63,24 @@ export async function createDriverVehicle(
   return parseJsonBody<DriverVehicle>(response);
 }
 
+export async function updateDriverVehicle(
+  token: string,
+  vehicleId: string,
+  payload: UpdateDriverVehicleInput,
+): Promise<DriverVehicle> {
+  const response = await authFetch(
+    `/api/driver/vehicles/${encodeURIComponent(vehicleId)}`,
+    token,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  );
+
+  if (!response.ok) {
+    throw new AuthApiError(await parseErrorMessage(response), response.status);
+  }
+
+  return parseJsonBody<DriverVehicle>(response);
+}
+
 export async function setDefaultDriverVehicle(
   token: string,
   vehicleId: string,
@@ -75,6 +96,21 @@ export async function setDefaultDriverVehicle(
   }
 
   return parseJsonBody<DriverVehicle>(response);
+}
+
+export async function deleteDriverVehicle(
+  token: string,
+  vehicleId: string,
+): Promise<void> {
+  const response = await authFetch(
+    `/api/driver/vehicles/${encodeURIComponent(vehicleId)}`,
+    token,
+    { method: 'DELETE' },
+  );
+
+  if (!response.ok) {
+    throw new AuthApiError(await parseErrorMessage(response), response.status);
+  }
 }
 
 export function getDriverVehicleDisplayName(vehicle: {

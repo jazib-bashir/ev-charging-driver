@@ -25,6 +25,7 @@ export type DriverVehicle = {
   vehicleModelId?: string | null;
   customMake?: string | null;
   customModel?: string | null;
+  licensePlate?: string | null;
   acConnectorType?: ConnectorType | null;
   dcConnectorType?: ConnectorType | null;
   isDefault: boolean;

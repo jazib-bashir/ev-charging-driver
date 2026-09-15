@@ -1,7 +1,9 @@
-import { router, type Href } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
+import { NoticeToast } from '@/components/ui/notice-toast';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { SearchInput } from '@/components/ui/search-input';
 import type { ViewMode } from '@/components/ui/view-toggle';
@@ -19,10 +21,27 @@ type StationDiscoveryScreenProps = {
   initialViewMode?: ViewMode;
 };
 
+const NOTICE_MESSAGES: Record<string, string> = {
+  'profile-incomplete':
+    'Complete your profile to book a charger. You can finish it anytime from Profile.',
+};
+
 export function StationDiscoveryScreen({
   initialViewMode = 'list',
 }: StationDiscoveryScreenProps) {
   const { token } = useAuth();
+  const { notice } = useLocalSearchParams<{ notice?: string }>();
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (notice && NOTICE_MESSAGES[notice]) {
+      setNoticeMessage(NOTICE_MESSAGES[notice]);
+    }
+  }, [notice]);
+
+  const dismissNotice = useCallback(() => {
+    setNoticeMessage(null);
+  }, []);
 
   const {
     searchQuery,
@@ -88,6 +107,9 @@ export function StationDiscoveryScreen({
   return (
     <ScreenContainer edges={['top']}>
       <StationHeader />
+      {noticeMessage ? (
+        <NoticeToast message={noticeMessage} onDismiss={dismissNotice} />
+      ) : null}
       <SearchInput
         value={searchQuery}
         onChangeText={setSearchQuery}

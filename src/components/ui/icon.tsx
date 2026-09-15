@@ -39,6 +39,7 @@ export type IconName =
   | 'star'
   | 'add'
   | 'log-out'
+  | 'trash'
   | 'more';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
@@ -83,6 +84,7 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   star: { family: 'ionicons', name: 'star' },
   add: { family: 'ionicons', name: 'add' },
   'log-out': { family: 'ionicons', name: 'log-out-outline' },
+  trash: { family: 'ionicons', name: 'trash-outline' },
   more: { family: 'ionicons', name: 'ellipsis-vertical' },
 };
 

@@ -58,6 +58,10 @@ export function ProfileVehicleCard({
       options.push({ text: 'Make default', onPress: onMakeDefault });
     }
 
+    options.push({
+      text: vehicle.licensePlate ? 'Edit number plate' : 'Add number plate',
+      onPress: onManageVehicles,
+    });
     options.push({ text: 'Manage vehicles', onPress: onManageVehicles });
     options.push({ text: 'Cancel', style: 'cancel' });
 
@@ -104,6 +108,18 @@ export function ProfileVehicleCard({
       <View style={styles.metadataBar}>
         <Text style={styles.metadataText} numberOfLines={1}>
           ID: {formatVehicleRecordId(vehicle.id)}
+        </Text>
+        <Text style={styles.metadataDivider}>•</Text>
+        <Text
+          style={[
+            styles.metadataText,
+            !vehicle.licensePlate && styles.metadataMuted,
+          ]}
+          numberOfLines={1}
+        >
+          {vehicle.licensePlate
+            ? `Plate: ${vehicle.licensePlate}`
+            : 'No plate added'}
         </Text>
       </View>
 
@@ -225,15 +241,27 @@ const styles = StyleSheet.create({
     marginRight: -8,
   },
   metadataBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
     borderRadius: 10,
     backgroundColor: META_BG,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 9,
   },
   metadataText: {
+    flexShrink: 1,
     fontSize: 13,
     color: '#64748b',
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  metadataDivider: {
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  metadataMuted: {
+    color: '#94a3b8',
+    fontWeight: theme.typography.fontWeight.regular,
   },
   footer: {
     flexDirection: 'row',

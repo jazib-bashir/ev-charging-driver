@@ -17,14 +17,21 @@ export function AuthTextField({
   label,
   error,
   style,
+  editable = true,
   ...props
 }: AuthTextFieldProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={[styles.input, error ? styles.inputError : null, style]}
+        style={[
+          styles.input,
+          !editable ? styles.inputDisabled : null,
+          error ? styles.inputError : null,
+          style,
+        ]}
         placeholderTextColor={theme.colors.textMuted}
+        editable={editable}
         {...props}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -50,6 +57,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textPrimary,
+  },
+  inputDisabled: {
+    backgroundColor: theme.colors.background,
+    color: theme.colors.textSecondary,
   },
   inputError: {
     borderColor: theme.colors.notification,

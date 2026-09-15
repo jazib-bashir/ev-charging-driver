@@ -1,16 +1,15 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthApiError, updateDriverProfile } from '@/api/auth';
 import { useAuth } from '@/auth/auth-context';
 import {
+  formatPkLocalDisplay,
   fromE164PkToLocal,
   isValidEmail,
-  isValidPkMobile,
-  normalizePkLocalNumber,
+  PAKISTAN_DIAL_CODE,
   splitFullName,
-  toE164Pk,
 } from '@/auth/auth-helpers';
 import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
 import { AuthScreenShell } from '@/components/auth/auth-screen-shell';
@@ -27,12 +26,13 @@ export default function OnboardingScreen() {
   const { token, user, refreshUser, pendingBooking } = useAuth();
   const { status, showError, showSuccess, clearStatus } = useRequestStatus(2000);
 
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [phoneLocal, setPhoneLocal] = useState('');
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [didPrefill, setDidPrefill] = useState(false);
 
@@ -42,37 +42,60 @@ export default function OnboardingScreen() {
     }
 
     if (user.name?.trim()) {
-      setName(user.name.trim());
+      const parts = splitFullName(user.name);
+      setFirstName(parts.firstName);
+      setLastName(parts.lastName === parts.firstName ? '' : parts.lastName);
     }
     if (user.email?.trim()) {
       setEmail(user.email.trim());
     }
     if (user.phoneNumber?.trim()) {
-      setPhone(fromE164PkToLocal(user.phoneNumber));
+      setPhoneLocal(fromE164PkToLocal(user.phoneNumber));
     }
     setDidPrefill(true);
   }, [user, didPrefill]);
 
-  const isValid = useMemo(() => {
-    const trimmedName = name.trim();
-    const trimmedEmail = email.trim();
-    const trimmedPhone = phone.trim();
-    const phoneValid = !trimmedPhone || isValidPkMobile(trimmedPhone);
+  const lockedPhoneDisplay = phoneLocal
+    ? `${PAKISTAN_DIAL_CODE} ${formatPkLocalDisplay(phoneLocal)}`
+    : '';
 
-    return trimmedName.length >= 2 && isValidEmail(trimmedEmail) && phoneValid;
-  }, [name, email, phone]);
+  const isValid = useMemo(() => {
+    const trimmedEmail = email.trim();
+    return (
+      firstName.trim().length >= 1 &&
+      lastName.trim().length >= 1 &&
+      (!trimmedEmail || isValidEmail(trimmedEmail))
+    );
+  }, [firstName, lastName, email]);
+
+  const handleBack = () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    if (isEditMode) {
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+      router.replace('/(tabs)/profile' as Href);
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+    }
+  };
 
   const handleSkip = () => {
     if (isSubmitting) {
       return;
     }
 
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
-    router.replace('/' as Href);
+    router.replace({
+      pathname: '/',
+      params: { notice: 'profile-incomplete' },
+    } as Href);
   };
 
   const handleSubmit = async () => {
@@ -80,30 +103,30 @@ export default function OnboardingScreen() {
       return;
     }
 
-    const trimmedName = name.trim();
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
-    const trimmedPhone = phone.trim();
     let hasError = false;
 
-    if (trimmedName.length < 2) {
-      setNameError('Enter your full name');
+    if (trimmedFirstName.length < 1) {
+      setFirstNameError('Enter your first name');
       hasError = true;
     } else {
-      setNameError(null);
+      setFirstNameError(null);
     }
 
-    if (!isValidEmail(trimmedEmail)) {
+    if (trimmedLastName.length < 1) {
+      setLastNameError('Enter your last name');
+      hasError = true;
+    } else {
+      setLastNameError(null);
+    }
+
+    if (trimmedEmail && !isValidEmail(trimmedEmail)) {
       setEmailError('Enter a valid email address');
       hasError = true;
     } else {
       setEmailError(null);
-    }
-
-    if (trimmedPhone && !isValidPkMobile(trimmedPhone)) {
-      setPhoneError('Enter a valid mobile number');
-      hasError = true;
-    } else {
-      setPhoneError(null);
     }
 
     if (hasError) {
@@ -119,12 +142,11 @@ export default function OnboardingScreen() {
     setIsSubmitting(true);
 
     try {
-      const { firstName, lastName } = splitFullName(trimmedName);
       await updateDriverProfile(token, {
-        firstName,
-        lastName,
-        email: trimmedEmail,
-        phoneNumber: trimmedPhone ? toE164Pk(trimmedPhone) : null,
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        ...(trimmedEmail ? { email: trimmedEmail } : {}),
+        phoneNumber: user?.phoneNumber?.trim() || null,
       });
       await refreshUser();
 
@@ -161,101 +183,124 @@ export default function OnboardingScreen() {
       title={isEditMode ? 'Edit details' : 'Complete your profile'}
       subtitle={
         isEditMode
-          ? 'Update your name, email, and phone anytime.'
+          ? 'Update your name and email anytime.'
           : 'Tell us a bit about yourself to finish setting up your account.'
       }
       showBack
-      onBack={handleSkip}
+      headerStep={isEditMode ? undefined : 'Step 1 of 2'}
+      headerSection={isEditMode ? undefined : 'Profile'}
+      onBack={handleBack}
     >
-      <AuthTextField
-        label="Name"
-        value={name}
-        onChangeText={(value) => {
-          setName(value);
-          if (nameError) {
-            setNameError(null);
-          }
-          clearStatus();
-        }}
-        placeholder="Your full name"
-        autoCapitalize="words"
-        autoComplete="name"
-        textContentType="name"
-        editable={!isSubmitting}
-        error={nameError}
-      />
-      <AuthTextField
-        label="Email"
-        value={email}
-        onChangeText={(value) => {
-          setEmail(value);
-          if (emailError) {
-            setEmailError(null);
-          }
-          clearStatus();
-        }}
-        placeholder="you@example.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        textContentType="emailAddress"
-        editable={!isSubmitting}
-        error={emailError}
-      />
-      <AuthTextField
-        label="Phone"
-        value={phone}
-        onChangeText={(value) => {
-          setPhone(normalizePkLocalNumber(value));
-          if (phoneError) {
-            setPhoneError(null);
-          }
-          clearStatus();
-        }}
-        placeholder="300 1234567"
-        keyboardType="phone-pad"
-        autoComplete="tel"
-        textContentType="telephoneNumber"
-        editable={!isSubmitting}
-        error={phoneError}
-      />
+      <View style={styles.fields}>
+        <AuthTextField
+          label="First name"
+          value={firstName}
+          onChangeText={(value) => {
+            setFirstName(value);
+            if (firstNameError) {
+              setFirstNameError(null);
+            }
+            clearStatus();
+          }}
+          placeholder="First name"
+          autoCapitalize="words"
+          autoComplete="given-name"
+          textContentType="givenName"
+          editable={!isSubmitting}
+          error={firstNameError}
+        />
+        <AuthTextField
+          label="Last name"
+          value={lastName}
+          onChangeText={(value) => {
+            setLastName(value);
+            if (lastNameError) {
+              setLastNameError(null);
+            }
+            clearStatus();
+          }}
+          placeholder="Last name"
+          autoCapitalize="words"
+          autoComplete="family-name"
+          textContentType="familyName"
+          editable={!isSubmitting}
+          error={lastNameError}
+        />
+        <AuthTextField
+          label="Email"
+          value={email}
+          onChangeText={(value) => {
+            setEmail(value);
+            if (emailError) {
+              setEmailError(null);
+            }
+            clearStatus();
+          }}
+          placeholder="you@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          textContentType="emailAddress"
+          editable={!isSubmitting}
+          error={emailError}
+        />
+        <AuthTextField
+          label="Phone"
+          value={lockedPhoneDisplay}
+          placeholder={`${PAKISTAN_DIAL_CODE} 3XX XXXXXXX`}
+          editable={false}
+          accessibilityLabel="Phone number"
+        />
+      </View>
 
       <RequestStatusBanner status={status} />
 
-      <AuthPrimaryButton
-        label={isEditMode ? 'Save' : 'Continue'}
-        onPress={() => {
-          void handleSubmit();
-        }}
-        loading={isSubmitting}
-        disabled={!isValid || isSubmitting}
-      />
-      {!isEditMode ? (
-        <Pressable
-          onPress={handleSkip}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityLabel="Skip for now"
-          style={[styles.skipButton, isSubmitting && styles.skipDisabled]}
-        >
-          <Text style={styles.skipLabel}>Skip for now</Text>
-        </Pressable>
-      ) : null}
+      <View style={styles.actions}>
+        <AuthPrimaryButton
+          label={isEditMode ? 'Save' : 'Continue'}
+          onPress={() => {
+            void handleSubmit();
+          }}
+          loading={isSubmitting}
+          disabled={!isValid || isSubmitting}
+        />
+        {!isEditMode ? (
+          <Pressable
+            onPress={handleSkip}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Skip for now"
+            style={styles.skipButton}
+          >
+            <Text
+              style={[styles.skipLabel, isSubmitting && styles.skipDisabled]}
+            >
+              Skip for now
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </AuthScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
+  fields: {
+    gap: theme.spacing.md,
+  },
+  actions: {
+    marginTop: theme.spacing.sm,
+  },
   skipButton: {
     alignItems: 'center',
     paddingVertical: theme.spacing.md,
-  },
-  skipDisabled: {
-    opacity: 0.45,
   },
   skipLabel: {
     fontSize: theme.typography.fontSize.md,
     fontWeight: theme.typography.fontWeight.medium,
     color: theme.colors.textSecondary,
+  },
+  skipDisabled: {
+    opacity: 0.45,
   },
 });

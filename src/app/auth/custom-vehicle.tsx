@@ -22,6 +22,7 @@ export default function CustomVehicleScreen() {
 
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
+  const [licensePlate, setLicensePlate] = useState('');
   const [acConnector, setAcConnector] = useState<ConnectorType | null>(null);
   const [dcConnector, setDcConnector] = useState<ConnectorType | null>(null);
   const [makeError, setMakeError] = useState<string | null>(null);
@@ -113,9 +114,11 @@ export default function CustomVehicleScreen() {
     setIsSubmitting(true);
 
     try {
+      const trimmedPlate = licensePlate.trim().toUpperCase();
       const created = await createDriverVehicle(token, {
         customMake: trimmedMake,
         customModel: trimmedModel,
+        ...(trimmedPlate ? { licensePlate: trimmedPlate } : {}),
         ...(acConnector ? { acConnectorType: acConnector } : {}),
         ...(dcConnector ? { dcConnectorType: dcConnector } : {}),
       });
@@ -179,6 +182,19 @@ export default function CustomVehicleScreen() {
         autoCapitalize="words"
         editable={!isSubmitting}
         error={modelError}
+      />
+      <AuthTextField
+        label="Number plate (optional)"
+        value={licensePlate}
+        onChangeText={(value) => {
+          setLicensePlate(value.toUpperCase());
+          clearStatus();
+        }}
+        placeholder="e.g. ABC-123"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        maxLength={20}
+        editable={!isSubmitting}
       />
 
       <View style={[styles.section, isSubmitting && styles.sectionDisabled]}>
