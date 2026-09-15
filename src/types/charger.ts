@@ -23,6 +23,7 @@ export type Charger = {
   pricePerKwh?: number | null;
   effectivePricePerKwh?: number | null;
   completedAt?: string | null;
+  status?: string | null;
   statusLabel?: string | null;
   statusEstimate?: string | null;
   connectors?: ChargerConnector[];

@@ -29,7 +29,16 @@ export type IconName =
   | 'close'
   | 'locate'
   | 'check'
-  | 'search-off';
+  | 'search-off'
+  | 'refresh'
+  | 'chevron-forward'
+  | 'warning'
+  | 'time'
+  | 'create'
+  | 'star'
+  | 'add'
+  | 'log-out'
+  | 'more';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -64,6 +73,15 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   dining: { family: 'ionicons', name: 'restaurant-outline' },
   restroom: { family: 'ionicons', name: 'male-female-outline' },
   car: { family: 'ionicons', name: 'car-outline' },
+  refresh: { family: 'ionicons', name: 'refresh' },
+  'chevron-forward': { family: 'ionicons', name: 'chevron-forward' },
+  warning: { family: 'ionicons', name: 'warning-outline' },
+  time: { family: 'ionicons', name: 'time-outline' },
+  create: { family: 'ionicons', name: 'create-outline' },
+  star: { family: 'ionicons', name: 'star' },
+  add: { family: 'ionicons', name: 'add' },
+  'log-out': { family: 'ionicons', name: 'log-out-outline' },
+  more: { family: 'ionicons', name: 'ellipsis-vertical' },
 };
 
 type IconProps = {

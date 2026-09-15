@@ -21,8 +21,10 @@ import {
   formatEvseHeadline,
   getPeopleAhead,
   getQueueRank,
+  EVSE_UNAVAILABLE_MESSAGE,
   getQueueStatusHeadline,
   getQueueStatusSubheadline,
+  hasOperationalEvseAllocation,
   shouldShowQueuePosition,
   shouldShowQueueTiming,
 } from '@/utils/queue-display';
@@ -84,6 +86,15 @@ function FindingEvseSection() {
   );
 }
 
+function EvseUnavailableSection() {
+  return (
+    <View style={styles.findingEvseSection}>
+      <ActivityIndicator color={theme.colors.brand} />
+      <Text style={styles.findingEvseText}>{EVSE_UNAVAILABLE_MESSAGE}</Text>
+    </View>
+  );
+}
+
 export function QueueStatusCard({
   membership,
   isLeaving = false,
@@ -103,7 +114,8 @@ export function QueueStatusCard({
     : null;
   const assignedEvse = formatAssignedEvse(membership.allocation);
   const canLeave = isQueued;
-  const hasAllocation = !!membership.allocation;
+  const hasOperationalAllocation = hasOperationalEvseAllocation(membership.allocation);
+  const needsEvseReassignment = membership.needsEvseReassignment ?? false;
 
   const handleLeavePress = () => {
     if (!onLeave || isLeaving) {
@@ -132,7 +144,10 @@ export function QueueStatusCard({
             <Badge label="Booked" variant="available" />
           </View>
           <Text style={styles.subtitle}>
-            {getQueueStatusSubheadline(membership.state, hasAllocation)}
+            {getQueueStatusSubheadline(membership.state, {
+              hasOperationalAllocation,
+              needsEvseReassignment,
+            })}
           </Text>
         </View>
       </View>
@@ -150,11 +165,15 @@ export function QueueStatusCard({
           </View>
         </View>
       ) : isApproaching ? (
-        hasAllocation ? (
+        needsEvseReassignment ? (
+          <EvseUnavailableSection />
+        ) : hasOperationalAllocation ? (
           <AssignedEvseSection membership={membership} />
         ) : (
           <FindingEvseSection />
         )
+      ) : membership.state === 'READY' && needsEvseReassignment ? (
+        <EvseUnavailableSection />
       ) : null}
 
       <View style={styles.detailsSection}>

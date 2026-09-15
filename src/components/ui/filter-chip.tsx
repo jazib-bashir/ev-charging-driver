@@ -28,9 +28,12 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
     gap: theme.spacing.xs,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
+    minHeight: 40,
     borderRadius: theme.radius.xl,
     borderWidth: 1,
     borderColor: theme.colors.border,

@@ -39,6 +39,7 @@ export function mapApiCharger(raw: Record<string, unknown>): Charger {
     pricePerKwh: raw.pricePerKwh as number | null | undefined,
     effectivePricePerKwh: raw.effectivePricePerKwh as number | null | undefined,
     completedAt: raw.completedAt as string | null | undefined,
+    status: raw.status as string | null | undefined,
     statusLabel: raw.statusLabel as string | null | undefined,
     statusEstimate: raw.statusEstimate as string | null | undefined,
     connectors: rawConnectors.map((item) =>

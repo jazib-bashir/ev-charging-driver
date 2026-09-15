@@ -80,3 +80,17 @@ export function maskE164ForDisplay(e164: string): string {
   const visible = digits.slice(-4);
   return `${PAKISTAN_DIAL_CODE} ******${visible}`;
 }
+
+export function fromE164PkToLocal(phoneNumber: string | null | undefined): string {
+  if (!phoneNumber?.trim()) {
+    return '';
+  }
+
+  const digits = phoneNumber.replace(/\D/g, '');
+
+  if (digits.startsWith('92') && digits.length > 10) {
+    return normalizePkLocalNumber(digits.slice(2));
+  }
+
+  return normalizePkLocalNumber(digits);
+}

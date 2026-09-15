@@ -23,7 +23,59 @@ export function getChargerDisplayName(charger: Charger): string {
   return formatText(charger.name);
 }
 
+function statusFromOperationalValue(
+  status: string,
+  label?: string | null,
+): ChargerStatus | null {
+  const normalized = status.trim().toUpperCase();
+
+  if (normalized === 'AVAILABLE') {
+    return {
+      label: label ?? 'Available',
+      variant: 'available',
+      isSelectable: true,
+    };
+  }
+
+  if (normalized === 'CHARGING') {
+    return {
+      label: label ?? 'In Use',
+      variant: 'unavailable',
+      isSelectable: false,
+    };
+  }
+
+  if (normalized === 'OFFLINE') {
+    return {
+      label: label ?? 'Offline',
+      variant: 'unavailable',
+      isSelectable: false,
+    };
+  }
+
+  if (normalized === 'OUT_OF_SERVICE') {
+    return {
+      label: label ?? 'Out of Service',
+      variant: 'unavailable',
+      isSelectable: false,
+    };
+  }
+
+  return null;
+}
+
 export function getChargerStatus(charger: Charger): ChargerStatus {
+  if (hasValue(charger.status)) {
+    const operationalStatus = statusFromOperationalValue(
+      String(charger.status),
+      charger.statusLabel,
+    );
+
+    if (operationalStatus) {
+      return operationalStatus;
+    }
+  }
+
   if (hasValue(charger.statusLabel)) {
     const label = String(charger.statusLabel);
     const lower = label.toLowerCase();
@@ -32,7 +84,13 @@ export function getChargerStatus(charger: Charger): ChargerStatus {
       return { label, variant: 'available', isSelectable: true };
     }
 
-    if (lower.includes('use') || lower.includes('setup') || lower.includes('progress')) {
+    if (
+      lower.includes('offline') ||
+      lower.includes('out of service') ||
+      lower.includes('use') ||
+      lower.includes('setup') ||
+      lower.includes('progress')
+    ) {
       return { label, variant: 'unavailable', isSelectable: false };
     }
 

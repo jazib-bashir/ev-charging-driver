@@ -28,7 +28,14 @@ export function getStationStatus(station: Station): {
     const label = String(station.statusLabel);
     const lower = label.toLowerCase();
     if (lower.includes('available')) return { label, variant: 'available' };
-    if (lower.includes('use') || lower.includes('setup') || lower.includes('progress')) {
+    if (
+      lower.includes('offline') ||
+      lower.includes('out of service') ||
+      lower.includes('unavailable') ||
+      lower.includes('use') ||
+      lower.includes('setup') ||
+      lower.includes('progress')
+    ) {
       return { label, variant: 'unavailable' };
     }
     return { label, variant: 'neutral' };

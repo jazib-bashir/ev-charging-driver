@@ -88,6 +88,7 @@ function mapQueueMember(raw: Record<string, unknown>): QueueMember {
     createdAt: String(raw.createdAt ?? ''),
     updatedAt: String(raw.updatedAt ?? ''),
     allocation: mapAllocation(raw.allocation as Record<string, unknown> | null | undefined),
+    needsEvseReassignment: Boolean(raw.needsEvseReassignment),
   };
 }
 

@@ -4,7 +4,14 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { AuthApiError, updateDriverProfile } from '@/api/auth';
 import { useAuth } from '@/auth/auth-context';
-import { isValidEmail, splitFullName } from '@/auth/auth-helpers';
+import {
+  fromE164PkToLocal,
+  isValidEmail,
+  isValidPkMobile,
+  normalizePkLocalNumber,
+  splitFullName,
+  toE164Pk,
+} from '@/auth/auth-helpers';
 import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
 import { AuthScreenShell } from '@/components/auth/auth-screen-shell';
 import { AuthTextField } from '@/components/auth/auth-text-field';
@@ -22,8 +29,10 @@ export default function OnboardingScreen() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [didPrefill, setDidPrefill] = useState(false);
 
@@ -38,14 +47,20 @@ export default function OnboardingScreen() {
     if (user.email?.trim()) {
       setEmail(user.email.trim());
     }
+    if (user.phoneNumber?.trim()) {
+      setPhone(fromE164PkToLocal(user.phoneNumber));
+    }
     setDidPrefill(true);
   }, [user, didPrefill]);
 
   const isValid = useMemo(() => {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
-    return trimmedName.length >= 2 && isValidEmail(trimmedEmail);
-  }, [name, email]);
+    const trimmedPhone = phone.trim();
+    const phoneValid = !trimmedPhone || isValidPkMobile(trimmedPhone);
+
+    return trimmedName.length >= 2 && isValidEmail(trimmedEmail) && phoneValid;
+  }, [name, email, phone]);
 
   const handleSkip = () => {
     if (isSubmitting) {
@@ -67,6 +82,7 @@ export default function OnboardingScreen() {
 
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
     let hasError = false;
 
     if (trimmedName.length < 2) {
@@ -81,6 +97,13 @@ export default function OnboardingScreen() {
       hasError = true;
     } else {
       setEmailError(null);
+    }
+
+    if (trimmedPhone && !isValidPkMobile(trimmedPhone)) {
+      setPhoneError('Enter a valid mobile number');
+      hasError = true;
+    } else {
+      setPhoneError(null);
     }
 
     if (hasError) {
@@ -101,6 +124,7 @@ export default function OnboardingScreen() {
         firstName,
         lastName,
         email: trimmedEmail,
+        phoneNumber: trimmedPhone ? toE164Pk(trimmedPhone) : null,
       });
       await refreshUser();
 
@@ -137,7 +161,7 @@ export default function OnboardingScreen() {
       title={isEditMode ? 'Edit details' : 'Complete your profile'}
       subtitle={
         isEditMode
-          ? 'Update your name and email anytime.'
+          ? 'Update your name, email, and phone anytime.'
           : 'Tell us a bit about yourself to finish setting up your account.'
       }
       showBack
@@ -177,6 +201,23 @@ export default function OnboardingScreen() {
         textContentType="emailAddress"
         editable={!isSubmitting}
         error={emailError}
+      />
+      <AuthTextField
+        label="Phone"
+        value={phone}
+        onChangeText={(value) => {
+          setPhone(normalizePkLocalNumber(value));
+          if (phoneError) {
+            setPhoneError(null);
+          }
+          clearStatus();
+        }}
+        placeholder="300 1234567"
+        keyboardType="phone-pad"
+        autoComplete="tel"
+        textContentType="telephoneNumber"
+        editable={!isSubmitting}
+        error={phoneError}
       />
 
       <RequestStatusBanner status={status} />

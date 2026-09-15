@@ -76,6 +76,7 @@ export type QueueMember = {
   createdAt: string;
   updatedAt: string;
   allocation?: QueueMemberAllocationSummary;
+  needsEvseReassignment?: boolean;
 };
 
 export function isActiveQueueMemberState(state: string): state is QueueMemberState {
