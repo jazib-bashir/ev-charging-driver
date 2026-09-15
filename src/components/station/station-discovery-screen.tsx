@@ -3,35 +3,56 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
+import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
 import { NoticeToast } from '@/components/ui/notice-toast';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
-import { SearchInput } from '@/components/ui/search-input';
-import type { ViewMode } from '@/components/ui/view-toggle';
-import { useStationDiscovery } from '@/hooks/use-station-discovery';
 import { theme } from '@/theme';
 
+import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
-import { FilterRow } from './filter-row';
 import { StationErrorState } from './station-error-state';
 import { StationHeader } from './station-header';
 import { StationList } from './station-list';
 import { StationLoadingState } from './station-loading-state';
-
-type StationDiscoveryScreenProps = {
-  initialViewMode?: ViewMode;
-};
 
 const NOTICE_MESSAGES: Record<string, string> = {
   'profile-incomplete':
     'Complete your profile to book a charger. You can finish it anytime from Profile.',
 };
 
-export function StationDiscoveryScreen({
-  initialViewMode = 'list',
-}: StationDiscoveryScreenProps) {
+export function StationDiscoveryScreen() {
   const { token } = useAuth();
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    advancedFilters,
+    applyAdvancedFilters,
+    isFilterSheetOpen,
+    openFilterSheet,
+    closeFilterSheet,
+    clearAllFilters,
+    searchNearby,
+    hasActiveSearch,
+    hasActiveFilters,
+    activeFilterCount,
+    list,
+  } = useStationDiscoveryContext();
+
+  const {
+    stations,
+    totalCount,
+    isInitialLoading,
+    isRefreshing,
+    isLoadingMore,
+    error,
+    hasMore,
+    refresh,
+    loadMore,
+    retry,
+  } = list;
 
   useEffect(() => {
     if (notice && NOTICE_MESSAGES[notice]) {
@@ -43,44 +64,14 @@ export function StationDiscoveryScreen({
     setNoticeMessage(null);
   }, []);
 
-  const {
-    searchQuery,
-    setSearchQuery,
-    filters,
-    toggleFilter,
-    advancedFilters,
-    applyAdvancedFilters,
-    isFilterSheetOpen,
-    openFilterSheet,
-    closeFilterSheet,
-    clearAllFilters,
-    searchNearby,
-    viewMode,
-    stations,
-    allStations,
-    totalCount,
-    isInitialLoading,
-    isRefreshing,
-    isLoadingMore,
-    error,
-    hasMore,
-    hasActiveSearch,
-    hasActiveFilters,
-    activeFilterCount,
-    refresh,
-    loadMore,
-    retry,
-  } = useStationDiscovery({ initialViewMode });
-
-  const handleViewModeChange = (mode: ViewMode) => {
+  const handleViewModeChange = (mode: 'list' | 'map') => {
     if (mode === 'map') {
       router.navigate('/map' as Href);
-      return;
     }
   };
 
   const renderContent = () => {
-    if (error && allStations.length === 0 && !isInitialLoading) {
+    if (error && stations.length === 0 && !isInitialLoading) {
       return <StationErrorState onRetry={retry} />;
     }
 
@@ -110,18 +101,14 @@ export function StationDiscoveryScreen({
       {noticeMessage ? (
         <NoticeToast message={noticeMessage} onDismiss={dismissNotice} />
       ) : null}
-      <SearchInput
+      <DiscoverySearchToolbar
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Search charging stations..."
+        viewMode="list"
+        onViewModeChange={handleViewModeChange}
         onFilterPress={openFilterSheet}
         activeFilterCount={activeFilterCount}
-      />
-      <FilterRow
-        filters={filters}
-        viewMode={viewMode}
-        onToggleFilter={toggleFilter}
-        onViewModeChange={handleViewModeChange}
       />
 
       <ScreenContent style={styles.contentArea}>
@@ -143,6 +130,6 @@ export function StationDiscoveryScreen({
 
 const styles = StyleSheet.create({
   contentArea: {
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
 });

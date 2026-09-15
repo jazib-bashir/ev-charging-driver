@@ -7,15 +7,20 @@ export type MapRegion = {
   longitudeDelta: number;
 };
 
-const DEFAULT_REGION: MapRegion = {
-  latitude: 20,
-  longitude: 0,
-  latitudeDelta: 60,
-  longitudeDelta: 60,
+/** City-level default for Lahore — used when the map first opens. */
+export const LAHORE_DEFAULT_REGION: MapRegion = {
+  latitude: 31.5204,
+  longitude: 74.3587,
+  latitudeDelta: 0.35,
+  longitudeDelta: 0.35,
 };
 
-const MIN_DELTA = 0.05;
-const REGION_PADDING = 1.3;
+/** Wider fallback when no mappable stations are available after filtering. */
+export const PAKISTAN_DEFAULT_REGION: MapRegion = LAHORE_DEFAULT_REGION;
+
+const MIN_DELTA = 0.08;
+const SINGLE_STATION_DELTA = 0.12;
+const REGION_PADDING = 1.35;
 
 export function hasValidCoordinates(station: Station): boolean {
   return (
@@ -27,14 +32,26 @@ export function hasValidCoordinates(station: Station): boolean {
 }
 
 export function getStationsWithCoordinates(stations: Station[]): Station[] {
-  return stations.filter(hasValidCoordinates);
+  const seen = new Set<string>();
+  const result: Station[] = [];
+
+  for (const station of stations) {
+    if (!hasValidCoordinates(station) || !station.id || seen.has(station.id)) {
+      continue;
+    }
+
+    seen.add(station.id);
+    result.push(station);
+  }
+
+  return result;
 }
 
 export function getMapRegionForStations(stations: Station[]): MapRegion {
   const validStations = getStationsWithCoordinates(stations);
 
   if (validStations.length === 0) {
-    return DEFAULT_REGION;
+    return LAHORE_DEFAULT_REGION;
   }
 
   if (validStations.length === 1) {
@@ -42,8 +59,8 @@ export function getMapRegionForStations(stations: Station[]): MapRegion {
     return {
       latitude: station.latitude!,
       longitude: station.longitude!,
-      latitudeDelta: MIN_DELTA,
-      longitudeDelta: MIN_DELTA,
+      latitudeDelta: SINGLE_STATION_DELTA,
+      longitudeDelta: SINGLE_STATION_DELTA,
     };
   }
 

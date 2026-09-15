@@ -1,4 +1,13 @@
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInputProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { theme } from '@/theme';
@@ -7,12 +16,17 @@ type SearchInputProps = TextInputProps & {
   showFilterIcon?: boolean;
   onFilterPress?: () => void;
   activeFilterCount?: number;
+  /** Removes outer margins so the field can sit in a horizontal toolbar row. */
+  embedded?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export function SearchInput({
   showFilterIcon = true,
   onFilterPress,
   activeFilterCount = 0,
+  embedded = false,
+  containerStyle,
   placeholderTextColor = theme.colors.textMuted,
   style,
   value,
@@ -23,7 +37,13 @@ export function SearchInput({
   const hasText = typeof value === 'string' && value.length > 0;
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        embedded && styles.containerEmbedded,
+        containerStyle,
+      ]}
+    >
       <Icon name="search" size={18} color={theme.colors.textMuted} />
       <TextInput
         style={[styles.input, style]}
@@ -83,6 +103,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
+  },
+  containerEmbedded: {
+    flex: 1,
+    marginHorizontal: 0,
+    marginTop: 0,
+    minWidth: 0,
   },
   input: {
     flex: 1,
