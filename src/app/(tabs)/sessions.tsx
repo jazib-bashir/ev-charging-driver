@@ -1,5 +1,5 @@
-import { ComingSoonScreen } from '@/components/coming-soon-screen';
+import { SessionsScreen } from '@/components/charging-session/sessions-screen';
 
-export default function SessionsScreen() {
-  return <ComingSoonScreen title="Sessions" />;
+export default function SessionsTabScreen() {
+  return <SessionsScreen />;
 }

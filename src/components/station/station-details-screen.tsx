@@ -13,12 +13,15 @@ import {
 } from 'react-native';
 
 import { resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
+import { fetchPublicChargers } from '@/api/publicChargers';
 import {
   findActiveMembershipForStation,
   leaveQueueMember,
   listDriverQueueMembers,
 } from '@/api/stationQueue';
 import { useAuth } from '@/auth/auth-context';
+import { ActiveSessionCard } from '@/components/charging-session/active-session-card';
+import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
 import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationImageSource } from '@/data/station-images';
@@ -133,7 +136,16 @@ function StationDetailsContent({
   const [queueMembership, setQueueMembership] = useState<QueueMember | null>(null);
   const [isMembershipLoading, setIsMembershipLoading] = useState(false);
   const [isLeavingQueue, setIsLeavingQueue] = useState(false);
+  const [activeConnectorLabel, setActiveConnectorLabel] = useState<string>();
   const resumeHandledRef = useRef(false);
+
+  const {
+    session: activeChargingSession,
+    refresh: refreshActiveChargingSession,
+  } = useActiveChargingSession({ token });
+
+  const stationActiveSession =
+    activeChargingSession?.stationId === stationId ? activeChargingSession : null;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -178,8 +190,37 @@ function StationDetailsContent({
   useFocusEffect(
     useCallback(() => {
       void loadQueueMembership();
-    }, [loadQueueMembership]),
+      void refreshActiveChargingSession();
+    }, [loadQueueMembership, refreshActiveChargingSession]),
   );
+
+  useEffect(() => {
+    if (!stationActiveSession) {
+      setActiveConnectorLabel(undefined);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const chargers = await fetchPublicChargers({
+          stationId: stationActiveSession.stationId,
+        });
+        const charger = chargers.data.find(
+          (item) => item.id === stationActiveSession.chargerId,
+        );
+        const connector = charger?.connectors?.find(
+          (item) => item.id === stationActiveSession.connectorId,
+        );
+        setActiveConnectorLabel(
+          connector
+            ? `${connector.displayName ?? connector.connectorType} #${connector.connectorNumber ?? ''}`
+            : stationActiveSession.connectorId,
+        );
+      } catch {
+        setActiveConnectorLabel(stationActiveSession.connectorId);
+      }
+    })();
+  }, [stationActiveSession]);
 
   useEffect(() => {
     if (!token || !queueMembership) {
@@ -528,7 +569,17 @@ function StationDetailsContent({
           </Pressable>
 
           <View style={styles.queueSection}>
-            {queueMembership ? (
+            {stationActiveSession ? (
+              <ActiveSessionCard
+                session={stationActiveSession}
+                stationName={station.name}
+                connectorLabel={activeConnectorLabel}
+                compact
+                onPress={() => router.push('/sessions/active' as Href)}
+              />
+            ) : null}
+
+            {!stationActiveSession && queueMembership ? (
               <QueueStatusCard
                 membership={queueMembership}
                 isLeaving={isLeavingQueue}
@@ -536,7 +587,7 @@ function StationDetailsContent({
                   void handleLeaveQueue();
                 }}
               />
-            ) : station.queue ? (
+            ) : !stationActiveSession && station.queue ? (
               <View style={styles.bookQueueCard}>
                 <View style={styles.bookQueueCardHeader}>
                   <View style={styles.bookQueueIconWrap}>
@@ -581,7 +632,7 @@ function StationDetailsContent({
                   )}
                 </Pressable>
               </View>
-            ) : (
+            ) : !stationActiveSession ? (
               <View style={styles.queueUnavailableCard}>
                 <View style={styles.queueUnavailableIconWrap}>
                   <Icon name="list" size={18} color={theme.colors.textMuted} />
@@ -595,7 +646,7 @@ function StationDetailsContent({
                   </Text>
                 </View>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
 

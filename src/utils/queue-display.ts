@@ -47,9 +47,22 @@ export function getPeopleAhead(member: QueueMember): number {
   return Math.max(0, getQueueRank(member) - 1);
 }
 
+export const EVSE_UNAVAILABLE_MESSAGE =
+  'Your assigned charger is currently unavailable. The station is finding another compatible charger.';
+
+export function hasOperationalEvseAllocation(
+  allocation: QueueMemberAllocationSummary | null | undefined,
+): boolean {
+  return allocation?.evse?.status === 'AVAILABLE';
+}
+
 export function formatAssignedEvse(
   allocation: QueueMemberAllocationSummary | null | undefined,
 ): string | null {
+  if (!hasOperationalEvseAllocation(allocation)) {
+    return null;
+  }
+
   if (!allocation) {
     return null;
   }
@@ -82,7 +95,7 @@ export function shouldShowQueuePosition(state: string): boolean {
 export function formatEvseHeadline(
   allocation: QueueMemberAllocationSummary | null | undefined,
 ): string | null {
-  if (!allocation?.evse) {
+  if (!hasOperationalEvseAllocation(allocation) || !allocation?.evse) {
     return null;
   }
 
@@ -139,17 +152,28 @@ export function getQueueStatusHeadline(state: string): string {
 
 export function getQueueStatusSubheadline(
   state: string,
-  hasAllocation: boolean,
+  options: {
+    hasOperationalAllocation: boolean;
+    needsEvseReassignment?: boolean;
+  },
 ): string {
+  const { hasOperationalAllocation, needsEvseReassignment = false } = options;
+
+  if (needsEvseReassignment) {
+    return EVSE_UNAVAILABLE_MESSAGE;
+  }
+
   switch (state) {
     case 'QUEUED':
       return 'We will update your estimated turn as the queue moves.';
     case 'APPROACHING':
-      return hasAllocation
+      return hasOperationalAllocation
         ? 'Head to your assigned charger.'
         : 'Finding a compatible EVSE…';
     case 'READY':
-      return 'Park at your assigned charger and wait for station staff.';
+      return hasOperationalAllocation
+        ? 'Park at your assigned charger and wait for station staff.'
+        : 'Finding a compatible EVSE…';
     case 'GRACE':
       return 'Please arrive at the station as soon as possible.';
     case 'CHARGING':
