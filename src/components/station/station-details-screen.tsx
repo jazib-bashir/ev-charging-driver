@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -12,13 +13,20 @@ import {
 } from 'react-native';
 
 import { resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
+import {
+  findActiveMembershipForStation,
+  listDriverQueueMembers,
+} from '@/api/stationQueue';
 import { useAuth } from '@/auth/auth-context';
 import { Icon } from '@/components/ui/icon';
+import { Badge } from '@/components/ui/badge';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationImageSource } from '@/data/station-images';
 import { useStationDetails } from '@/hooks/use-station-details';
 import { theme } from '@/theme';
 import type { Charger } from '@/types/charger';
+import type { QueueMember } from '@/types/queue';
+import { formatQueueMemberState } from '@/types/queue';
 import {
   formatDetailDistance,
   formatDetailPricePerKwh,
@@ -31,6 +39,7 @@ import {
 } from '@/utils/station';
 
 import { ChargerDetailsSheet } from './charger-details-sheet';
+import { QueueJoinSheet } from './queue-join-sheet';
 import { StationAmenitiesSection } from './station-amenities-section';
 import { StationChargersSection } from './station-chargers-section';
 import { StationDetailsHeader } from './station-details-header';
@@ -96,6 +105,7 @@ function StationDetailsContent({
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_BREAKPOINT;
   const {
+    token,
     ensureAuthenticatedUser,
     setPendingBooking,
     refreshUser,
@@ -117,6 +127,10 @@ function StationDetailsContent({
   const [selectedCharger, setSelectedCharger] = useState<Charger | null>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [isQueueSheetVisible, setIsQueueSheetVisible] = useState(false);
+  const [isOpeningQueue, setIsOpeningQueue] = useState(false);
+  const [queueMembership, setQueueMembership] = useState<QueueMember | null>(null);
+  const [isMembershipLoading, setIsMembershipLoading] = useState(false);
   const resumeHandledRef = useRef(false);
 
   const handleBack = () => {
@@ -136,6 +150,88 @@ function StationDetailsContent({
   const closeChargerSheet = useCallback(() => {
     setIsSheetVisible(false);
   }, []);
+
+  const loadQueueMembership = useCallback(async () => {
+    if (!token) {
+      setQueueMembership(null);
+      setIsMembershipLoading(false);
+      return;
+    }
+
+    setIsMembershipLoading(true);
+    try {
+      const members = await listDriverQueueMembers(token);
+      setQueueMembership(findActiveMembershipForStation(members, stationId));
+    } catch {
+      // Keep prior membership if refresh fails; join UX still works from local state.
+    } finally {
+      setIsMembershipLoading(false);
+    }
+  }, [token, stationId]);
+
+  useEffect(() => {
+    void loadQueueMembership();
+  }, [loadQueueMembership]);
+
+  const handleJoinQueuePress = useCallback(async () => {
+    if (isOpeningQueue || queueMembership || !station?.queue) {
+      return;
+    }
+
+    setIsOpeningQueue(true);
+
+    try {
+      let user = await ensureAuthenticatedUser();
+
+      if (!user) {
+        router.push('/auth' as Href);
+        return;
+      }
+
+      user = (await refreshUser()) ?? user;
+
+      if (!user) {
+        Alert.alert(
+          'Unable to book queue',
+          'We could not verify your account. Please try again.',
+        );
+        return;
+      }
+
+      if (!resolveIsOnboarded(user)) {
+        router.push('/auth/onboarding' as Href);
+        return;
+      }
+
+      setIsQueueSheetVisible(true);
+    } catch {
+      Alert.alert(
+        'Unable to book queue',
+        'Something went wrong while preparing your queue request. Please try again.',
+      );
+    } finally {
+      setIsOpeningQueue(false);
+    }
+  }, [
+    isOpeningQueue,
+    queueMembership,
+    station?.queue,
+    ensureAuthenticatedUser,
+    refreshUser,
+  ]);
+
+  const handleQueueJoined = useCallback(
+    (member: QueueMember) => {
+      setQueueMembership(member);
+      retryStation();
+      void loadQueueMembership();
+      Alert.alert(
+        'Queue booked',
+        `You are in position ${member.position}. Status: ${formatQueueMemberState(member.state)}.`,
+      );
+    },
+    [retryStation, loadQueueMembership],
+  );
 
   const completeBookingPlaceholder = useCallback(() => {
     setPendingBooking(null);
@@ -391,6 +487,114 @@ function StationDetailsContent({
             <Icon name="car" size={18} color={theme.colors.textInverse} />
             <Text style={styles.navigateButtonText}>Navigate</Text>
           </Pressable>
+
+          <View style={styles.queueSection}>
+            {queueMembership ? (
+              <View style={styles.queueStatusCard}>
+                <View style={styles.queueStatusHeader}>
+                  <View style={styles.queueStatusIconWrap}>
+                    <Icon name="checkmark" size={18} color={theme.colors.brand} />
+                  </View>
+                  <View style={styles.queueStatusCopy}>
+                    <View style={styles.queueStatusTitleRow}>
+                      <Text style={styles.queueStatusTitle}>You're in the queue</Text>
+                      <Badge label="Booked" variant="available" />
+                    </View>
+                    <Text style={styles.queueStatusSubtitle}>
+                      We'll notify you when it's nearly your turn.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.queueMetricRow}>
+                  <View style={styles.queueMetric}>
+                    <Text style={styles.queueMetricLabel}>Status</Text>
+                    <Text style={styles.queueMetricValue}>
+                      {formatQueueMemberState(queueMembership.state)}
+                    </Text>
+                  </View>
+                  <View style={styles.queueMetricDivider} />
+                  <View style={styles.queueMetric}>
+                    <Text style={styles.queueMetricLabel}>Position</Text>
+                    <Text style={styles.queueMetricValue}>
+                      #{queueMembership.position}
+                    </Text>
+                  </View>
+                  <View style={styles.queueMetricDivider} />
+                  <View style={styles.queueMetric}>
+                    <Text style={styles.queueMetricLabel}>Preference</Text>
+                    <Text style={styles.queueMetricValue} numberOfLines={1}>
+                      {[
+                        queueMembership.chargingPreference,
+                        queueMembership.connectorPreference,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : station.queue ? (
+              <View style={styles.bookQueueCard}>
+                <View style={styles.bookQueueCardHeader}>
+                  <View style={styles.bookQueueIconWrap}>
+                    <Icon name="list" size={18} color={theme.colors.brand} />
+                  </View>
+                  <View style={styles.bookQueueCopy}>
+                    <View style={styles.bookQueueTitleRow}>
+                      <Text style={styles.bookQueueTitle}>Queue available</Text>
+                      <View style={styles.availablePill}>
+                        <View style={styles.availablePillDot} />
+                        <Text style={styles.availablePillText}>Open</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.bookQueueSubtitle}>
+                      Reserve your place in line and get notified when a charger
+                      is ready for you.
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.bookQueueButton,
+                    (pressed || isOpeningQueue || isMembershipLoading) &&
+                      styles.bookQueueButtonPressed,
+                    (isOpeningQueue || isMembershipLoading) &&
+                      styles.bookQueueButtonDisabled,
+                  ]}
+                  onPress={() => {
+                    void handleJoinQueuePress();
+                  }}
+                  disabled={isOpeningQueue || isMembershipLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Book station queue"
+                >
+                  {isOpeningQueue || isMembershipLoading ? (
+                    <ActivityIndicator color={theme.colors.textInverse} />
+                  ) : (
+                    <>
+                      <Icon name="list" size={16} color={theme.colors.textInverse} />
+                      <Text style={styles.bookQueueButtonText}>Book Queue</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.queueUnavailableCard}>
+                <View style={styles.queueUnavailableIconWrap}>
+                  <Icon name="list" size={18} color={theme.colors.textMuted} />
+                </View>
+                <View style={styles.queueUnavailableCopy}>
+                  <Text style={styles.queueUnavailableTitle}>
+                    Queue not available
+                  </Text>
+                  <Text style={styles.queueUnavailableSubtitle}>
+                    This station is not accepting queue bookings right now.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
         </View>
 
         <StationAmenitiesSection />
@@ -412,6 +616,15 @@ function StationDetailsContent({
         isBooking={isBooking}
         onClose={closeChargerSheet}
         onBook={handleBook}
+      />
+
+      <QueueJoinSheet
+        visible={isQueueSheetVisible}
+        stationId={stationId}
+        stationName={station.name}
+        authToken={token}
+        onClose={() => setIsQueueSheetVisible(false)}
+        onJoined={handleQueueJoined}
       />
     </ScreenContainer>
   );
@@ -555,6 +768,195 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.textInverse,
+  },
+  queueSection: {
+    marginTop: theme.spacing.sm,
+  },
+  bookQueueCard: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.selectionBorder,
+    backgroundColor: theme.colors.brandMuted,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  bookQueueCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+  },
+  bookQueueIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookQueueCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  bookQueueTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  bookQueueTitle: {
+    flexShrink: 1,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.brandDark,
+  },
+  availablePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surface,
+  },
+  availablePillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.statusDot,
+  },
+  availablePillText: {
+    fontSize: 11,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.brandDark,
+  },
+  bookQueueSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  bookQueueButton: {
+    height: 44,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  bookQueueButtonPressed: {
+    opacity: 0.85,
+  },
+  bookQueueButtonDisabled: {
+    opacity: 0.7,
+  },
+  bookQueueButtonText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.textInverse,
+  },
+  queueUnavailableCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: '#f8fafc',
+    padding: theme.spacing.md,
+  },
+  queueUnavailableIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.iconBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  queueUnavailableCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  queueUnavailableTitle: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.textSecondary,
+  },
+  queueUnavailableSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  queueStatusCard: {
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.selectionBorder,
+    backgroundColor: theme.colors.brandMuted,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  queueStatusHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+  },
+  queueStatusIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  queueStatusCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  queueStatusTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  queueStatusTitle: {
+    flexShrink: 1,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.brandDark,
+  },
+  queueStatusSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  queueMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  queueMetric: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+  },
+  queueMetricDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.border,
+    marginVertical: 2,
+  },
+  queueMetricLabel: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  queueMetricValue: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
   },
   centeredState: {
     flex: 1,

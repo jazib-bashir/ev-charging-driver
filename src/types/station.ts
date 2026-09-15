@@ -1,3 +1,5 @@
+import type { StationQueueSummary } from '@/types/queue';
+
 export type StationConnector = {
   type: string;
   label?: string;
@@ -35,6 +37,8 @@ export type Station = {
   connectors?: StationConnector[] | null;
   statusLabel?: string | null;
   statusEstimate?: string | null;
+  /** Active station queue when one exists; null when the station is not accepting joins. */
+  queue?: StationQueueSummary | null;
 };
 
 export type StationsResponse = {

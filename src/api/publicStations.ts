@@ -1,5 +1,22 @@
 import { env } from '@/config/env';
+import type { StationQueueSummary } from '@/types/queue';
 import type { Station, StationsResponse } from '@/types/station';
+
+function mapApiStationQueue(raw: unknown): StationQueueSummary | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const queue = raw as Record<string, unknown>;
+  const id = typeof queue.id === 'string' ? queue.id.trim() : '';
+  const status = typeof queue.status === 'string' ? queue.status : '';
+
+  if (!id || status !== 'ACTIVE') {
+    return null;
+  }
+
+  return { id, status: 'ACTIVE' };
+}
 
 export type FetchPublicStationsParams = {
   limit?: number;
@@ -57,6 +74,7 @@ export function mapApiStation(raw: Record<string, unknown>): Station {
     connectors: raw.connectors as Station['connectors'],
     statusLabel: raw.statusLabel as string | null | undefined,
     statusEstimate: raw.statusEstimate as string | null | undefined,
+    queue: mapApiStationQueue(raw.queue),
   };
 }
 
