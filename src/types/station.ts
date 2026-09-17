@@ -34,6 +34,7 @@ export type Station = {
   imageUrl?: string | null;
   imageAsset?: string | null;
   distanceMi?: number | null;
+  distanceKm?: number | null;
   maxPowerKw?: number | null;
   availableChargers?: number | null;
   connectors?: StationConnector[] | null;

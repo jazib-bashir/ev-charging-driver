@@ -101,3 +101,72 @@ export async function getCitiesForUser(
 ): Promise<string[]> {
   return getPopularCitiesByLocation(lat, lng);
 }
+
+const EARTH_RADIUS_KM = 6371;
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+export function distanceKmBetween(
+  originLat: number,
+  originLng: number,
+  targetLat: number,
+  targetLng: number,
+): number {
+  const latDelta = toRadians(targetLat - originLat);
+  const lngDelta = toRadians(targetLng - originLng);
+  const originLatRad = toRadians(originLat);
+  const targetLatRad = toRadians(targetLat);
+
+  const a =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(originLatRad) *
+      Math.cos(targetLatRad) *
+      Math.sin(lngDelta / 2) *
+      Math.sin(lngDelta / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_KM * c;
+}
+
+export function attachDistancesToStations<T extends {
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceKm?: number | null;
+}>(
+  stations: T[],
+  originLat: number,
+  originLng: number,
+): T[] {
+  return stations.map((station) => {
+    if (
+      typeof station.latitude !== 'number' ||
+      !Number.isFinite(station.latitude) ||
+      typeof station.longitude !== 'number' ||
+      !Number.isFinite(station.longitude)
+    ) {
+      return station;
+    }
+
+    return {
+      ...station,
+      distanceKm: distanceKmBetween(
+        originLat,
+        originLng,
+        station.latitude,
+        station.longitude,
+      ),
+    };
+  });
+}
+
+export function sortStationsByDistance<T extends { distanceKm?: number | null }>(
+  stations: T[],
+): T[] {
+  return [...stations].sort((left, right) => {
+    const leftDistance = left.distanceKm ?? Number.POSITIVE_INFINITY;
+    const rightDistance = right.distanceKm ?? Number.POSITIVE_INFINITY;
+    return leftDistance - rightDistance;
+  });
+}

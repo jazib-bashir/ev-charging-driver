@@ -27,7 +27,11 @@ import type {
   StationSortOrder,
 } from '@/types/station';
 import { CONNECTOR_TYPES } from '@/types/vehicle';
-import { GeolocationError, getCurrentCoordinates } from '@/utils/geolocation';
+import {
+  GeolocationError,
+  getCurrentCoordinates,
+  type LocationPermissionState,
+} from '@/utils/geolocation';
 import {
   DEFAULT_FALLBACK_CITIES,
   DISTANCE_OPTIONS,
@@ -76,6 +80,10 @@ type FilterBottomSheetProps = {
   onClearAll: () => void;
   stationCount?: number;
   authToken?: string | null;
+  locationPermissionStatus: LocationPermissionState;
+  isLocationLoading?: boolean;
+  onEnableLocation: () => Promise<void>;
+  onOpenLocationSettings: () => Promise<void>;
 };
 
 export function FilterBottomSheet({
@@ -85,6 +93,10 @@ export function FilterBottomSheet({
   onApplyFilters,
   onClearAll,
   authToken = null,
+  locationPermissionStatus,
+  isLocationLoading = false,
+  onEnableLocation,
+  onOpenLocationSettings,
 }: FilterBottomSheetProps) {
   const [draftFilters, setDraftFilters] = useState<PublicStationFilterState>(appliedFilters);
   const [availableCities, setAvailableCities] = useState<string[]>(DEFAULT_FALLBACK_CITIES);
@@ -173,11 +185,36 @@ export function FilterBottomSheet({
     };
   }, [visible, appliedFilters, authToken, fadeAnim, slideAnim]);
 
-  const handleSelectDistance = (value: number) => {
+  const isDistanceFilterLocked = locationPermissionStatus !== 'granted';
+
+  const handleSelectDistance = async (value: number) => {
     setLocationError(null);
+
+    if (draftFilters.radiusKm === value) {
+      setDraftFilters((prev) => ({
+        ...prev,
+        radiusKm: null,
+      }));
+      return;
+    }
+
+    if (isDistanceFilterLocked) {
+      try {
+        await onEnableLocation();
+      } catch (error) {
+        const message =
+          error instanceof GeolocationError
+            ? error.message
+            : 'Location access is required to use the distance filter.';
+        setLocationError(message);
+        return;
+      }
+    }
+
     setDraftFilters((prev) => ({
       ...prev,
-      radiusKm: prev.radiusKm === value ? null : value,
+      radiusKm: value,
+      city: null,
     }));
   };
 
@@ -285,20 +322,32 @@ export function FilterBottomSheet({
     if (!needsLocation) {
       onApplyFilters({
         ...draftFilters,
-        lat: null,
-        lng: null,
+        radiusKm: null,
       });
       onClose();
       return;
     }
 
+    if (locationPermissionStatus === 'denied') {
+      setLocationError(
+        'Location access is required to filter stations by distance. Open Settings to allow it.',
+      );
+      return;
+    }
+
     setIsResolvingLocation(true);
     try {
+      if (locationPermissionStatus !== 'granted') {
+        await onEnableLocation();
+      }
+
       const coords = await getCurrentCoordinates();
+
       onApplyFilters({
         ...draftFilters,
         lat: coords.lat,
         lng: coords.lng,
+        city: null,
       });
       onClose();
     } catch (error) {
@@ -370,20 +419,62 @@ export function FilterBottomSheet({
               <Text style={styles.sectionSubtitle}>
                 Find stations within this range of your current location
               </Text>
+
+              {locationPermissionStatus !== 'granted' ? (
+                <View style={styles.locationNotice}>
+                  <Icon name="location" size={16} color={theme.colors.brand} />
+                  <View style={styles.locationNoticeCopy}>
+                    <Text style={styles.locationNoticeTitle}>
+                      Location access required
+                    </Text>
+                    <Text style={styles.locationNoticeText}>
+                      {locationPermissionStatus === 'denied'
+                        ? 'Distance filtering is disabled until location access is enabled in Settings.'
+                        : 'Allow location access to filter stations by how far they are from you.'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.locationNoticeButton}
+                    onPress={() => {
+                      void (locationPermissionStatus === 'denied'
+                        ? onOpenLocationSettings()
+                        : onEnableLocation().catch(() => undefined));
+                    }}
+                    disabled={isLocationLoading || isResolvingLocation}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.locationNoticeButtonText}>
+                      {locationPermissionStatus === 'denied' ? 'Settings' : 'Allow'}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
               <View style={styles.chipsRow}>
                 {DISTANCE_OPTIONS.map((opt) => {
                   const isSelected = draftFilters.radiusKm === opt.value;
+                  const isDisabled =
+                    isDistanceFilterLocked || isLocationLoading || isResolvingLocation;
+
                   return (
                     <Pressable
                       key={opt.value}
-                      style={[styles.chip, isSelected && styles.chipActive]}
-                      onPress={() => handleSelectDistance(opt.value)}
+                      style={[
+                        styles.chip,
+                        isSelected && styles.chipActive,
+                        isDisabled && styles.chipDisabled,
+                      ]}
+                      onPress={() => {
+                        void handleSelectDistance(opt.value);
+                      }}
+                      disabled={isDisabled}
                       accessibilityRole="button"
                     >
                       <Text
                         style={[
                           styles.chipText,
                           isSelected && styles.chipTextActive,
+                          isDisabled && styles.chipTextDisabled,
                         ]}
                       >
                         {opt.label}
@@ -709,6 +800,43 @@ const styles = StyleSheet.create({
     marginTop: -6,
     marginBottom: 10,
     lineHeight: 18,
+  },
+  locationNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.selectionBorder,
+    backgroundColor: theme.colors.brandMuted,
+  },
+  locationNoticeCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  locationNoticeTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.textPrimary,
+  },
+  locationNoticeText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textSecondary,
+    lineHeight: 17,
+  },
+  locationNoticeButton: {
+    alignSelf: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 8,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.brand,
+  },
+  locationNoticeButtonText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.textInverse,
   },
   helperText: {
     fontSize: 13,

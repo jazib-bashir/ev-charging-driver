@@ -11,7 +11,7 @@ import type { Station } from '@/types/station';
 import {
   formatChargerAvailability,
   formatConnectorTypeLabel,
-  formatDistance,
+  formatDistanceKm,
   formatPower,
   formatPricePerKwh,
   formatText,
@@ -39,7 +39,7 @@ export function StationCard({ station }: StationCardProps) {
   const imageSource = getStationImageSource(station);
   const chargerLabel = formatChargerAvailability(station);
   const showPower = hasValue(station.maxPowerKw);
-  const showDistance = hasValue(station.distanceMi);
+  const showDistance = hasValue(station.distanceKm);
   const showCity = shouldShowStationCity(station, address);
 
   const handlePress = () => {
@@ -94,12 +94,12 @@ export function StationCard({ station }: StationCardProps) {
 
         {showDistance ? (
           <Badge
-            label={formatDistance(station.distanceMi)}
+            label={formatDistanceKm(station.distanceKm)}
             variant="distance"
-            style={[
-              styles.distanceBadge,
-              connectors.length > 0 && styles.distanceBadgeLeft,
-            ]}
+            style={{
+              ...styles.distanceBadge,
+              ...(connectors.length > 0 ? styles.distanceBadgeLeft : {}),
+            }}
           />
         ) : null}
       </View>

@@ -10,6 +10,7 @@ import { theme } from '@/theme';
 
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
+import { LocationPermissionBanner } from './location-permission-banner';
 import { StationErrorState } from './station-error-state';
 import { StationHeader } from './station-header';
 import { StationList } from './station-list';
@@ -35,6 +36,14 @@ export function StationDiscoveryScreen() {
     closeFilterSheet,
     clearAllFilters,
     searchNearby,
+    enableLocationAccess,
+    openLocationSettings,
+    locationPermissionStatus,
+    isLocationLoading,
+    locationError,
+    clearLocationError,
+    isLocationBannerDismissed,
+    dismissLocationBanner,
     hasActiveSearch,
     hasActiveFilters,
     activeFilterCount,
@@ -111,6 +120,24 @@ export function StationDiscoveryScreen() {
         activeFilterCount={activeFilterCount}
       />
 
+      {!isLocationBannerDismissed ? (
+        <LocationPermissionBanner
+          permissionStatus={locationPermissionStatus}
+          isLoading={isLocationLoading}
+          onEnableLocation={() => {
+            void enableLocationAccess().catch(() => undefined);
+          }}
+          onOpenSettings={() => {
+            void openLocationSettings();
+          }}
+          onDismiss={dismissLocationBanner}
+        />
+      ) : null}
+
+      {locationError ? (
+        <NoticeToast message={locationError} onDismiss={clearLocationError} />
+      ) : null}
+
       <ScreenContent style={styles.contentArea}>
         {renderContent()}
       </ScreenContent>
@@ -123,6 +150,10 @@ export function StationDiscoveryScreen() {
         onClearAll={clearAllFilters}
         stationCount={totalCount}
         authToken={token}
+        locationPermissionStatus={locationPermissionStatus}
+        isLocationLoading={isLocationLoading}
+        onEnableLocation={enableLocationAccess}
+        onOpenLocationSettings={openLocationSettings}
       />
     </ScreenContainer>
   );

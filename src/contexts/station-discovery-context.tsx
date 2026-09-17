@@ -9,8 +9,13 @@ import {
 } from 'react';
 
 import { MAP_STATION_LIMIT, useStationDiscoveryData } from '@/hooks/use-station-discovery-data';
-import type { PublicStationFilterState } from '@/types/station';
-import { GeolocationError, getCurrentCoordinates } from '@/utils/geolocation';
+import { useUserLocation } from '@/hooks/use-user-location';
+import type { PublicStationFilterState, Station } from '@/types/station';
+import { GeolocationError } from '@/utils/geolocation';
+import {
+  attachDistancesToStations,
+  sortStationsByDistance,
+} from '@/utils/location-helpers';
 import type { StationFilters } from '@/utils/station';
 
 const EMPTY_ADVANCED_FILTERS: PublicStationFilterState = {
@@ -46,6 +51,25 @@ function toggleConnectorType(
   return next.length > 0 ? next : null;
 }
 
+function enrichStationsWithDistance(
+  stations: Station[],
+  originLat: number | null | undefined,
+  originLng: number | null | undefined,
+  sortByDistance: boolean,
+): Station[] {
+  if (
+    typeof originLat !== 'number' ||
+    !Number.isFinite(originLat) ||
+    typeof originLng !== 'number' ||
+    !Number.isFinite(originLng)
+  ) {
+    return stations;
+  }
+
+  const withDistance = attachDistancesToStations(stations, originLat, originLng);
+  return sortByDistance ? sortStationsByDistance(withDistance) : withDistance;
+}
+
 type StationDiscoveryContextValue = {
   searchQuery: string;
   setSearchQuery: (value: string) => void;
@@ -59,11 +83,17 @@ type StationDiscoveryContextValue = {
   closeFilterSheet: () => void;
   clearAllFilters: () => void;
   searchNearby: () => Promise<void>;
+  enableLocationAccess: () => Promise<void>;
+  openLocationSettings: () => Promise<void>;
+  locationPermissionStatus: ReturnType<typeof useUserLocation>['permissionStatus'];
+  isLocationLoading: boolean;
   locationError: string | null;
+  clearLocationError: () => void;
+  isLocationBannerDismissed: boolean;
+  dismissLocationBanner: () => void;
   hasActiveSearch: boolean;
   hasActiveFilters: boolean;
   activeFilterCount: number;
-  /** Stable key that changes when search/filters change — used to refit the map camera. */
   mapCameraFitKey: string;
   list: ReturnType<typeof useStationDiscoveryData>;
   map: ReturnType<typeof useStationDiscoveryData>;
@@ -78,6 +108,9 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
     useState<PublicStationFilterState>(EMPTY_ADVANCED_FILTERS);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocationBannerDismissed, setIsLocationBannerDismissed] = useState(false);
+
+  const userLocation = useUserLocation();
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -100,6 +133,49 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
     advancedFilters,
     enablePagination: false,
   });
+
+  const originCoords = useMemo(() => {
+    if (
+      typeof advancedFilters.lat === 'number' &&
+      Number.isFinite(advancedFilters.lat) &&
+      typeof advancedFilters.lng === 'number' &&
+      Number.isFinite(advancedFilters.lng)
+    ) {
+      return { lat: advancedFilters.lat, lng: advancedFilters.lng };
+    }
+
+    return userLocation.coords;
+  }, [advancedFilters.lat, advancedFilters.lng, userLocation.coords]);
+
+  const sortByDistance = Boolean(
+    typeof advancedFilters.radiusKm === 'number' && advancedFilters.radiusKm > 0,
+  );
+
+  const enrichedList = useMemo(
+    () => ({
+      ...list,
+      stations: enrichStationsWithDistance(
+        list.stations,
+        originCoords?.lat,
+        originCoords?.lng,
+        sortByDistance,
+      ),
+    }),
+    [list, originCoords?.lat, originCoords?.lng, sortByDistance],
+  );
+
+  const enrichedMap = useMemo(
+    () => ({
+      ...map,
+      stations: enrichStationsWithDistance(
+        map.stations,
+        originCoords?.lat,
+        originCoords?.lng,
+        sortByDistance,
+      ),
+    }),
+    [map, originCoords?.lat, originCoords?.lng, sortByDistance],
+  );
 
   const toggleFilter = useCallback((key: keyof StationFilters) => {
     if (key === 'fast') {
@@ -155,10 +231,32 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
     setDebouncedSearch('');
   }, []);
 
+  const enableLocationAccess = useCallback(async () => {
+    setLocationError(null);
+
+    try {
+      const coords = await userLocation.enableLocation();
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        lat: coords.lat,
+        lng: coords.lng,
+      }));
+      setIsLocationBannerDismissed(true);
+    } catch (err) {
+      const message =
+        err instanceof GeolocationError
+          ? err.message
+          : 'Unable to read your current location. Please try again.';
+      setLocationError(message);
+      throw err;
+    }
+  }, [userLocation]);
+
   const searchNearby = useCallback(async () => {
     setLocationError(null);
+
     try {
-      const coords = await getCurrentCoordinates();
+      const coords = userLocation.coords ?? (await userLocation.enableLocation());
       setAdvancedFilters((prev) => ({
         ...prev,
         radiusKm: 10,
@@ -166,6 +264,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
         lng: coords.lng,
         city: null,
       }));
+      setIsLocationBannerDismissed(true);
     } catch (err) {
       const message =
         err instanceof GeolocationError
@@ -173,6 +272,14 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
           : 'Unable to read your current location. Please try again.';
       setLocationError(message);
     }
+  }, [userLocation]);
+
+  const dismissLocationBanner = useCallback(() => {
+    setIsLocationBannerDismissed(true);
+  }, []);
+
+  const clearLocationError = useCallback(() => {
+    setLocationError(null);
   }, []);
 
   const quickChipState: StationFilters = useMemo(
@@ -205,9 +312,9 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
     (advancedFilters.sortBy ? 1 : 0);
 
   const mapCameraFitKey = useMemo(() => {
-    const stationIds = map.stations.map((station) => station.id).join('|');
+    const stationIds = enrichedMap.stations.map((station) => station.id).join('|');
     return `${debouncedSearch}::${JSON.stringify(advancedFilters)}::${stationIds}`;
-  }, [advancedFilters, debouncedSearch, map.stations]);
+  }, [advancedFilters, debouncedSearch, enrichedMap.stations]);
 
   const value = useMemo(
     () => ({
@@ -223,13 +330,20 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       closeFilterSheet,
       clearAllFilters,
       searchNearby,
+      enableLocationAccess,
+      openLocationSettings: userLocation.openLocationSettings,
+      locationPermissionStatus: userLocation.permissionStatus,
+      isLocationLoading: userLocation.isLoading,
       locationError,
+      clearLocationError,
+      isLocationBannerDismissed,
+      dismissLocationBanner,
       hasActiveSearch,
       hasActiveFilters: hasActiveAdvancedFilters,
       activeFilterCount,
       mapCameraFitKey,
-      list,
-      map,
+      list: enrichedList,
+      map: enrichedMap,
     }),
     [
       activeFilterCount,
@@ -238,18 +352,25 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       clearAllFilters,
       closeFilterSheet,
       debouncedSearch,
+      clearLocationError,
+      dismissLocationBanner,
+      enableLocationAccess,
+      enrichedList,
+      enrichedMap,
       hasActiveAdvancedFilters,
       hasActiveSearch,
       isFilterSheetOpen,
-      list,
+      isLocationBannerDismissed,
       locationError,
-      map,
       mapCameraFitKey,
       openFilterSheet,
       quickChipState,
       searchNearby,
       searchQuery,
       toggleFilter,
+      userLocation.isLoading,
+      userLocation.openLocationSettings,
+      userLocation.permissionStatus,
     ],
   );
 

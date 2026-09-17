@@ -25,6 +25,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "GridFlow uses your location to show nearby charging stations and filter results by distance."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#f5f7f9",

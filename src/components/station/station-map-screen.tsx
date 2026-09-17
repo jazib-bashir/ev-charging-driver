@@ -29,6 +29,10 @@ export function StationMapScreen() {
     closeFilterSheet,
     clearAllFilters,
     searchNearby,
+    enableLocationAccess,
+    openLocationSettings,
+    locationPermissionStatus,
+    isLocationLoading,
     hasActiveSearch,
     hasActiveFilters,
     activeFilterCount,
@@ -142,6 +146,10 @@ export function StationMapScreen() {
         onClearAll={clearAllFilters}
         stationCount={list.totalCount}
         authToken={token}
+        locationPermissionStatus={locationPermissionStatus}
+        isLocationLoading={isLocationLoading}
+        onEnableLocation={enableLocationAccess}
+        onOpenLocationSettings={openLocationSettings}
       />
     </ScreenContainer>
   );

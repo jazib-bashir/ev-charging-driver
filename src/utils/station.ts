@@ -84,6 +84,18 @@ export function getStationStatus(station: Station): {
   return { label: 'N/A', variant: 'neutral' };
 }
 
+export function formatDistanceKm(distanceKm: number | null | undefined): string {
+  if (!hasValue(distanceKm)) return 'N/A';
+
+  const value = Number(distanceKm);
+  if (value < 1) {
+    return `${Math.max(1, Math.round(value * 1000))} m`;
+  }
+
+  return `${value.toFixed(1)} km`;
+}
+
+/** @deprecated Use formatDistanceKm */
 export function formatDistance(distanceMi: number | null | undefined): string {
   if (!hasValue(distanceMi)) return 'N/A';
   return `${distanceMi} mi`;
