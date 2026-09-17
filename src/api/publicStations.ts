@@ -66,6 +66,8 @@ export function mapApiStation(raw: Record<string, unknown>): Station {
     postalCode: raw.postalCode as string | null | undefined,
     regionCity: raw.regionCity as string | null | undefined,
     defaultPricePerKwh: raw.defaultPricePerKwh as number | null | undefined,
+    currency: raw.currency as string | null | undefined,
+    isFastCharger: raw.isFastCharger as boolean | undefined,
     completedAt: raw.completedAt as string | null | undefined,
     imageUrl: raw.imageUrl as string | null | undefined,
     distanceMi: raw.distanceMi as number | null | undefined,

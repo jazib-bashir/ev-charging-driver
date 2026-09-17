@@ -9,7 +9,7 @@ import {
   formatDurationSeconds,
   formatEnergyKwh,
   formatPowerKw,
-  formatTotalCost,
+  formatCurrencyAmount,
   hasMetricValue,
 } from '@/utils/charging-session-format';
 
@@ -73,7 +73,7 @@ export function ActiveSessionCard({
           value={formatPowerKw(session.averagePowerKw ?? session.maxPowerKw)}
         />
         {!compact && hasMetricValue(session.totalCost) ? (
-          <MetricTile label="Cost" value={formatTotalCost(session.totalCost)} />
+          <MetricTile label="Cost" value={formatCurrencyAmount(session.totalCost)} />
         ) : null}
       </View>
 

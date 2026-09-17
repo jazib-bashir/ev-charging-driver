@@ -6,7 +6,7 @@ import type { ChargingSession } from '@/types/charging-session';
 import {
   formatEnergyKwh,
   formatRecentSessionMeta,
-  formatTotalCost,
+  formatCurrencyAmount,
   hasMetricValue,
 } from '@/utils/charging-session-format';
 
@@ -56,7 +56,7 @@ export function ProfileSessionPreview({
             <Text style={styles.energy}>{formatEnergyKwh(session.energyKwh)}</Text>
           ) : null}
           {hasCost ? (
-            <Text style={styles.cost}>${formatTotalCost(session.totalCost)}</Text>
+            <Text style={styles.cost}>{formatCurrencyAmount(session.totalCost)}</Text>
           ) : null}
         </View>
       ) : null}

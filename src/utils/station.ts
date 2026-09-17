@@ -1,5 +1,7 @@
 import type { Station } from '@/types/station';
 
+import { formatCurrencyAmount } from './charging-session-format';
+
 export function hasValue(value: string | number | null | undefined): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -18,6 +20,29 @@ export function formatCompact(value: string | number | null | undefined): string
 
 export function getStationAddress(station: Station): string {
   return station.formattedAddress ?? station.fullAddress ?? station.regionCity ?? '';
+}
+
+export function shouldShowStationCity(station: Station, address: string): boolean {
+  if (!hasValue(station.city)) {
+    return false;
+  }
+
+  const city = String(station.city).trim().toLowerCase();
+  return !address.toLowerCase().includes(city);
+}
+
+export function formatConnectorTypeLabel(type: string): string {
+  const normalized = type.trim();
+
+  if (normalized === 'Type2') {
+    return 'Type 2';
+  }
+
+  if (normalized === 'Type1') {
+    return 'Type 1';
+  }
+
+  return normalized;
 }
 
 export function getStationStatus(station: Station): {
@@ -69,9 +94,12 @@ export function formatPower(maxPowerKw: number | null | undefined): string {
   return `${maxPowerKw} kW`;
 }
 
-export function formatPricePerKwh(price: number | null | undefined): string {
+export function formatPricePerKwh(
+  price: number | null | undefined,
+  currencyCode?: string | null,
+): string {
   if (price === null || price === undefined) return 'N/A';
-  return `$${price.toFixed(2)}/kWh`;
+  return `${formatCurrencyAmount(price, currencyCode)}/kWh`;
 }
 
 export function hasChargerCount(chargerCount: number | null | undefined): boolean {

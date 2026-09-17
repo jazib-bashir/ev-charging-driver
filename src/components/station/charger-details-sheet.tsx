@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Dimensions,
   Easing,
@@ -33,9 +32,8 @@ type ChargerDetailsSheetProps = {
   charger: Charger | null;
   stationName?: string;
   stationDefaultPricePerKwh?: number | null;
-  isBooking?: boolean;
+  stationCurrency?: string | null;
   onClose: () => void;
-  onBook: () => void;
 };
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -52,9 +50,8 @@ export function ChargerDetailsSheet({
   charger,
   stationName,
   stationDefaultPricePerKwh,
-  isBooking = false,
+  stationCurrency,
   onClose,
-  onBook,
 }: ChargerDetailsSheetProps) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -196,7 +193,10 @@ export function ChargerDetailsSheet({
                     value={formatChargerPower(charger.maxPowerKw)}
                   />
                   <View style={styles.rowDivider} />
-                  <DetailRow label="Pricing" value={formatDetailPricePerKwh(price)} />
+                  <DetailRow
+                    label="Pricing"
+                    value={formatDetailPricePerKwh(price, stationCurrency)}
+                  />
                   <View style={styles.rowDivider} />
                   <DetailRow label="Connectors" value={connectors} />
                   {manufacturerModel ? (
@@ -205,35 +205,15 @@ export function ChargerDetailsSheet({
                       <DetailRow label="Hardware" value={manufacturerModel} />
                     </>
                   ) : null}
-                  {hasValue(charger.name) &&
-                  charger.name !== getChargerDisplayName(charger) ? (
+                  {hasValue(charger.serialNumber) &&
+                  charger.serialNumber !== getChargerDisplayName(charger) ? (
                     <>
                       <View style={styles.rowDivider} />
-                      <DetailRow label="Name" value={formatText(charger.name)} />
+                      <DetailRow label="Serial" value={formatText(charger.serialNumber)} />
                     </>
                   ) : null}
                 </View>
               </ScrollView>
-
-              <View style={styles.bottomBar}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.bookButton,
-                    (pressed || isBooking) && styles.bookButtonPressed,
-                    isBooking && styles.bookButtonDisabled,
-                  ]}
-                  onPress={onBook}
-                  disabled={isBooking}
-                  accessibilityRole="button"
-                  accessibilityLabel="Book this charger"
-                >
-                  {isBooking ? (
-                    <ActivityIndicator color={theme.colors.textInverse} />
-                  ) : (
-                    <Text style={styles.bookButtonText}>Book</Text>
-                  )}
-                </Pressable>
-              </View>
             </>
           ) : null}
         </Animated.View>
@@ -388,29 +368,5 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: theme.colors.border,
     marginHorizontal: theme.spacing.md,
-  },
-  bottomBar: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.borderLight,
-  },
-  bookButton: {
-    height: 52,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookButtonPressed: {
-    opacity: 0.85,
-  },
-  bookButtonDisabled: {
-    opacity: 0.7,
-  },
-  bookButtonText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textInverse,
   },
 });

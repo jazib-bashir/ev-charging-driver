@@ -8,6 +8,8 @@ import {
   formatChargerIndex,
   formatChargerPower,
   getChargerDisplayName,
+  getChargerListMeta,
+  getChargerListTitle,
   getChargerStatus,
   groupChargersByType,
 } from '@/utils/charger';
@@ -20,6 +22,43 @@ type StationChargersSectionProps = {
   onViewCharger: (charger: Charger) => void;
 };
 
+function StatusPill({
+  label,
+  variant,
+}: {
+  label: string;
+  variant: 'available' | 'unavailable' | 'neutral';
+}) {
+  const isAvailable = variant === 'available';
+
+  return (
+    <View
+      style={[
+        styles.statusPill,
+        isAvailable && styles.statusPillAvailable,
+        variant === 'unavailable' && styles.statusPillUnavailable,
+      ]}
+    >
+      <View
+        style={[
+          styles.statusDot,
+          isAvailable && styles.statusDotAvailable,
+          variant === 'unavailable' && styles.statusDotUnavailable,
+        ]}
+      />
+      <Text
+        style={[
+          styles.statusPillText,
+          isAvailable && styles.statusPillTextAvailable,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function ChargerRow({
   charger,
   index,
@@ -31,54 +70,41 @@ function ChargerRow({
 }) {
   const status = getChargerStatus(charger);
   const estimate = formatChargerEstimate(charger);
+  const meta = getChargerListMeta(charger);
+  const displayName = getChargerListTitle(charger);
 
   return (
-    <View style={styles.chargerRow}>
+    <Pressable
+      onPress={() => onViewCharger(charger)}
+      accessibilityRole="button"
+      accessibilityLabel={`Charger details for ${displayName}`}
+      style={({ pressed }) => [
+        styles.chargerRow,
+        status.variant === 'unavailable' && styles.chargerRowUnavailable,
+        pressed && styles.chargerRowPressed,
+      ]}
+    >
       <View style={styles.chargerIndex}>
         <Text style={styles.chargerIndexText}>{formatChargerIndex(index)}</Text>
       </View>
 
       <View style={styles.chargerCopy}>
-        <Text style={styles.chargerName} numberOfLines={1}>
-          {getChargerDisplayName(charger)}
+        <Text style={styles.chargerName} numberOfLines={2}>
+          {displayName}
         </Text>
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusDot,
-              status.variant === 'available' && styles.statusDotAvailable,
-              status.variant === 'unavailable' && styles.statusDotUnavailable,
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              status.variant === 'available' && styles.statusTextAvailable,
-            ]}
-          >
-            {status.label}
+        {meta ? (
+          <Text style={styles.chargerMeta} numberOfLines={2}>
+            {meta}
           </Text>
-        </View>
+        ) : null}
+        {estimate ? <Text style={styles.estimateText}>{estimate}</Text> : null}
       </View>
 
-      <View style={styles.chargerAction}>
-        {status.isSelectable ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.selectButton,
-              pressed && styles.selectButtonPressed,
-            ]}
-            onPress={() => onViewCharger(charger)}
-            accessibilityRole="button"
-            accessibilityLabel={`View ${getChargerDisplayName(charger)}`}
-          >
-            <Text style={styles.selectButtonText}>View</Text>
-          </Pressable>
-        ) : estimate ? (
-          <Text style={styles.estimateText}>{estimate}</Text>
-        ) : null}
+      <View style={styles.chargerTrailing}>
+        <StatusPill label={status.label} variant={status.variant} />
+        <Icon name="chevron-forward" size={16} color={theme.colors.textMuted} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -94,9 +120,7 @@ export function StationChargersSection({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>
-        Chargers ({chargers.length})
-      </Text>
+      <Text style={styles.heading}>Chargers ({chargers.length})</Text>
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -273,6 +297,12 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     gap: theme.spacing.md,
   },
+  chargerRowUnavailable: {
+    opacity: 0.82,
+  },
+  chargerRowPressed: {
+    backgroundColor: '#f8fafc',
+  },
   rowDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: theme.colors.border,
@@ -287,6 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.surface,
+    flexShrink: 0,
   },
   chargerIndexText: {
     fontSize: theme.typography.fontSize.sm,
@@ -296,21 +327,48 @@ const styles = StyleSheet.create({
   chargerCopy: {
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
   chargerName: {
     fontSize: theme.typography.fontSize.md,
     fontWeight: theme.typography.fontWeight.semibold,
     color: theme.colors.textPrimary,
+    lineHeight: 20,
   },
-  statusRow: {
+  chargerMeta: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  estimateText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textMuted,
+  },
+  chargerTrailing: {
+    alignItems: 'flex-end',
+    gap: 6,
+    flexShrink: 0,
+  },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.radius.pill,
+    backgroundColor: '#f1f5f9',
+    maxWidth: 108,
+  },
+  statusPillAvailable: {
+    backgroundColor: theme.colors.brandMuted,
+  },
+  statusPillUnavailable: {
+    backgroundColor: '#f1f5f9',
   },
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: theme.colors.statusUnavailable,
   },
   statusDotAvailable: {
@@ -319,37 +377,13 @@ const styles = StyleSheet.create({
   statusDotUnavailable: {
     backgroundColor: theme.colors.statusUnavailable,
   },
-  statusText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-  },
-  statusTextAvailable: {
-    color: theme.colors.brand,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  chargerAction: {
-    minWidth: 72,
-    alignItems: 'flex-end',
-  },
-  selectButton: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 7,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1.5,
-    borderColor: theme.colors.brand,
-    backgroundColor: theme.colors.surface,
-  },
-  selectButtonPressed: {
-    opacity: 0.75,
-  },
-  selectButtonText: {
-    fontSize: theme.typography.fontSize.sm,
+  statusPillText: {
+    fontSize: 11,
     fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brand,
-  },
-  estimateText: {
-    fontSize: theme.typography.fontSize.xs,
     color: theme.colors.textMuted,
-    textAlign: 'right',
+    flexShrink: 1,
+  },
+  statusPillTextAvailable: {
+    color: theme.colors.brand,
   },
 });

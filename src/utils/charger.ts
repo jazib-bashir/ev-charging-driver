@@ -1,6 +1,7 @@
 import type { Charger } from '@/types/charger';
 
-import { formatText, hasValue } from './station';
+import { formatCurrencyRate } from './charging-session-format';
+import { formatConnectorTypeLabel, formatText, hasValue } from './station';
 
 export type ChargerStatus = {
   label: string;
@@ -16,11 +17,68 @@ export type ChargerGroup = {
 };
 
 export function getChargerDisplayName(charger: Charger): string {
-  if (hasValue(charger.serialNumber)) {
-    return String(charger.serialNumber);
+  if (hasValue(charger.name)) {
+    return String(charger.name);
   }
 
-  return formatText(charger.name);
+  return formatText(charger.serialNumber);
+}
+
+export function getChargerListTitle(charger: Charger): string {
+  const name = getChargerDisplayName(charger);
+  const separatorIndex = name.lastIndexOf(' - ');
+
+  if (separatorIndex > 0) {
+    return name.slice(0, separatorIndex).trim();
+  }
+
+  return name;
+}
+
+export function getChargerEffectivePrice(
+  charger: Charger,
+  stationDefaultPricePerKwh?: number | null,
+): number | null {
+  const price =
+    charger.effectivePricePerKwh ?? charger.pricePerKwh ?? stationDefaultPricePerKwh ?? null;
+
+  return price ?? null;
+}
+
+export function getChargerConnectorSummary(charger: Charger): string {
+  const labels = [
+    ...new Set(
+      charger.connectors
+        ?.map((connector) => formatConnectorTypeLabel(connector.connectorType))
+        .filter(hasValue) ?? [],
+    ),
+  ];
+
+  return labels.join(' · ');
+}
+
+export function getChargerHardwareSummary(charger: Charger): string {
+  return [charger.manufacturer, charger.model].filter(hasValue).join(' · ');
+}
+
+export function getChargerListMeta(charger: Charger): string | null {
+  const parts: string[] = [];
+  const connectors = getChargerConnectorSummary(charger);
+
+  if (connectors) {
+    parts.push(connectors);
+  }
+
+  const hardware = getChargerHardwareSummary(charger);
+  if (hardware) {
+    parts.push(hardware);
+  }
+
+  if (hasValue(charger.maxPowerKw)) {
+    parts.push(formatChargerPower(charger.maxPowerKw));
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 function statusFromOperationalValue(
@@ -213,10 +271,13 @@ export function formatDetailDistance(distanceMi: number | null | undefined): str
   return String(distanceMi);
 }
 
-export function formatDetailPricePerKwh(price: number | null | undefined): string {
+export function formatDetailPricePerKwh(
+  price: number | null | undefined,
+  currencyCode?: string | null,
+): string {
   if (price === null || price === undefined) {
     return '-';
   }
 
-  return `$${price.toFixed(2)} / kWh`;
+  return formatCurrencyRate(price, currencyCode);
 }

@@ -10,6 +10,7 @@ import { theme } from '@/theme';
 import type { Station } from '@/types/station';
 import {
   formatChargerAvailability,
+  formatConnectorTypeLabel,
   formatDistance,
   formatPower,
   formatPricePerKwh,
@@ -17,6 +18,7 @@ import {
   getStationAddress,
   getStationStatus,
   hasValue,
+  shouldShowStationCity,
 } from '@/utils/station';
 
 type StationCardProps = {
@@ -38,7 +40,7 @@ export function StationCard({ station }: StationCardProps) {
   const chargerLabel = formatChargerAvailability(station);
   const showPower = hasValue(station.maxPowerKw);
   const showDistance = hasValue(station.distanceMi);
-  const showCity = hasValue(station.city);
+  const showCity = shouldShowStationCity(station, address);
 
   const handlePress = () => {
     router.push(`/stations/${station.id}` as Href);
@@ -72,13 +74,34 @@ export function StationCard({ station }: StationCardProps) {
           style={styles.statusBadge}
         />
 
-        {showDistance && (
+        {station.isFastCharger ? (
+          <View style={styles.fastChargerBadge}>
+            <Icon name="bolt" size={12} color={theme.colors.textInverse} />
+            <Text style={styles.fastChargerText}>Fast Charger</Text>
+          </View>
+        ) : null}
+
+        {connectors.length > 0 ? (
+          <View style={styles.imageConnectorRow}>
+            {connectors.map((connector) => (
+              <ConnectorTag
+                key={connector.type}
+                label={formatConnectorTypeLabel(connector.type)}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {showDistance ? (
           <Badge
             label={formatDistance(station.distanceMi)}
             variant="distance"
-            style={styles.distanceBadge}
+            style={[
+              styles.distanceBadge,
+              connectors.length > 0 && styles.distanceBadgeLeft,
+            ]}
           />
-        )}
+        ) : null}
       </View>
 
       <View style={styles.body}>
@@ -95,7 +118,7 @@ export function StationCard({ station }: StationCardProps) {
           </Pressable>
         </View>
 
-        <Text style={styles.address} numberOfLines={1}>
+        <Text style={styles.address} numberOfLines={2}>
           {formatText(address)}
         </Text>
 
@@ -107,35 +130,36 @@ export function StationCard({ station }: StationCardProps) {
 
         <View style={styles.divider} />
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <Icon name="price" size={15} color={theme.colors.brand} />
-            <Text style={styles.metaText}>{formatPricePerKwh(station.defaultPricePerKwh)}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statColumnLeft}>
+            <View style={styles.statItem}>
+              <Icon name="price" size={15} color={theme.colors.brand} />
+              <Text style={styles.statText} numberOfLines={1}>
+                {formatPricePerKwh(station.defaultPricePerKwh, station.currency)}
+              </Text>
+            </View>
           </View>
 
-          {showPower && (
-            <View style={styles.metaItem}>
-              <Icon name="bolt" size={15} color={theme.colors.brand} />
-              <Text style={styles.metaText}>{formatPower(station.maxPowerKw)}</Text>
-            </View>
-          )}
+          <View style={styles.statColumnCenter}>
+            {showPower ? (
+              <View style={styles.statItem}>
+                <Icon name="bolt" size={15} color={theme.colors.brand} />
+                <Text style={styles.statText} numberOfLines={1}>
+                  {formatPower(station.maxPowerKw)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
 
-          {chargerLabel && (
-            <View style={styles.metaItem}>
-              <Icon name="charger" size={15} color={theme.colors.brand} />
-              <Text style={styles.metaText}>{chargerLabel}</Text>
-            </View>
-          )}
-
-          <View style={styles.connectorSlot}>
-            {connectors.length > 0
-              ? connectors.map((connector) => (
-                <ConnectorTag
-                  key={connector.type}
-                  label={connector.label ?? connector.type}
-                />
-              ))
-              : <Text style={styles.metaText}>N/A</Text>}
+          <View style={styles.statColumnRight}>
+            {chargerLabel ? (
+              <View style={styles.statItem}>
+                <Icon name="charger" size={15} color={theme.colors.brand} />
+                <Text style={styles.statText} numberOfLines={1}>
+                  {chargerLabel}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </View>
@@ -171,13 +195,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.placeholder,
-  },
   imageUnavailable: {
     opacity: 0.5,
   },
@@ -186,10 +203,42 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
   },
+  fastChargerBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.radius.pill,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+  },
+  imageConnectorRow: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 4,
+    maxWidth: '65%',
+  },
+  fastChargerText: {
+    fontSize: 11,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.textInverse,
+    letterSpacing: 0.2,
+  },
   distanceBadge: {
     position: 'absolute',
     bottom: 12,
     right: 12,
+  },
+  distanceBadgeLeft: {
+    left: 12,
+    right: undefined,
   },
   body: {
     paddingHorizontal: 16,
@@ -229,6 +278,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.surface,
+    flexShrink: 0,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -236,29 +286,42 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 12,
   },
-  metaRow: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
   },
-  metaItem: {
+  statColumnLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    minWidth: 0,
+  },
+  statColumnCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  statColumnRight: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: 0,
+  },
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     flexShrink: 1,
+    maxWidth: '100%',
   },
-  metaText: {
+  statText: {
     fontSize: 12,
     color: theme.colors.textPrimary,
     fontWeight: theme.typography.fontWeight.semibold,
-  },
-  connectorSlot: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-    gap: 4,
-    flexShrink: 0,
-    marginLeft: 4,
+    flexShrink: 1,
   },
 });

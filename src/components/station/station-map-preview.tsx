@@ -7,6 +7,7 @@ import { theme } from '@/theme';
 import type { Station } from '@/types/station';
 import {
   formatChargerAvailability,
+  formatConnectorTypeLabel,
   formatPower,
   formatPricePerKwh,
   formatText,
@@ -57,25 +58,29 @@ export function StationMapPreview({
         </View>
       </View>
 
-      <View style={styles.metaRow}>
-        {chargerLabel ? (
-          <View style={styles.metaItem}>
-            <Icon name="charger" size={14} color={theme.colors.brand} />
-            <Text style={styles.metaText}>{chargerLabel}</Text>
-          </View>
-        ) : null}
-
+      <View style={styles.statsRow}>
         {showPrice ? (
           <View style={styles.metaItem}>
             <Icon name="price" size={14} color={theme.colors.brand} />
-            <Text style={styles.metaText}>{formatPricePerKwh(station.defaultPricePerKwh)}</Text>
+            <Text style={styles.metaText} numberOfLines={1}>
+              {formatPricePerKwh(station.defaultPricePerKwh, station.currency)}
+            </Text>
           </View>
         ) : null}
 
         {showPower ? (
           <View style={styles.metaItem}>
             <Icon name="bolt" size={14} color={theme.colors.brand} />
-            <Text style={styles.metaText}>{formatPower(station.maxPowerKw)}</Text>
+            <Text style={styles.metaText} numberOfLines={1}>
+              {formatPower(station.maxPowerKw)}
+            </Text>
+          </View>
+        ) : null}
+
+        {chargerLabel ? (
+          <View style={styles.metaItem}>
+            <Icon name="charger" size={14} color={theme.colors.brand} />
+            <Text style={styles.metaText} numberOfLines={1}>{chargerLabel}</Text>
           </View>
         ) : null}
       </View>
@@ -83,7 +88,10 @@ export function StationMapPreview({
       {connectors.length > 0 ? (
         <View style={styles.connectorRow}>
           {connectors.slice(0, 4).map((connector) => (
-            <ConnectorTag key={connector.type} label={connector.type} />
+            <ConnectorTag
+              key={connector.type}
+              label={formatConnectorTypeLabel(connector.type)}
+            />
           ))}
         </View>
       ) : null}
@@ -151,15 +159,19 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     lineHeight: 18,
   },
-  metaRow: {
+  statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
+    alignItems: 'center',
+    columnGap: theme.spacing.md,
+    rowGap: theme.spacing.xs,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   metaText: {
     fontSize: theme.typography.fontSize.sm,

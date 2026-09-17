@@ -9,7 +9,7 @@ import {
   formatDurationSeconds,
   formatEnergyKwh,
   formatSessionDateTime,
-  formatTotalCost,
+  formatCurrencyAmount,
   hasMetricValue,
 } from '@/utils/charging-session-format';
 
@@ -77,7 +77,7 @@ export function SessionListItem({
           label="Cost"
           value={
             hasMetricValue(session.totalCost)
-              ? formatTotalCost(session.totalCost)
+              ? formatCurrencyAmount(session.totalCost)
               : EMPTY_METRIC
           }
         />

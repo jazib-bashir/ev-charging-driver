@@ -130,7 +130,6 @@ function StationDetailsContent({
 
   const [selectedCharger, setSelectedCharger] = useState<Charger | null>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
-  const [isBooking, setIsBooking] = useState(false);
   const [isQueueSheetVisible, setIsQueueSheetVisible] = useState(false);
   const [isOpeningQueue, setIsOpeningQueue] = useState(false);
   const [queueMembership, setQueueMembership] = useState<QueueMember | null>(null);
@@ -318,67 +317,6 @@ function StationDetailsContent({
     showBookingComingSoonAlert();
   }, [setPendingBooking]);
 
-  const handleBook = useCallback(async () => {
-    if (!selectedCharger || isBooking) {
-      return;
-    }
-
-    setPendingBooking({
-      stationId,
-      chargerId: selectedCharger.id,
-    });
-    setIsBooking(true);
-
-    try {
-      let user = await ensureAuthenticatedUser();
-
-      if (!user) {
-        setIsSheetVisible(false);
-        router.push('/auth' as Href);
-        return;
-      }
-
-      user = (await refreshUser()) ?? user;
-
-      if (!user) {
-        Alert.alert(
-          'Unable to book',
-          'We could not verify your account. Please try again.',
-        );
-        return;
-      }
-
-      if (!resolveIsOnboarded(user)) {
-        setIsSheetVisible(false);
-        router.push('/auth/onboarding' as Href);
-        return;
-      }
-
-      if (!resolveHasDefaultVehicle(user)) {
-        setIsSheetVisible(false);
-        router.push('/auth/vehicles' as Href);
-        return;
-      }
-
-      completeBookingPlaceholder();
-    } catch {
-      Alert.alert(
-        'Unable to book',
-        'Something went wrong while starting your booking. Please try again.',
-      );
-    } finally {
-      setIsBooking(false);
-    }
-  }, [
-    selectedCharger,
-    isBooking,
-    stationId,
-    setPendingBooking,
-    ensureAuthenticatedUser,
-    refreshUser,
-    completeBookingPlaceholder,
-  ]);
-
   useEffect(() => {
     if (
       resumeHandledRef.current ||
@@ -554,7 +492,7 @@ function StationDetailsContent({
             <View style={styles.infoTile}>
               <Text style={styles.infoTileLabel}>Pricing</Text>
               <Text style={styles.infoTileValue}>
-                {formatDetailPricePerKwh(station.defaultPricePerKwh)}
+                {formatDetailPricePerKwh(station.defaultPricePerKwh, station.currency)}
               </Text>
             </View>
           </View>
@@ -666,9 +604,8 @@ function StationDetailsContent({
         charger={selectedCharger}
         stationName={station.name}
         stationDefaultPricePerKwh={station.defaultPricePerKwh}
-        isBooking={isBooking}
+        stationCurrency={station.currency}
         onClose={closeChargerSheet}
-        onBook={handleBook}
       />
 
       <QueueJoinSheet

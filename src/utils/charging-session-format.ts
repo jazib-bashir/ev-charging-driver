@@ -151,6 +151,56 @@ export function formatTotalCost(value: number | null | undefined): string {
   return value!.toFixed(2);
 }
 
+const DEFAULT_CURRENCY_CODE = 'PKR';
+
+const CURRENCY_LOCALES: Record<string, string> = {
+  PKR: 'en-PK',
+  USD: 'en-US',
+  CAD: 'en-CA',
+  GBP: 'en-GB',
+  EUR: 'de-DE',
+  AED: 'en-AE',
+  SGD: 'en-SG',
+};
+
+export function normalizeCurrencyCode(currency?: string | null): string {
+  const normalized = currency?.trim().toUpperCase();
+  return normalized || DEFAULT_CURRENCY_CODE;
+}
+
+export function formatCurrencyAmount(
+  value: number | null | undefined,
+  currencyCode?: string | null,
+): string {
+  if (!hasMetricValue(value)) {
+    return EMPTY_METRIC;
+  }
+
+  const code = normalizeCurrencyCode(currencyCode);
+
+  try {
+    return new Intl.NumberFormat(CURRENCY_LOCALES[code], {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value!);
+  } catch {
+    return `${code} ${value!.toFixed(2)}`;
+  }
+}
+
+export function formatCurrencyRate(
+  value: number | null | undefined,
+  currencyCode?: string | null,
+): string {
+  if (!hasMetricValue(value)) {
+    return EMPTY_METRIC;
+  }
+
+  return `${formatCurrencyAmount(value, currencyCode)} / kWh`;
+}
+
 const STOP_REASON_LABELS: Record<string, string> = {
   DRIVER_STOP: 'Driver stopped',
   OPERATOR_STOP: 'Operator stopped',

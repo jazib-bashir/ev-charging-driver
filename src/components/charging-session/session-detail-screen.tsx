@@ -23,11 +23,11 @@ import {
   formatDurationSeconds,
   formatEnergyKwh,
   formatPowerKw,
-  formatPricePerKwh,
+  formatCurrencyAmount,
+  formatCurrencyRate,
   formatSessionDateTime,
   formatStopReason,
   formatTimelineEventLabel,
-  formatTotalCost,
   hasMetricValue,
 } from '@/utils/charging-session-format';
 import {
@@ -208,7 +208,7 @@ export function SessionDetailScreen() {
               value={formatDurationSeconds(session.durationSeconds, session.startedAt)}
             />
             <MetricTile label="Energy" value={formatEnergyKwh(session.energyKwh)} />
-            <MetricTile label="Cost" value={formatTotalCost(session.totalCost)} />
+            <MetricTile label="Cost" value={formatCurrencyAmount(session.totalCost)} />
           </View>
         </View>
 
@@ -252,10 +252,10 @@ export function SessionDetailScreen() {
           {showBilling ? (
             <SectionCard title="Billing">
               {hasMetricValue(session.pricePerKwh) ? (
-                <DetailRow label="Price per kWh" value={formatPricePerKwh(session.pricePerKwh)} />
+                <DetailRow label="Price per kWh" value={formatCurrencyRate(session.pricePerKwh)} />
               ) : null}
               {hasMetricValue(session.totalCost) ? (
-                <DetailRow label="Total cost" value={formatTotalCost(session.totalCost)} />
+                <DetailRow label="Total cost" value={formatCurrencyAmount(session.totalCost)} />
               ) : null}
             </SectionCard>
           ) : null}

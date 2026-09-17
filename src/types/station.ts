@@ -28,6 +28,8 @@ export type Station = {
   postalCode?: string | null;
   regionCity?: string | null;
   defaultPricePerKwh?: number | null;
+  currency?: string | null;
+  isFastCharger?: boolean;
   completedAt?: string | null;
   imageUrl?: string | null;
   imageAsset?: string | null;
