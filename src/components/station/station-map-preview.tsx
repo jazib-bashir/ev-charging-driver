@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
 import { ConnectorTag } from '@/components/ui/connector-tag';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
+import { openStationNavigation } from '@/utils/open-station-navigation';
 import type { Station } from '@/types/station';
 import {
   formatChargerAvailability,
@@ -23,24 +24,6 @@ type StationMapPreviewProps = {
   onViewDetails: () => void;
   variant?: 'embedded' | 'fullscreen';
 };
-
-function openStationNavigation(station: Station) {
-  const lat = station.latitude;
-  const lng = station.longitude;
-  if (typeof lat !== 'number' || typeof lng !== 'number') {
-    return;
-  }
-
-  const label = encodeURIComponent(station.name || 'Charging station');
-  const url =
-    Platform.OS === 'ios'
-      ? `http://maps.apple.com/?daddr=${lat},${lng}&q=${label}`
-      : Platform.OS === 'android'
-        ? `google.navigation:q=${lat},${lng}`
-        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-
-  void Linking.openURL(url);
-}
 
 export function StationMapPreview({
   station,

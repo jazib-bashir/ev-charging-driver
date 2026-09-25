@@ -1,15 +1,16 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Badge } from '@/components/ui/badge';
-import { theme } from '@/theme';
-import type { ChargingSession } from '@/types/charging-session';
+import { useTheme } from '@/theme';
+import type { ChargingSession, ChargingSessionStatus } from '@/types/charging-session';
 import { formatChargingSessionStatus } from '@/types/charging-session';
 import {
   EMPTY_METRIC,
-  formatDurationSeconds,
-  formatEnergyKwh,
-  formatSessionDateTime,
+  formatChargerPortMeta,
+  formatCompactStationName,
   formatCurrencyAmount,
+  formatDenseSessionMeta,
+  formatEnergyKwh,
   hasMetricValue,
 } from '@/utils/charging-session-format';
 
@@ -21,17 +22,35 @@ type SessionListItemProps = {
   onPress: () => void;
 };
 
-function StatCell({ label, value }: { label: string; value: string }) {
-  const isEmpty = value === EMPTY_METRIC;
-
-  return (
-    <View style={styles.statCell}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, isEmpty && styles.statValueMuted]} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
+function statusBadgeColors(
+  status: ChargingSessionStatus,
+  theme: ReturnType<typeof useTheme>['theme'],
+) {
+  switch (status) {
+    case 'COMPLETED':
+      return {
+        bg: 'rgba(0, 217, 160, 0.12)',
+        text: theme.isDark ? theme.colors.statusAvailable : '#00A67A',
+      };
+    case 'CHARGING':
+      return {
+        bg: 'rgba(0, 217, 160, 0.12)',
+        text: theme.colors.accent,
+      };
+    case 'STOPPED':
+    case 'CANCELLED':
+    case 'FAILED':
+    default:
+      return theme.isDark
+        ? {
+            bg: 'rgba(238, 244, 255, 0.06)',
+            text: theme.colors.textSecondary,
+          }
+        : {
+            bg: '#F1F5F9',
+            text: '#64748B',
+          };
+  }
 }
 
 export function SessionListItem({
@@ -41,8 +60,20 @@ export function SessionListItem({
   connectorLabel,
   onPress,
 }: SessionListItemProps) {
-  const hardwareParts = [evseLabel, connectorLabel].filter(
-    (part) => part && part !== EMPTY_METRIC,
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const badge = statusBadgeColors(session.status, theme);
+
+  const title = formatCompactStationName(
+    stationName ?? session.stationName ?? undefined,
+  );
+  const hasEnergy = hasMetricValue(session.energyKwh);
+  const hasCost = hasMetricValue(session.totalCost);
+  const costIsHighlight = session.status === 'COMPLETED' && hasCost;
+  const portMeta = formatChargerPortMeta(
+    session.maxPowerKw,
+    connectorLabel ?? session.connectorLabel,
+    evseLabel ?? session.evseLabel,
   );
 
   return (
@@ -50,129 +81,140 @@ export function SessionListItem({
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={`Open session at ${title}`}
     >
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.stationName} numberOfLines={1}>
-            {stationName ?? 'Charging session'}
-          </Text>
-          <Text style={styles.meta}>
-            {formatSessionDateTime(session.startedAt)}
-            {session.endedAt ? ` · ${formatSessionDateTime(session.endedAt)}` : ''}
-          </Text>
-        </View>
-        <Badge
-          label={formatChargingSessionStatus(session.status)}
-          variant={session.status === 'CHARGING' ? 'available' : 'neutral'}
-        />
+      <View style={styles.colLocation}>
+        <Text style={styles.stationName} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={styles.meta} numberOfLines={1}>
+          {formatDenseSessionMeta(session.startedAt, session.durationSeconds)}
+        </Text>
       </View>
 
-      <View style={styles.statsRow}>
-        <StatCell
-          label="Duration"
-          value={formatDurationSeconds(session.durationSeconds, session.startedAt)}
-        />
-        <StatCell label="Energy" value={formatEnergyKwh(session.energyKwh)} />
-        <StatCell
-          label="Cost"
-          value={
-            hasMetricValue(session.totalCost)
-              ? formatCurrencyAmount(session.totalCost)
-              : EMPTY_METRIC
-          }
-        />
+      <View style={styles.colEnergy}>
+        <Text
+          style={[styles.energy, !hasEnergy && styles.mutedValue]}
+          numberOfLines={1}
+        >
+          {hasEnergy ? formatEnergyKwh(session.energyKwh) : EMPTY_METRIC}
+        </Text>
+        {portMeta ? (
+          <Text style={styles.portMeta} numberOfLines={1}>
+            {portMeta}
+          </Text>
+        ) : null}
       </View>
 
-      {hardwareParts.length > 0 ? (
-        <View style={styles.hardwareRow}>
-          {hardwareParts.map((part) => (
-            <View key={part} style={styles.hardwarePill}>
-              <Text style={styles.hardwareText} numberOfLines={1}>{part}</Text>
-            </View>
-          ))}
+      <View style={styles.colStatus}>
+        {hasCost ? (
+          <Text
+            style={[styles.cost, costIsHighlight && styles.costHighlight]}
+            numberOfLines={1}
+          >
+            {formatCurrencyAmount(session.totalCost)}
+          </Text>
+        ) : null}
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: badge.bg },
+            !hasCost && styles.badgeSolo,
+          ]}
+        >
+          <Text style={[styles.badgeLabel, { color: badge.text }]}>
+            {formatChargingSessionStatus(session.status)}
+          </Text>
         </View>
-      ) : null}
+      </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: 14,
-    gap: theme.spacing.md,
-    overflow: 'hidden',
-    ...theme.shadows.card,
-  },
-  cardPressed: {
-    opacity: 0.94,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-  },
-  headerCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  stationName: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  meta: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: theme.typography.lineHeight.tight,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    paddingTop: theme.spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.border,
-  },
-  statCell: {
-    flex: 1,
-    gap: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  statValue: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  statValueMuted: {
-    color: theme.colors.textMuted,
-    fontWeight: '500',
-  },
-  hardwareRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.xs,
-  },
-  hardwarePill: {
-    maxWidth: '100%',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.iconBackground,
-  },
-  hardwareText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
+    },
+    cardPressed: {
+      opacity: 0.94,
+    },
+    colLocation: {
+      flex: 4,
+      alignItems: 'flex-start',
+      minWidth: 0,
+      paddingRight: 8,
+    },
+    colEnergy: {
+      flex: 3.5,
+      alignItems: 'center',
+      minWidth: 0,
+      paddingHorizontal: 4,
+    },
+    colStatus: {
+      flex: 2.5,
+      alignItems: 'flex-end',
+      minWidth: 0,
+      paddingLeft: 4,
+    },
+    stationName: {
+      fontFamily: theme.typography.fontFamily.brandSemiBold,
+      fontSize: 14,
+      color: theme.colors.textPrimary,
+    },
+    meta: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+    },
+    energy: {
+      fontFamily: theme.typography.fontFamily.brandSemiBold,
+      fontSize: 13,
+      color: theme.colors.textPrimary,
+      textAlign: 'center',
+    },
+    portMeta: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+      textAlign: 'center',
+    },
+    cost: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 14,
+      color: theme.colors.textPrimary,
+      textAlign: 'right',
+    },
+    costHighlight: {
+      color: theme.colors.statusAvailable,
+    },
+    mutedValue: {
+      color: theme.colors.textMuted,
+    },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      marginTop: 6,
+    },
+    badgeSolo: {
+      marginTop: 0,
+    },
+    badgeLabel: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 10,
+      fontWeight: '600',
+    },
+  });
+}

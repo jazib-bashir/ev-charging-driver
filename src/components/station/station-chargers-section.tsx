@@ -1,13 +1,13 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import {
   formatChargerEstimate,
   formatChargerIndex,
   formatChargerPower,
-  getChargerDisplayName,
   getChargerListMeta,
   getChargerListTitle,
   getChargerStatus,
@@ -25,17 +25,23 @@ type StationChargersSectionProps = {
 function StatusPill({
   label,
   variant,
+  styles,
+  theme,
 }: {
   label: string;
   variant: 'available' | 'unavailable' | 'neutral';
+  styles: ReturnType<typeof createStyles>;
+  theme: ReturnType<typeof useTheme>['theme'];
 }) {
   const isAvailable = variant === 'available';
+  const isCharging = label.toLowerCase().includes('charg');
 
   return (
     <View
       style={[
         styles.statusPill,
         isAvailable && styles.statusPillAvailable,
+        isCharging && styles.statusPillCharging,
         variant === 'unavailable' && styles.statusPillUnavailable,
       ]}
     >
@@ -43,6 +49,7 @@ function StatusPill({
         style={[
           styles.statusDot,
           isAvailable && styles.statusDotAvailable,
+          isCharging && { backgroundColor: theme.colors.brandLight },
           variant === 'unavailable' && styles.statusDotUnavailable,
         ]}
       />
@@ -50,6 +57,7 @@ function StatusPill({
         style={[
           styles.statusPillText,
           isAvailable && styles.statusPillTextAvailable,
+          isCharging && { color: theme.colors.brandLight },
         ]}
         numberOfLines={1}
       >
@@ -63,15 +71,20 @@ function ChargerRow({
   charger,
   index,
   onViewCharger,
+  styles,
+  theme,
 }: {
   charger: Charger;
   index: number;
   onViewCharger: (charger: Charger) => void;
+  styles: ReturnType<typeof createStyles>;
+  theme: ReturnType<typeof useTheme>['theme'];
 }) {
   const status = getChargerStatus(charger);
   const estimate = formatChargerEstimate(charger);
   const meta = getChargerListMeta(charger);
   const displayName = getChargerListTitle(charger);
+  const isAvailable = status.variant === 'available';
 
   return (
     <Pressable
@@ -84,8 +97,20 @@ function ChargerRow({
         pressed && styles.chargerRowPressed,
       ]}
     >
-      <View style={styles.chargerIndex}>
-        <Text style={styles.chargerIndexText}>{formatChargerIndex(index)}</Text>
+      <View
+        style={[
+          styles.chargerIndex,
+          isAvailable && styles.chargerIndexAvailable,
+        ]}
+      >
+        <Text
+          style={[
+            styles.chargerIndexText,
+            isAvailable && styles.chargerIndexTextAvailable,
+          ]}
+        >
+          {formatChargerIndex(index)}
+        </Text>
       </View>
 
       <View style={styles.chargerCopy}>
@@ -101,7 +126,12 @@ function ChargerRow({
       </View>
 
       <View style={styles.chargerTrailing}>
-        <StatusPill label={status.label} variant={status.variant} />
+        <StatusPill
+          label={status.label}
+          variant={status.variant}
+          styles={styles}
+          theme={theme}
+        />
         <Icon name="chevron-forward" size={16} color={theme.colors.textMuted} />
       </View>
     </Pressable>
@@ -115,6 +145,8 @@ export function StationChargersSection({
   onRetry,
   onViewCharger,
 }: StationChargersSectionProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const groups = groupChargersByType(chargers);
   let globalIndex = 0;
 
@@ -124,7 +156,7 @@ export function StationChargersSection({
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.brand} />
+          <ActivityIndicator color={theme.colors.accent} />
         </View>
       ) : isError ? (
         <View style={styles.errorContainer}>
@@ -155,7 +187,7 @@ export function StationChargersSection({
               <View key={group.key} style={styles.groupCard}>
                 <View style={styles.groupHeader}>
                   <View style={styles.groupTitleRow}>
-                    <Icon name="bolt" size={16} color={theme.colors.brand} />
+                    <Icon name="bolt" size={16} color={theme.colors.accent} />
                     <Text style={styles.groupTitle}>{group.label}</Text>
                   </View>
                   <View style={styles.powerBadge}>
@@ -172,6 +204,8 @@ export function StationChargersSection({
                       charger={charger}
                       index={groupStartIndex + chargerIndex}
                       onViewCharger={onViewCharger}
+                      styles={styles}
+                      theme={theme}
                     />
                   </View>
                 ))}
@@ -184,206 +218,227 @@ export function StationChargersSection({
   );
 }
 
-const styles = StyleSheet.create({
-  section: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
-    paddingBottom: theme.spacing.xxxl,
-    gap: theme.spacing.md,
-  },
-  heading: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  loadingContainer: {
-    paddingVertical: theme.spacing.xl,
-    alignItems: 'center',
-  },
-  errorContainer: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.xs,
-    alignItems: 'center',
-  },
-  errorTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
-  },
-  retryButtonText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textInverse,
-  },
-  emptyContainer: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  groups: {
-    gap: theme.spacing.md,
-  },
-  groupCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-    ...theme.shadows.card,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: '#f3f5f9',
-    gap: theme.spacing.sm,
-  },
-  groupTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    flex: 1,
-  },
-  groupTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-  },
-  powerBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  powerBadgeText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-  },
-  chargerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  chargerRowUnavailable: {
-    opacity: 0.82,
-  },
-  chargerRowPressed: {
-    backgroundColor: '#f8fafc',
-  },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.border,
-    marginHorizontal: theme.spacing.md,
-  },
-  chargerIndex: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    flexShrink: 0,
-  },
-  chargerIndexText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-  },
-  chargerCopy: {
-    flex: 1,
-    gap: 4,
-    minWidth: 0,
-  },
-  chargerName: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-    lineHeight: 20,
-  },
-  chargerMeta: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
-  estimateText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  chargerTrailing: {
-    alignItems: 'flex-end',
-    gap: 6,
-    flexShrink: 0,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.radius.pill,
-    backgroundColor: '#f1f5f9',
-    maxWidth: 108,
-  },
-  statusPillAvailable: {
-    backgroundColor: theme.colors.brandMuted,
-  },
-  statusPillUnavailable: {
-    backgroundColor: '#f1f5f9',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.statusUnavailable,
-  },
-  statusDotAvailable: {
-    backgroundColor: theme.colors.brand,
-  },
-  statusDotUnavailable: {
-    backgroundColor: theme.colors.statusUnavailable,
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textMuted,
-    flexShrink: 1,
-  },
-  statusPillTextAvailable: {
-    color: theme.colors.brand,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    section: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: theme.spacing.xxxl,
+      gap: 12,
+    },
+    heading: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 17,
+      lineHeight: 22,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.2,
+    },
+    loadingContainer: {
+      paddingVertical: theme.spacing.xl,
+      alignItems: 'center',
+    },
+    errorContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      padding: theme.spacing.lg,
+      gap: theme.spacing.xs,
+      alignItems: 'center',
+    },
+    errorTitle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textPrimary,
+      textAlign: 'center',
+    },
+    errorMessage: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    retryButton: {
+      marginTop: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.accent,
+    },
+    retryButtonText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: theme.typography.fontSize.sm,
+      color: '#0F172A',
+    },
+    emptyContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      padding: theme.spacing.lg,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    groups: {
+      gap: 12,
+    },
+    groupCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      backgroundColor: theme.colors.iconBackground,
+      gap: theme.spacing.sm,
+    },
+    groupTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flex: 1,
+    },
+    groupTitle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.colors.textPrimary,
+    },
+    powerBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    powerBadgeText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 11,
+      lineHeight: 16,
+      color: theme.colors.textSecondary,
+    },
+    chargerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      gap: 12,
+    },
+    chargerRowUnavailable: {
+      opacity: 0.82,
+    },
+    chargerRowPressed: {
+      backgroundColor: theme.colors.iconBackground,
+    },
+    rowDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      marginHorizontal: 14,
+    },
+    chargerIndex: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.iconBackground,
+      flexShrink: 0,
+    },
+    chargerIndexAvailable: {
+      borderColor: theme.colors.selectionBorder,
+      backgroundColor: theme.colors.brandMuted,
+    },
+    chargerIndexText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    chargerIndexTextAvailable: {
+      color: theme.colors.accent,
+    },
+    chargerCopy: {
+      flex: 1,
+      gap: 4,
+      minWidth: 0,
+    },
+    chargerName: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 15,
+      lineHeight: 20,
+      color: theme.colors.textPrimary,
+    },
+    chargerMeta: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.colors.textMuted,
+    },
+    estimateText: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      lineHeight: 16,
+      color: theme.colors.textMuted,
+    },
+    chargerTrailing: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 0,
+    },
+    statusPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.iconBackground,
+      maxWidth: 108,
+    },
+    statusPillAvailable: {
+      backgroundColor: theme.colors.statusAvailableBg,
+    },
+    statusPillCharging: {
+      backgroundColor: theme.colors.brandMuted,
+    },
+    statusPillUnavailable: {
+      backgroundColor: theme.colors.iconBackground,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.statusUnavailable,
+    },
+    statusDotAvailable: {
+      backgroundColor: theme.colors.statusAvailable,
+    },
+    statusDotUnavailable: {
+      backgroundColor: theme.colors.statusUnavailable,
+    },
+    statusPillText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 11,
+      lineHeight: 16,
+      color: theme.colors.textMuted,
+      flexShrink: 1,
+    },
+    statusPillTextAvailable: {
+      color: theme.colors.statusAvailable,
+    },
+  });
+}

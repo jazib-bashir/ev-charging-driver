@@ -1,72 +1,43 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 type SessionsScreenHeaderProps = {
   onRefresh?: () => void;
   isRefreshing?: boolean;
 };
 
-export function SessionsScreenHeader({
-  onRefresh,
-  isRefreshing = false,
-}: SessionsScreenHeaderProps) {
+export function SessionsScreenHeader(_props: SessionsScreenHeaderProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.titleCopy}>
-        <Text style={styles.title}>My Charging Sessions</Text>
-        <Text style={styles.subtitle}>History and real-time charging status</Text>
-      </View>
-
-      <Pressable
-        style={styles.refreshButton}
-        accessibilityRole="button"
-        accessibilityLabel="Refresh sessions"
-        disabled={isRefreshing}
-        onPress={onRefresh}
-      >
-        {isRefreshing ? (
-          <ActivityIndicator size="small" color={theme.colors.textMuted} />
-        ) : (
-          <Icon name="refresh" size={18} color={theme.colors.textMuted} />
-        )}
-      </Pressable>
+      <Text style={styles.title}>My Sessions</Text>
+      <Text style={styles.subtitle}>Charging history & live status</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: theme.spacing.md,
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.md,
-  },
-  titleCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.brand,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.3,
-  },
-  subtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: theme.typography.lineHeight.tight,
-  },
-  refreshButton: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.iconBackground,
-    marginTop: 2,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    container: {
+      paddingHorizontal: 20,
+      marginTop: 8,
+      gap: 2,
+    },
+    title: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 22,
+      lineHeight: 33,
+      color: theme.colors.textPrimary,
+    },
+    subtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      lineHeight: 20,
+      color: theme.colors.textMuted,
+    },
+  });
+}

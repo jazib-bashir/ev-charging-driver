@@ -1,7 +1,6 @@
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,15 +16,15 @@ import {
   getDriverVehicleDisplayName,
   listDriverVehicles,
   setDefaultDriverVehicle,
+  updateDriverVehicle,
 } from '@/api/driverVehicles';
 import { fetchPublicStation } from '@/api/publicStations';
 import { useAuth } from '@/auth/auth-context';
-import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
 import { ProfileHero } from '@/components/profile/profile-hero';
+import { ProfilePlateSheet } from '@/components/profile/profile-plate-sheet';
 import { ProfileSessionPreview } from '@/components/profile/profile-session-preview';
 import { ProfileVehicleCard } from '@/components/profile/profile-vehicle-card';
 import { StationHeader } from '@/components/station/station-header';
-import { Icon } from '@/components/ui/icon';
 import {
   RequestStatusBanner,
   useRequestStatus,
@@ -37,11 +36,7 @@ import type { DriverVehicle } from '@/types/vehicle';
 
 const RECENT_SESSIONS_LIMIT = 3;
 
-type ProfileScreenProps = {
-  onLogin: () => void;
-};
-
-export function ProfileScreen({ onLogin }: ProfileScreenProps) {
+export function ProfileScreen() {
   const {
     user,
     token,
@@ -63,6 +58,8 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
   >({});
   const [busyVehicleId, setBusyVehicleId] = useState<string | null>(null);
   const [isLoadingExtras, setIsLoadingExtras] = useState(true);
+  const [plateVehicle, setPlateVehicle] = useState<DriverVehicle | null>(null);
+  const [isSavingPlate, setIsSavingPlate] = useState(false);
 
   const loadProfileExtras = useCallback(async () => {
     if (!token) {
@@ -223,6 +220,67 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
     [token, busyVehicleId, clearStatus, refreshUser, showSuccess, showError],
   );
 
+  const handleOpenPlateEditor = useCallback(
+    (vehicle: DriverVehicle) => {
+      if (isLoggingOut || isRefreshing || busyVehicleId) {
+        return;
+      }
+
+      clearStatus();
+      setPlateVehicle(vehicle);
+    },
+    [busyVehicleId, clearStatus, isLoggingOut, isRefreshing],
+  );
+
+  const handleClosePlateEditor = useCallback(() => {
+    if (isSavingPlate) {
+      return;
+    }
+    setPlateVehicle(null);
+  }, [isSavingPlate]);
+
+  const handleSavePlate = useCallback(
+    async (plate: string) => {
+      if (!token || !plateVehicle || isSavingPlate) {
+        return;
+      }
+
+      setIsSavingPlate(true);
+      clearStatus();
+
+      try {
+        const updated = await updateDriverVehicle(token, plateVehicle.id, {
+          licensePlate: plate || null,
+        });
+        setVehicles((current) =>
+          current.map((item) =>
+            item.id === updated.id
+              ? { ...item, licensePlate: updated.licensePlate ?? null }
+              : item,
+          ),
+        );
+        setPlateVehicle(null);
+        showSuccess(plate ? 'Number plate updated.' : 'Number plate removed.');
+      } catch (err) {
+        const message =
+          err instanceof AuthApiError
+            ? err.message
+            : 'Unable to save number plate. Please try again.';
+        showError(message);
+      } finally {
+        setIsSavingPlate(false);
+      }
+    },
+    [
+      token,
+      plateVehicle,
+      isSavingPlate,
+      clearStatus,
+      showSuccess,
+      showError,
+    ],
+  );
+
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) {
       return;
@@ -243,9 +301,9 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
 
   if (isLoading) {
     return (
-      <ScreenContainer edges={['top']}>
+      <ScreenContainer edges={['top']} style={styles.screen}>
         <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.brand} />
+          <View style={styles.skeletonCard} />
           <Text style={styles.muted}>Loading profile…</Text>
         </View>
       </ScreenContainer>
@@ -253,25 +311,13 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
   }
 
   if (!isAuthenticated || !user) {
-    return (
-      <ScreenContainer edges={['top']}>
-        <StationHeader />
-        <View style={styles.unauthenticatedContent}>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>
-            Sign in to manage your details and vehicles.
-          </Text>
-          <RequestStatusBanner status={status} />
-          <AuthPrimaryButton label="Sign in" onPress={onLogin} />
-        </View>
-      </ScreenContainer>
-    );
+    return null;
   }
 
   const actionsDisabled = isLoggingOut || isRefreshing || busyVehicleId !== null;
 
   return (
-    <ScreenContainer edges={['top']}>
+    <ScreenContainer edges={['top']} style={styles.screen}>
       <StationHeader />
 
       <ScrollView
@@ -283,8 +329,8 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
             onRefresh={() => {
               void refreshProfile();
             }}
-            tintColor={theme.colors.brand}
-            colors={[theme.colors.brand]}
+            tintColor={theme.colors.accent}
+            colors={[theme.colors.accent]}
           />
         }
       >
@@ -303,11 +349,24 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Vehicles</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>My Vehicles</Text>
+            <Pressable
+              onPress={handleAddVehicle}
+              disabled={actionsDisabled}
+              hitSlop={8}
+              style={actionsDisabled ? styles.actionDisabled : undefined}
+              accessibilityRole="button"
+              accessibilityLabel="Add vehicle"
+            >
+              <Text style={styles.addLabel}>+ Add</Text>
+            </Pressable>
+          </View>
 
           {isLoadingExtras && vehicles.length === 0 ? (
-            <View style={styles.inlineLoader}>
-              <ActivityIndicator color={theme.colors.brand} />
+            <View style={styles.skeletonStack}>
+              <View style={styles.skeletonCard} />
+              <View style={styles.skeletonCard} />
             </View>
           ) : vehicles.length === 0 ? (
             <View style={styles.emptyCard}>
@@ -329,24 +388,11 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
                     void handleMakeDefault(vehicle);
                   }}
                   onManageVehicles={handleManageVehicles}
+                  onEditPlate={() => handleOpenPlateEditor(vehicle)}
                 />
               ))}
             </View>
           )}
-
-          <Pressable
-            onPress={handleAddVehicle}
-            disabled={actionsDisabled}
-            style={[
-              styles.addVehicleButton,
-              actionsDisabled && styles.actionDisabled,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Add vehicle"
-          >
-            <Icon name="add" size={18} color={theme.colors.textMuted} />
-            <Text style={styles.addVehicleLabel}>Add Vehicle</Text>
-          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -363,8 +409,9 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
           </View>
 
           {isLoadingExtras && recentSessions.length === 0 ? (
-            <View style={styles.inlineLoader}>
-              <ActivityIndicator color={theme.colors.brand} />
+            <View style={styles.skeletonStack}>
+              <View style={styles.skeletonRow} />
+              <View style={styles.skeletonRow} />
             </View>
           ) : recentSessions.length === 0 ? (
             <View style={styles.emptyCard}>
@@ -374,19 +421,17 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
               </Text>
             </View>
           ) : (
-            <View style={styles.sessionCard}>
+            <View>
               {recentSessions.map((session, index) => (
-                <View key={session.id}>
-                  {index > 0 ? <View style={styles.sessionDivider} /> : null}
-                  <ProfileSessionPreview
-                    session={session}
-                    stationName={
-                      session.stationName ?? sessionStationNames[session.id]
-                    }
-                    index={index}
-                    onPress={() => handleOpenSession(session)}
-                  />
-                </View>
+                <ProfileSessionPreview
+                  key={session.id}
+                  session={session}
+                  stationName={
+                    session.stationName ?? sessionStationNames[session.id]
+                  }
+                  index={index}
+                  onPress={() => handleOpenSession(session)}
+                />
               ))}
             </View>
           )}
@@ -427,171 +472,175 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
             actionsDisabled && styles.actionDisabled,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Log out"
+          accessibilityLabel="Sign out"
           accessibilityState={{ busy: isLoggingOut }}
         >
           {isLoggingOut ? (
-            <ActivityIndicator color={theme.colors.notification} />
+            <Text style={styles.logoutBusy}>Signing out…</Text>
           ) : (
-            <Text style={styles.logoutLabel}>Log out</Text>
+            <Text style={styles.logoutLabel}>Sign Out</Text>
           )}
         </Pressable>
       </ScrollView>
+
+      <ProfilePlateSheet
+        visible={plateVehicle !== null}
+        vehicle={plateVehicle}
+        isSaving={isSavingPlate}
+        onClose={handleClosePlateEditor}
+        onSave={(plate) => {
+          void handleSavePlate(plate);
+        }}
+      />
     </ScreenContainer>
   );
 }
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
+    screen: {
+      backgroundColor: theme.colors.background,
+    },
     scrollContent: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingBottom: theme.spacing.xxl,
-      gap: theme.spacing.xl,
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+      gap: 20,
     },
     centered: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: theme.spacing.md,
-    },
-    unauthenticatedContent: {
-      flex: 1,
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-      gap: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
     },
     profileHint: {
-      marginTop: -theme.spacing.sm,
-      fontSize: theme.typography.fontSize.sm,
-      color: theme.colors.brand,
+      marginTop: -8,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 13,
+      lineHeight: 19.5,
+      color: theme.colors.accent,
       textAlign: 'center',
-      lineHeight: theme.typography.lineHeight.normal,
     },
     section: {
-      gap: theme.spacing.md,
+      gap: 12,
     },
     sectionTitle: {
-      fontSize: theme.typography.fontSize.lg,
-      fontWeight: theme.typography.fontWeight.bold,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 16,
+      lineHeight: 24,
       color: theme.colors.textPrimary,
-      letterSpacing: -0.2,
     },
     sectionHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: theme.spacing.md,
+      gap: 12,
+    },
+    addLabel: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 12,
+      lineHeight: 18,
+      color: theme.colors.accent,
     },
     viewAllLabel: {
-      fontSize: theme.typography.fontSize.sm,
-      fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.brand,
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 12,
+      lineHeight: 18,
+      color: theme.colors.accent,
     },
     vehicleList: {
-      gap: theme.spacing.md,
-    },
-    addVehicleButton: {
-      minHeight: 52,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.spacing.sm,
-    },
-    addVehicleLabel: {
-      fontSize: theme.typography.fontSize.md,
-      fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.textSecondary,
+      gap: 0,
     },
     preferenceCard: {
-      borderRadius: theme.radius.lg,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.md,
+      padding: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.md,
+      gap: 12,
       ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
     },
     preferenceCopy: {
       flex: 1,
       gap: 2,
     },
     preferenceTitle: {
-      fontSize: theme.typography.fontSize.md,
-      fontWeight: theme.typography.fontWeight.semibold,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 14,
+      lineHeight: 21,
       color: theme.colors.textPrimary,
     },
     preferenceSubtitle: {
-      fontSize: theme.typography.fontSize.sm,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 12,
+      lineHeight: 18,
       color: theme.colors.textMuted,
-      lineHeight: theme.typography.lineHeight.normal,
-    },
-    sessionCard: {
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: theme.spacing.md,
-      ...theme.shadows.card,
-    },
-    sessionDivider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: theme.colors.borderLight,
     },
     emptyCard: {
-      borderRadius: theme.radius.lg,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      padding: theme.spacing.lg,
-      gap: theme.spacing.xs,
+      padding: 12,
+      gap: 4,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
     },
     emptyTitle: {
-      fontSize: theme.typography.fontSize.md,
-      fontWeight: theme.typography.fontWeight.semibold,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 14,
+      lineHeight: 21,
       color: theme.colors.textPrimary,
     },
     emptyMessage: {
-      fontSize: theme.typography.fontSize.sm,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 13,
+      lineHeight: 19.5,
       color: theme.colors.textMuted,
-      lineHeight: theme.typography.lineHeight.normal,
     },
-    inlineLoader: {
-      paddingVertical: theme.spacing.lg,
-      alignItems: 'center',
+    skeletonStack: {
+      gap: 10,
+    },
+    skeletonCard: {
+      height: 96,
+      borderRadius: 14,
+      backgroundColor: theme.colors.iconBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    skeletonRow: {
+      height: 68,
+      borderRadius: 14,
+      marginBottom: 10,
+      backgroundColor: theme.colors.iconBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     logoutButton: {
-      alignSelf: 'center',
+      alignSelf: 'flex-start',
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing.sm,
+      paddingVertical: 8,
     },
     logoutLabel: {
-      fontSize: theme.typography.fontSize.md,
-      fontWeight: theme.typography.fontWeight.semibold,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 14,
+      lineHeight: 21,
       color: theme.colors.notification,
     },
-    title: {
-      fontSize: 28,
-      fontWeight: theme.typography.fontWeight.bold,
-      color: theme.colors.textPrimary,
-      letterSpacing: -0.4,
-    },
-    subtitle: {
-      fontSize: theme.typography.fontSize.md,
+    logoutBusy: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 14,
+      lineHeight: 21,
       color: theme.colors.textMuted,
-      lineHeight: 22,
     },
     muted: {
-      fontSize: theme.typography.fontSize.md,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 15,
       color: theme.colors.textMuted,
     },
     actionDisabled: {

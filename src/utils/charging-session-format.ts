@@ -8,6 +8,33 @@ export function formatRecentSessionMeta(
   startedAt: string | null | undefined,
   durationSeconds: number | null | undefined,
 ): string {
+  return formatDenseSessionMeta(startedAt, durationSeconds);
+}
+
+/** Compact station title — drops trailing filler like "Fast Charge". */
+export function formatCompactStationName(
+  name: string | null | undefined,
+): string {
+  const raw = (name ?? '').trim();
+  if (!raw) {
+    return 'Charging session';
+  }
+
+  const trimmed = raw
+    .replace(
+      /\s+(Fast Charge|EV Hub|Charging Station|Charging Hub|Station)\s*$/i,
+      '',
+    )
+    .trim();
+
+  return trimmed || raw;
+}
+
+/** Dense meta: "18 Sept • 17:18 • 1m 31s" */
+export function formatDenseSessionMeta(
+  startedAt: string | null | undefined,
+  durationSeconds: number | null | undefined,
+): string {
   if (!startedAt) {
     return EMPTY_METRIC;
   }
@@ -17,46 +44,75 @@ export function formatRecentSessionMeta(
     return EMPTY_METRIC;
   }
 
-  const now = new Date();
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+  const day = date.getDate();
+  const month = date.toLocaleString('en-GB', { month: 'short' });
+  const time = date.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 
-  const dateLabel = isToday
-    ? `Today, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
-    : date.toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-
-  let totalSeconds = durationSeconds;
-  if (totalSeconds == null || totalSeconds < 0) {
-    totalSeconds = Math.max(
-      0,
-      Math.floor((Date.now() - date.getTime()) / 1000),
-    );
+  const duration = formatDurationSeconds(durationSeconds, startedAt);
+  if (duration === EMPTY_METRIC) {
+    return `${day} ${month} • ${time}`;
   }
 
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  let durationLabel = EMPTY_METRIC;
+  return `${day} ${month} • ${time} • ${duration}`;
+}
 
-  if (hours > 0) {
-    durationLabel = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  } else if (minutes > 0) {
-    durationLabel = `${minutes} mins`;
-  } else if (totalSeconds > 0) {
-    durationLabel = `${totalSeconds}s`;
+/** Port line: "180kW • CCS2" — hardware keys only, no IDs or filler. */
+export function formatChargerPortMeta(
+  maxPowerKw: number | null | undefined,
+  connectorLabel?: string | null,
+  evseLabel?: string | null,
+): string {
+  const raw = [connectorLabel, evseLabel]
+    .filter((part): part is string => Boolean(part && part !== EMPTY_METRIC))
+    .join(' ');
+
+  const connectorType = extractConnectorType(raw);
+  const powerFromLabel = raw.match(/(\d+(?:\.\d+)?)\s*kW/i)?.[1];
+  const powerKw = hasMetricValue(maxPowerKw)
+    ? Math.round(maxPowerKw!)
+    : powerFromLabel
+      ? Math.round(Number(powerFromLabel))
+      : null;
+
+  const parts: string[] = [];
+  if (powerKw != null && !Number.isNaN(powerKw)) {
+    parts.push(`${powerKw}kW`);
+  }
+  if (connectorType) {
+    parts.push(connectorType);
   }
 
-  if (durationLabel === EMPTY_METRIC) {
-    return dateLabel;
+  return parts.join(' • ');
+}
+
+function extractConnectorType(label: string): string | null {
+  if (!label.trim()) {
+    return null;
   }
 
-  return `${dateLabel} · ${durationLabel}`;
+  const known = label.match(
+    /\b(CCS\s*2|CCS2|CCS|CHAdeMO|Type\s*2|GBT|NACS|Tesla)\b/i,
+  );
+  if (known?.[1]) {
+    return known[1].replace(/\s+/g, '').replace(/^ccs$/i, 'CCS2');
+  }
+
+  const cleaned = label
+    .replace(/#\d+/g, '')
+    .replace(/\d+(?:\.\d+)?\s*kW/gi, '')
+    .replace(/^\d+\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned || cleaned === EMPTY_METRIC || cleaned.length > 12) {
+    return null;
+  }
+
+  return cleaned;
 }
 
 export function formatSessionDateTime(value: string | null | undefined): string {
@@ -73,6 +129,49 @@ export function formatSessionDateTime(value: string | null | undefined): string 
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+}
+
+/** Design format: "18 Sept 2026, 18:22 → 18:24" */
+export function formatSessionTimeRange(
+  startedAt: string | null | undefined,
+  endedAt?: string | null,
+): string {
+  if (!startedAt) {
+    return EMPTY_METRIC;
+  }
+
+  const start = new Date(startedAt);
+  if (Number.isNaN(start.getTime())) {
+    return EMPTY_METRIC;
+  }
+
+  const day = start.getDate();
+  const month = start.toLocaleString('en-GB', { month: 'short' });
+  const year = start.getFullYear();
+  const startTime = start.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  const datePart = `${day} ${month} ${year}`;
+
+  if (!endedAt) {
+    return `${datePart}, ${startTime}`;
+  }
+
+  const end = new Date(endedAt);
+  if (Number.isNaN(end.getTime())) {
+    return `${datePart}, ${startTime}`;
+  }
+
+  const endTime = end.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return `${datePart}, ${startTime} → ${endTime}`;
 }
 
 export function formatSessionDate(value: string | null | undefined): string {

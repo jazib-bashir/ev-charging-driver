@@ -1,9 +1,9 @@
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -32,12 +32,12 @@ import {
   resumeBookingHref,
 } from '@/auth/profile-flow';
 import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
-import { AuthScreenShell } from '@/components/auth/auth-screen-shell';
 import { Icon } from '@/components/ui/icon';
 import {
   RequestStatusBanner,
   useRequestStatus,
 } from '@/components/ui/request-status';
+import { ScreenContainer } from '@/components/ui/screen-container';
 import { theme } from '@/theme';
 import type { DriverVehicle, VehicleCatalogItem } from '@/types/vehicle';
 
@@ -46,15 +46,14 @@ type BusyKey = string | null;
 /** Rows rendered per page. Swap for API paging when the endpoint supports it. */
 const PAGE_SIZE = 12;
 
-type CatalogRow = { kind: 'catalog'; item: VehicleCatalogItem };
-type SavedRow = { kind: 'saved'; vehicle: DriverVehicle };
-type HeaderRow = { kind: 'header'; title: string; count?: number };
-type ListRow = CatalogRow | SavedRow | HeaderRow;
-
 /** Plate capture target: a catalog model being added, or a saved vehicle being edited. */
 type PlatePrompt =
   | { mode: 'create'; item: VehicleCatalogItem }
   | { mode: 'edit'; vehicle: DriverVehicle };
+
+function connectorsLine(parts: Array<string | null | undefined>): string {
+  return parts.filter(Boolean).join(' • ');
+}
 
 export default function VehicleSelectionScreen() {
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -71,6 +70,7 @@ export default function VehicleSelectionScreen() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [platePrompt, setPlatePrompt] = useState<PlatePrompt | null>(null);
   const [plateValue, setPlateValue] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [pendingRemoval, setPendingRemoval] = useState<DriverVehicle | null>(
     null,
   );
@@ -132,9 +132,32 @@ export default function VehicleSelectionScreen() {
     }, [loadVehicles]),
   );
 
+  useEffect(() => {
+    if (platePrompt === null) {
+      setKeyboardHeight(0);
+      return;
+    }
+
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [platePrompt]);
+
   const filteredCatalog = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    // Models already in "Your vehicles" are hidden here to avoid duplicate rows.
     const available = catalog.filter((item) => !savedCatalogIds.has(item.id));
 
     if (!query) {
@@ -154,28 +177,6 @@ export default function VehicleSelectionScreen() {
   );
 
   const hasMore = pagedCatalog.length < filteredCatalog.length;
-
-  const rows = useMemo<ListRow[]>(() => {
-    const next: ListRow[] = [];
-
-    if (savedVehicles.length > 0) {
-      next.push({ kind: 'header', title: 'Your vehicles' });
-      for (const vehicle of savedVehicles) {
-        next.push({ kind: 'saved', vehicle });
-      }
-    }
-
-    next.push({
-      kind: 'header',
-      title: 'Available models',
-      count: filteredCatalog.length,
-    });
-    for (const item of pagedCatalog) {
-      next.push({ kind: 'catalog', item });
-    }
-
-    return next;
-  }, [savedVehicles, pagedCatalog, filteredCatalog.length]);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -272,7 +273,6 @@ export default function VehicleSelectionScreen() {
           vehicleModelId: prompt.item.id,
           ...(plate ? { licensePlate: plate } : {}),
         });
-        // Refetch so the default flag always mirrors the server for every row.
         const vehicles = await listDriverVehicles(token);
         setSavedVehicles(vehicles);
         closePlatePrompt();
@@ -340,9 +340,7 @@ export default function VehicleSelectionScreen() {
     }
 
     if (vehicle.isDefault) {
-      showError(
-        'Set another vehicle as default before removing this one.',
-      );
+      showError('Set another vehicle as default before removing this one.');
       return;
     }
 
@@ -389,192 +387,234 @@ export default function VehicleSelectionScreen() {
     } as Href);
   };
 
-  const canContinue = Boolean(defaultVehicle);
-
-  const renderRow = ({ item: row }: { item: ListRow }) => {
-    if (row.kind === 'header') {
-      return (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{row.title}</Text>
-          {typeof row.count === 'number' ? (
-            <View style={styles.countPill}>
-              <Text style={styles.countPillText}>{row.count}</Text>
-            </View>
-          ) : null}
-        </View>
-      );
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
     }
-
-    if (row.kind === 'saved') {
-      const { vehicle } = row;
-      const connectors = driverVehicleConnectorsLabel(vehicle);
-
-      return (
-        <VehicleCard
-          title={driverVehicleTitle(vehicle)}
-          specs={connectors ? connectors.split(' · ') : []}
-          licensePlate={vehicle.licensePlate}
-          selected={vehicle.isDefault}
-          badge={vehicle.isDefault ? 'Default' : undefined}
-          saved
-          showDefaultAction={!vehicle.isDefault}
-          loading={
-            busyKey === `saved:${vehicle.id}` ||
-            busyKey === `remove:${vehicle.id}`
-          }
-          disabled={isBusy}
-          onPress={() => {
-            void handleSelectSaved(vehicle);
-          }}
-          onEditPlate={() => {
-            openPlatePrompt({ mode: 'edit', vehicle });
-          }}
-          onRemove={
-            vehicle.isDefault
-              ? undefined
-              : () => {
-                  handleRemoveSaved(vehicle);
-                }
-          }
-        />
-      );
-    }
-
-    const { item } = row;
-    const specs = [item.acConnectorType, item.dcConnectorType].filter(
-      (spec): spec is NonNullable<typeof spec> => Boolean(spec),
-    );
-
-    return (
-      <VehicleCard
-        title={item.displayName}
-        subtitle={
-          item.make && item.model && item.displayName !== `${item.make} ${item.model}`
-            ? `${item.make} ${item.model}`
-            : undefined
-        }
-        specs={specs}
-        fastCharging={item.isFastChargingSupported}
-        loading={busyKey === `catalog:${item.id}`}
-        disabled={isBusy}
-        onPress={() => {
-          handleSelectCatalog(item);
-        }}
-      />
-    );
+    router.replace(fromProfile ? '/(tabs)/profile' : ('/' as Href));
   };
 
-  return (
-    <AuthScreenShell
-      title={fromProfile ? 'Select your vehicle' : 'Add Vehicle'}
-      subtitle={
-        fromProfile
-          ? 'Choose a vehicle from the list or add a custom one.'
-          : 'Choose your car to enable optimized charging.'
-      }
-      showBack
-      disableScroll
-      headerStep={fromProfile ? undefined : 'Step 2 of 2'}
-      headerSection={fromProfile ? undefined : 'Vehicle Profile'}
-      stickyFooter={
-        <View style={styles.footerBar}>
-          {defaultVehicle ? (
-            <View style={styles.footerDefaultRow}>
-              <Icon name="checkmark" size={14} color={theme.colors.brand} />
-              <Text style={styles.footerDefaultText} numberOfLines={1}>
-                Default: {driverVehicleTitle(defaultVehicle)}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.footerHint}>
-              Select a vehicle to set as your default to continue.
-            </Text>
-          )}
-          <AuthPrimaryButton
-            label={fromProfile ? 'Done' : 'Save & Continue'}
-            onPress={() => {
-              void finishFlow();
+  const canContinue = Boolean(defaultVehicle);
+
+  const catalogHeader = (
+    <View>
+      {savedVehicles.length > 0 ? (
+        <View style={styles.garageSection}>
+          <Text style={styles.sectionLabel}>YOUR GARAGE</Text>
+          <FlatList
+            horizontal
+            data={savedVehicles}
+            keyExtractor={(vehicle) => vehicle.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.garageListContent}
+            renderItem={({ item: vehicle }) => {
+              const plugs = connectorsLine(
+                driverVehicleConnectorsLabel(vehicle).split(' · '),
+              );
+              const loading =
+                busyKey === `saved:${vehicle.id}` ||
+                busyKey === `remove:${vehicle.id}`;
+
+              return (
+                <View
+                  style={[
+                    styles.garageCard,
+                    vehicle.isDefault && styles.garageCardSelected,
+                  ]}
+                >
+                  <View style={styles.garageCardTop}>
+                    <View
+                      style={[
+                        styles.garageIcon,
+                        vehicle.isDefault && styles.garageIconSelected,
+                      ]}
+                    >
+                      <Icon
+                        name="car"
+                        size={20}
+                        color={
+                          vehicle.isDefault
+                            ? theme.colors.accent
+                            : theme.colors.textMuted
+                        }
+                      />
+                    </View>
+                    <View style={styles.garageCopy}>
+                      <Text style={styles.garageTitle} numberOfLines={2}>
+                        {driverVehicleTitle(vehicle)}
+                      </Text>
+                      {plugs ? (
+                        <Text style={styles.garagePlugs} numberOfLines={1}>
+                          {plugs}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {!vehicle.isDefault ? (
+                      <Pressable
+                        onPress={() => handleRemoveSaved(vehicle)}
+                        disabled={isBusy || loading}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${driverVehicleTitle(vehicle)}`}
+                        style={styles.garageRemove}
+                      >
+                        <Icon
+                          name="trash"
+                          size={14}
+                          color={theme.colors.textMuted}
+                        />
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.garageActions}>
+                    {vehicle.isDefault ? (
+                      <View style={styles.defaultTag}>
+                        <Icon
+                          name="star"
+                          size={11}
+                          color={theme.colors.accent}
+                        />
+                        <Text style={styles.defaultTagLabel}>Default</Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          void handleSelectSaved(vehicle);
+                        }}
+                        disabled={isBusy || loading}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Make ${driverVehicleTitle(vehicle)} default`}
+                      >
+                        <Text style={styles.garageActionLink}>
+                          Make default
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={() =>
+                        openPlatePrompt({ mode: 'edit', vehicle })
+                      }
+                      disabled={isBusy || loading}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        vehicle.licensePlate
+                          ? `Edit plate for ${driverVehicleTitle(vehicle)}`
+                          : `Add number plate for ${driverVehicleTitle(vehicle)}`
+                      }
+                    >
+                      <Text style={styles.garageActionLink}>
+                        {vehicle.licensePlate
+                          ? `Plate ${vehicle.licensePlate}`
+                          : '✏️ Add number plate'}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {loading ? (
+                    <View style={styles.garageBusy}>
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.accent}
+                      />
+                    </View>
+                  ) : null}
+                </View>
+              );
             }}
-            loading={busyKey === 'continue'}
-            disabled={!canContinue || isBusy}
           />
+        </View>
+      ) : null}
+
+      <View style={styles.directoryHeader}>
+        <Text style={[styles.sectionLabel, styles.directoryTitle]}>
+          AVAILABLE MODELS
+        </Text>
+        <View style={styles.countPill}>
+          <Text style={styles.countPillText}>{filteredCatalog.length}</Text>
+        </View>
+      </View>
+
+      <View style={styles.searchRow}>
+        <Icon name="search" size={18} color={theme.colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          placeholder="Search make, model, or trims..."
+          placeholderTextColor={theme.colors.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {searchQuery ? (
           <Pressable
-            onPress={handleAddCustom}
-            disabled={isBusy}
+            onPress={() => handleSearchChange('')}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Enter custom vehicle specs"
-            style={styles.customLinkRow}
+            accessibilityLabel="Clear search"
           >
-            <Text style={styles.customLinkMuted}>Can't find your model? </Text>
-            <Text style={styles.customLink}>Enter custom specs</Text>
+            <Icon name="close" size={16} color={theme.colors.textMuted} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {status ? (
+        <View style={styles.statusWrap}>
+          <RequestStatusBanner status={status} />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <View style={styles.root}>
+      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={handleBack}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={styles.backButton}
+          >
+            <Icon name="back" size={22} color={theme.colors.textPrimary} />
           </Pressable>
         </View>
-      }
-    >
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.brand} />
-          <Text style={styles.loadingLabel}>Loading vehicles…</Text>
-        </View>
-      ) : loadFailed && catalog.length === 0 && savedVehicles.length === 0 ? (
-        <View style={styles.centered}>
-          <RequestStatusBanner status={status} />
-          <AuthPrimaryButton
-            label="Try again"
-            onPress={() => {
-              void loadVehicles();
-            }}
-          />
-        </View>
-      ) : (
-        <>
-          <View style={styles.searchRow}>
-            <Icon name="search" size={18} color={theme.colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              placeholder="Search make, model, or trims..."
-              placeholderTextColor={theme.colors.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {searchQuery ? (
-              <Pressable
-                onPress={() => handleSearchChange('')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-              >
-                <Icon name="close" size={16} color={theme.colors.textMuted} />
-              </Pressable>
-            ) : null}
+
+        <Text style={styles.pageTitle}>Vehicles</Text>
+
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={theme.colors.accent} />
+            <Text style={styles.loadingLabel}>Loading vehicles…</Text>
           </View>
-
-          {status ? (
-            <View style={styles.statusWrap}>
-              <RequestStatusBanner status={status} />
-            </View>
-          ) : null}
-
+        ) : loadFailed &&
+          catalog.length === 0 &&
+          savedVehicles.length === 0 ? (
+          <View style={styles.centered}>
+            <RequestStatusBanner status={status} />
+            <AuthPrimaryButton
+              label="Try again"
+              onPress={() => {
+                void loadVehicles();
+              }}
+            />
+          </View>
+        ) : (
           <FlatList
-            data={rows}
-            keyExtractor={(row, index) =>
-              row.kind === 'header'
-                ? `header-${row.title}`
-                : row.kind === 'saved'
-                  ? `saved-${row.vehicle.id}`
-                  : `catalog-${row.item.id}-${index}`
-            }
-            renderItem={renderRow}
+            data={pagedCatalog}
+            keyExtractor={(item) => item.id}
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             onEndReachedThreshold={0.4}
             onEndReached={handleLoadMore}
+            ListHeaderComponent={catalogHeader}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
                 No vehicles match your search.
@@ -592,31 +632,110 @@ export default function VehicleSelectionScreen() {
                 </Pressable>
               ) : null
             }
-          />
-        </>
-      )}
+            renderItem={({ item }) => {
+              const plugs = connectorsLine([
+                item.acConnectorType,
+                item.dcConnectorType,
+                item.isFastChargingSupported ? 'Fast' : null,
+              ]);
+              const loading = busyKey === `catalog:${item.id}`;
 
-      <Modal
-        visible={platePrompt !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={closePlatePrompt}
-      >
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalCenter}
-          >
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>
-                {platePrompt?.mode === 'edit'
-                  ? 'Number plate'
-                  : 'Add number plate'}
+              return (
+                <Pressable
+                  onPress={() => handleSelectCatalog(item)}
+                  disabled={isBusy || loading}
+                  style={[
+                    styles.catalogRow,
+                    (isBusy || loading) && styles.cardDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add ${item.displayName}`}
+                >
+                  <Text style={styles.catalogTitle} numberOfLines={1}>
+                    {item.displayName}
+                  </Text>
+                  <View style={styles.catalogTrailing}>
+                    {plugs ? (
+                      <Text style={styles.catalogPlugs} numberOfLines={1}>
+                        {plugs}
+                      </Text>
+                    ) : null}
+                    {loading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.accent}
+                      />
+                    ) : (
+                      <View style={styles.addIconWrap}>
+                        <Icon
+                          name="add"
+                          size={18}
+                          color={theme.colors.accent}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
+        )}
+
+        <View style={styles.footerBar}>
+          {defaultVehicle ? (
+            <View style={styles.footerDefaultRow}>
+              <Icon name="checkmark" size={14} color={theme.colors.accent} />
+              <Text style={styles.footerDefaultText} numberOfLines={1}>
+                Default: {driverVehicleTitle(defaultVehicle)}
               </Text>
+            </View>
+          ) : (
+            <Text style={styles.footerHint}>
+              Select a vehicle to set as your default to continue.
+            </Text>
+          )}
+          <AuthPrimaryButton
+            label={fromProfile ? 'Done' : 'Save & Continue'}
+            onPress={() => {
+              void finishFlow();
+            }}
+            loading={busyKey === 'continue'}
+            disabled={!canContinue || isBusy}
+            style={styles.doneButton}
+          />
+          <Pressable
+            onPress={handleAddCustom}
+            disabled={isBusy}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Enter custom vehicle specs"
+            style={styles.customLinkRow}
+          >
+            <Text style={styles.customLinkMuted}>Can't find your model? </Text>
+            <Text style={styles.customLink}>Enter custom specs</Text>
+          </Pressable>
+        </View>
+      </ScreenContainer>
+
+      {platePrompt !== null ? (
+        <View
+          style={[styles.plateOverlay, { paddingBottom: keyboardHeight }]}
+        >
+          <Pressable style={styles.modalDismiss} onPress={closePlatePrompt} />
+          <View style={styles.modalSheetWrap}>
+            <View style={styles.modalSheet}>
+              {platePrompt.mode === 'edit' ? (
+                <Text style={styles.modalTitle}>Number plate</Text>
+              ) : (
+                <View style={styles.modalTitleRow}>
+                  <Text style={styles.modalTitle}>Add Number Plate</Text>
+                  <Text style={styles.modalTitleOptional}>(Optional)</Text>
+                </View>
+              )}
               <Text style={styles.modalSubtitle}>
-                {platePrompt?.mode === 'edit'
+                {platePrompt.mode === 'edit'
                   ? driverVehicleTitle(platePrompt.vehicle)
-                  : (platePrompt?.item.displayName ?? '')}
+                  : platePrompt.item.displayName}
               </Text>
 
               <TextInput
@@ -631,9 +750,6 @@ export default function VehicleSelectionScreen() {
                 autoFocus
                 editable={busyKey !== 'plate'}
               />
-              <Text style={styles.modalHint}>
-                Optional. Used to identify your car at the charger.
-              </Text>
 
               <View style={styles.modalActions}>
                 <Pressable
@@ -651,35 +767,46 @@ export default function VehicleSelectionScreen() {
                   }}
                   disabled={busyKey === 'plate'}
                   accessibilityRole="button"
-                  accessibilityLabel="Save vehicle"
+                  accessibilityLabel={
+                    platePrompt.mode === 'edit'
+                      ? 'Save'
+                      : plateValue.trim()
+                        ? 'Add vehicle'
+                        : 'Skip and add'
+                  }
                   style={styles.modalConfirm}
                 >
                   {busyKey === 'plate' ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={theme.colors.textInverse}
-                    />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.modalConfirmLabel}>
-                      {platePrompt?.mode === 'edit' ? 'Save' : 'Add vehicle'}
+                      {platePrompt.mode === 'edit'
+                        ? 'Save'
+                        : plateValue.trim()
+                          ? 'Add Vehicle'
+                          : 'Skip & Add'}
                     </Text>
                   )}
                 </Pressable>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </View>
-      </Modal>
+      ) : null}
 
       <Modal
         visible={pendingRemoval !== null}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setPendingRemoval(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCenter}>
-            <View style={styles.modalCard}>
+          <Pressable
+            style={styles.modalDismiss}
+            onPress={() => setPendingRemoval(null)}
+          />
+          <View style={styles.modalSheetWrap}>
+            <View style={styles.modalSheet}>
               <Text style={styles.modalTitle}>Remove vehicle</Text>
               <Text style={styles.modalSubtitle}>
                 {pendingRemoval
@@ -707,10 +834,7 @@ export default function VehicleSelectionScreen() {
                   style={[styles.modalConfirm, styles.modalConfirmDanger]}
                 >
                   {isBusy ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={theme.colors.textInverse}
-                    />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.modalConfirmLabel}>Remove</Text>
                   )}
@@ -720,440 +844,114 @@ export default function VehicleSelectionScreen() {
           </View>
         </View>
       </Modal>
-    </AuthScreenShell>
-  );
-}
-
-type VehicleCardProps = {
-  title: string;
-  subtitle?: string;
-  specs?: string[];
-  fastCharging?: boolean;
-  licensePlate?: string | null;
-  selected?: boolean;
-  badge?: string;
-  /** Shows the "Make Default" pill for saved vehicles that are not default yet. */
-  showDefaultAction?: boolean;
-  /** Renders the saved-vehicle footer (plate chip + default action). */
-  saved?: boolean;
-  loading?: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-  onEditPlate?: () => void;
-  onRemove?: () => void;
-};
-
-function VehicleCard({
-  title,
-  subtitle,
-  specs = [],
-  fastCharging = false,
-  licensePlate,
-  selected = false,
-  badge,
-  showDefaultAction = false,
-  saved = false,
-  loading = false,
-  disabled,
-  onPress,
-  onEditPlate,
-  onRemove,
-}: VehicleCardProps) {
-  const isSaved = saved;
-  // Saved rows expose their own buttons, so the card itself must not be
-  // pressable — nested pressables swallow the inner taps.
-  const Container = isSaved ? View : Pressable;
-  const containerProps = isSaved
-    ? {}
-    : {
-        onPress,
-        disabled: disabled || loading,
-        accessibilityRole: 'button' as const,
-        accessibilityState: { selected, busy: loading, disabled },
-      };
-
-  return (
-    <Container
-      {...containerProps}
-      style={[
-        styles.card,
-        selected && styles.cardSelected,
-        (disabled || loading) && styles.cardDisabled,
-      ]}
-    >
-      <View style={[styles.cardIcon, selected && styles.cardIconSelected]}>
-        <Icon
-          name="car"
-          size={20}
-          color={selected ? theme.colors.brand : theme.colors.textMuted}
-        />
-      </View>
-
-      <View style={styles.cardBody}>
-        <View style={styles.cardTitleRow}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {title}
-          </Text>
-          {badge ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {subtitle ? (
-          <Text style={styles.cardSubtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        ) : null}
-
-        {specs.length > 0 || fastCharging ? (
-          <View style={styles.specRow}>
-            {specs.map((spec) => (
-              <View key={spec} style={styles.specChip}>
-                <Text style={styles.specText}>{spec}</Text>
-              </View>
-            ))}
-            {fastCharging ? (
-              <View style={[styles.specChip, styles.specChipAccent]}>
-                <Icon name="bolt" size={11} color={theme.colors.brandDark} />
-                <Text style={[styles.specText, styles.specTextAccent]}>
-                  Fast charging
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {isSaved ? (
-          <View style={styles.savedFooter}>
-            <Pressable
-              onPress={onEditPlate}
-              disabled={disabled || loading}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={
-                licensePlate ? `Edit plate for ${title}` : `Add plate for ${title}`
-              }
-              style={styles.plateChip}
-            >
-              <Text style={styles.plateLabel}>Plate</Text>
-              <Text style={styles.plateValue}>
-                {licensePlate || 'Add number'}
-              </Text>
-            </Pressable>
-
-            {showDefaultAction ? (
-              <Pressable
-                onPress={onPress}
-                disabled={disabled || loading}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={`Make ${title} default`}
-                style={styles.makeDefaultPill}
-              >
-                <Icon name="star" size={11} color={theme.colors.textSecondary} />
-                <Text style={styles.makeDefaultLabel}>Make Default</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.activeRow}>
-                <Icon name="checkmark" size={14} color={theme.colors.brand} />
-                <Text style={styles.activeLabel}>Active</Text>
-              </View>
-            )}
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.cardTrailing}>
-        {loading ? (
-          <ActivityIndicator size="small" color={theme.colors.brand} />
-        ) : onRemove ? (
-          <Pressable
-            onPress={onRemove}
-            disabled={disabled}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Remove ${title}`}
-            style={styles.removeButton}
-          >
-            <Icon name="trash" size={16} color={theme.colors.textMuted} />
-          </Pressable>
-        ) : isSaved ? null : (
-          <Icon name="add" size={18} color={theme.colors.brand} />
-        )}
-      </View>
-    </Container>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: {
-    paddingVertical: theme.spacing.xxl,
+  root: {
+    flex: 1,
+  },
+  screen: {
+    backgroundColor: theme.colors.background,
+  },
+  topBar: {
+    paddingHorizontal: 8,
+    paddingTop: 4,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    gap: theme.spacing.lg,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  pageTitle: {
+    fontFamily: theme.typography.fontFamily.brand,
+    fontSize: 24,
+    color: theme.colors.textPrimary,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    paddingHorizontal: 16,
   },
   loadingLabel: {
-    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 13,
     color: theme.colors.textMuted,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm + 2,
-    paddingHorizontal: theme.spacing.md + 2,
-    paddingVertical: 11,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textPrimary,
-    padding: 0,
-  },
-  statusWrap: {
-    marginTop: theme.spacing.md,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
-    gap: theme.spacing.sm,
+    paddingBottom: 16,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.xxs,
+  garageSection: {
+    marginTop: 14,
   },
-  sectionTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  sectionLabel: {
+    fontFamily: theme.typography.fontFamily.brand,
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.8,
+    marginHorizontal: 16,
   },
-  countPill: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 3,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.brandMuted,
+  garageListContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  countPillText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brandDark,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.lg,
+  garageCard: {
+    width: 220,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    padding: 14,
+    marginRight: 12,
+    ...theme.shadows.card,
+    shadowColor: theme.colors.shadow,
   },
-  cardSelected: {
-    borderColor: theme.colors.brand,
-    backgroundColor: theme.colors.selectionBackground,
+  garageCardSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.brandMuted,
   },
-  cardDisabled: {
-    opacity: 0.7,
+  garageCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.md,
+  garageIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.iconBackground,
   },
-  cardIconSelected: {
-    backgroundColor: theme.colors.brandMuted,
+  garageIconSelected: {
+    backgroundColor: 'rgba(0, 217, 160, 0.18)',
   },
-  cardBody: {
+  garageCopy: {
     flex: 1,
-    gap: 3,
+    minWidth: 0,
   },
-  cardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  cardTitle: {
-    flexShrink: 1,
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
+  garageTitle: {
+    fontFamily: theme.typography.fontFamily.brandSemiBold,
+    fontSize: 15,
     color: theme.colors.textPrimary,
   },
-  cardSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-  },
-  specRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  specChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 3,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.connectorBg,
-  },
-  specChipAccent: {
-    backgroundColor: theme.colors.brandMuted,
-  },
-  specText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.medium,
+  garagePlugs: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 11,
     color: theme.colors.textSecondary,
+    marginTop: 4,
   },
-  specTextAccent: {
-    color: theme.colors.brandDark,
-  },
-  savedFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    marginTop: 8,
-  },
-  plateChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.connectorBg,
-  },
-  plateLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  plateValue: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.4,
-  },
-  makeDefaultPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  makeDefaultLabel: {
-    fontSize: 12,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-  },
-  activeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  activeLabel: {
-    fontSize: 13,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brand,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.overlay,
-  },
-  modalCenter: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
-  },
-  modalCard: {
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.xs,
-  },
-  modalTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-  },
-  modalSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    marginBottom: theme.spacing.sm,
-  },
-  modalInput: {
-    height: 52,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.md,
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    letterSpacing: 1,
-    color: theme.colors.textPrimary,
-  },
-  modalHint: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-  },
-  modalCancel: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-  },
-  modalCancelLabel: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.medium,
-    color: theme.colors.textSecondary,
-  },
-  modalConfirm: {
-    minWidth: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: 12,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
-  },
-  modalConfirmDanger: {
-    backgroundColor: theme.colors.notification,
-  },
-  modalConfirmLabel: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textInverse,
-  },
-  cardTrailing: {
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  removeButton: {
+  garageRemove: {
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -1161,37 +959,154 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: theme.colors.iconBackground,
   },
-  badge: {
-    paddingHorizontal: theme.spacing.sm,
+  garageActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 12,
+  },
+  defaultTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  defaultTagLabel: {
+    fontFamily: theme.typography.fontFamily.semibold,
+    fontSize: 11,
+    color: theme.colors.accent,
+  },
+  garageActionLink: {
+    fontFamily: theme.typography.fontFamily.medium,
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+  },
+  garageBusy: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(248, 250, 252, 0.55)',
+    borderRadius: 16,
+  },
+  directoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  directoryTitle: {
+    marginHorizontal: 0,
+  },
+  countPill: {
+    backgroundColor: theme.colors.iconBackground,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: theme.radius.sm,
+    borderRadius: 10,
+  },
+  countPillText: {
+    fontFamily: theme.typography.fontFamily.semibold,
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 44,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.card,
+    shadowColor: theme.colors.shadow,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+    padding: 0,
+  },
+  statusWrap: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  catalogRow: {
+    height: 52,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...theme.shadows.card,
+    shadowColor: theme.colors.shadow,
+  },
+  cardDisabled: {
+    opacity: 0.7,
+  },
+  catalogTitle: {
+    flex: 1,
+    fontFamily: theme.typography.fontFamily.brandSemiBold,
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+    paddingRight: 10,
+  },
+  catalogTrailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  catalogPlugs: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginRight: 12,
+    maxWidth: 120,
+  },
+  addIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: theme.colors.brandMuted,
   },
-  badgeText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brandDark,
-  },
   emptyText: {
-    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 13,
     color: theme.colors.textMuted,
     textAlign: 'center',
-    paddingVertical: theme.spacing.xl,
+    paddingVertical: 24,
   },
   loadMore: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: 12,
   },
   loadMoreLabel: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brand,
+    fontFamily: theme.typography.fontFamily.semibold,
+    fontSize: 13,
+    color: theme.colors.accent,
   },
   footerBar: {
-    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
   },
   footerHint: {
-    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 13,
     color: theme.colors.textMuted,
     textAlign: 'center',
   },
@@ -1202,24 +1117,132 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   footerDefaultText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brandDark,
+    fontFamily: theme.typography.fontFamily.semibold,
+    fontSize: 13,
+    color: theme.colors.statusAvailable,
+  },
+  doneButton: {
+    backgroundColor: theme.colors.accent,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   customLinkRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: 4,
   },
   customLinkMuted: {
-    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 13,
     color: theme.colors.textMuted,
   },
   customLink: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brand,
+    fontFamily: theme.typography.fontFamily.semibold,
+    fontSize: 13,
+    color: theme.colors.accent,
     textDecorationLine: 'underline',
+  },
+  plateOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: theme.colors.overlay,
+    justifyContent: 'flex-end',
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: theme.colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  modalDismiss: {
+    ...StyleSheet.absoluteFill,
+  },
+  modalSheetWrap: {
+    width: '100%',
+  },
+  modalSheet: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    width: '100%',
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    fontFamily: theme.typography.fontFamily.brand,
+    fontSize: 18,
+    color: theme.colors.textPrimary,
+  },
+  modalTitleOptional: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    marginLeft: 6,
+  },
+  modalSubtitle: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  modalInput: {
+    height: 48,
+    backgroundColor: theme.colors.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 14,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 20,
+  },
+  modalCancel: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: theme.colors.iconBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCancelLabel: {
+    fontFamily: theme.typography.fontFamily.semibold,
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+  },
+  modalConfirm: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: theme.colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalConfirmDanger: {
+    backgroundColor: '#EF4444',
+  },
+  modalConfirmLabel: {
+    fontFamily: theme.typography.fontFamily.brand,
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 });

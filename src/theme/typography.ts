@@ -5,7 +5,8 @@ export const typography = {
     medium: 'Inter_500Medium',
     semibold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
-    /** Outfit — brand wordmark only. */
+    /** Outfit — brand / display. */
+    brandSemiBold: 'Outfit_600SemiBold',
     brand: 'Outfit_700Bold',
   },
   fontSize: {

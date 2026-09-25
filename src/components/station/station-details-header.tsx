@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 type StationDetailsHeaderProps = {
   onBack: () => void;
@@ -10,6 +11,9 @@ type StationDetailsHeaderProps = {
 };
 
 export function StationDetailsHeader({ onBack, onShare }: StationDetailsHeaderProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.container}>
       <IconButton
@@ -33,27 +37,29 @@ export function StationDetailsHeader({ onBack, onShare }: StationDetailsHeaderPr
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
-  },
-  sideButton: {
-    width: 40,
-    height: 40,
-  },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: 10,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    sideButton: {
+      width: 40,
+      height: 40,
+    },
+    title: {
+      flex: 1,
+      textAlign: 'center',
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: theme.typography.fontSize.lg,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.2,
+    },
+  });
+}

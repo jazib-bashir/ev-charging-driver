@@ -201,7 +201,7 @@ export function AuthScreenShell({
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
   },
   flex: {
     flex: 1,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
+    paddingTop: 16,
     paddingBottom: theme.spacing.sm,
     minHeight: 56,
   },
@@ -297,11 +297,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stickyFooter: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.border,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
     backgroundColor: theme.colors.surface,
   },
   hero: {

@@ -1,7 +1,9 @@
+import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/auth/auth-context';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 
@@ -38,6 +40,7 @@ const TABS: TabConfig[] = [
 export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const { isAuthenticated, isLoading } = useAuth();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomPad = Math.max(insets.bottom, 8);
 
@@ -55,7 +58,17 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
           return (
             <Pressable
               key={route.key}
-              onPress={() => navigation.navigate(route.name)}
+              onPress={() => {
+                if (
+                  route.name === 'profile' &&
+                  !isLoading &&
+                  !isAuthenticated
+                ) {
+                  router.push('/auth' as Href);
+                  return;
+                }
+                navigation.navigate(route.name);
+              }}
               style={styles.tab}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}

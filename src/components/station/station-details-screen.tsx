@@ -1,16 +1,18 @@
 import { Image } from 'expo-image';
 import { router, useFocusEffect, type Href } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
 import { fetchPublicChargers } from '@/api/publicChargers';
@@ -26,19 +28,16 @@ import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationImageSource } from '@/data/station-images';
 import { useStationDetails } from '@/hooks/use-station-details';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import type { QueueMember } from '@/types/queue';
+import { formatCurrencyAmount } from '@/utils/charging-session-format';
 import { getQueueRank } from '@/utils/queue-display';
-import {
-  formatDetailDistance,
-  formatDetailPricePerKwh,
-} from '@/utils/charger';
+import { openStationNavigation } from '@/utils/open-station-navigation';
 import {
   formatText,
   getStationAddress,
   getStationStatus,
-  hasValue,
 } from '@/utils/station';
 
 import { ChargerDetailsSheet } from './charger-details-sheet';
@@ -51,7 +50,11 @@ import { StationDetailsLoadingState } from './station-details-loading-state';
 
 const TABLET_BREAKPOINT = 768;
 const MAX_CONTENT_WIDTH = 720;
-const HERO_HEIGHT = 220;
+const HERO_HEIGHT = 260;
+/** Dark text on mint CTAs — matches selected chip / design system. */
+const ON_ACCENT = '#0F172A';
+const LAYOUT_EDGE = 20;
+const SECTION_GAP = 16;
 
 type StationDetailsScreenProps = {
   stationId: string;
@@ -59,7 +62,13 @@ type StationDetailsScreenProps = {
   resumeBooking?: boolean;
 };
 
-function StationNotFoundState({ onBack }: { onBack: () => void }) {
+function StationNotFoundState({
+  onBack,
+  styles,
+}: {
+  onBack: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.centeredState}>
       <Text style={styles.stateTitle}>Station not found</Text>
@@ -75,7 +84,13 @@ function StationNotFoundState({ onBack }: { onBack: () => void }) {
   );
 }
 
-function StationErrorState({ onRetry }: { onRetry: () => void }) {
+function StationErrorState({
+  onRetry,
+  styles,
+}: {
+  onRetry: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.centeredState}>
       <Text style={styles.stateTitle}>Unable to load station</Text>
@@ -106,6 +121,9 @@ function StationDetailsContent({
   resumeChargerId,
   resumeBooking = false,
 }: StationDetailsScreenProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_BREAKPOINT;
   const {
@@ -154,6 +172,23 @@ function StationDetailsContent({
 
     router.replace('/');
   };
+
+  const handleShare = useCallback(async () => {
+    if (!station) {
+      return;
+    }
+
+    const address = getStationAddress(station);
+    const message = address
+      ? `${station.name}\n${address}`
+      : station.name;
+
+    try {
+      await Share.share({ message });
+    } catch {
+      // User cancelled or share unavailable.
+    }
+  }, [station]);
 
   const openChargerSheet = useCallback((charger: Charger) => {
     setSelectedCharger(charger);
@@ -390,7 +425,7 @@ function StationDetailsContent({
 
   if (isStationLoading) {
     return (
-      <ScreenContainer edges={['top', 'bottom']}>
+      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
         <StationDetailsHeader onBack={handleBack} />
         <StationDetailsLoadingState />
       </ScreenContainer>
@@ -399,18 +434,18 @@ function StationDetailsContent({
 
   if (isStationError) {
     return (
-      <ScreenContainer edges={['top', 'bottom']}>
+      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
         <StationDetailsHeader onBack={handleBack} />
-        <StationErrorState onRetry={retryStation} />
+        <StationErrorState onRetry={retryStation} styles={styles} />
       </ScreenContainer>
     );
   }
 
   if (isStationNotFound || !station) {
     return (
-      <ScreenContainer edges={['top', 'bottom']}>
+      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
         <StationDetailsHeader onBack={handleBack} />
-        <StationNotFoundState onBack={handleBack} />
+        <StationNotFoundState onBack={handleBack} styles={styles} />
       </ScreenContainer>
     );
   }
@@ -418,12 +453,19 @@ function StationDetailsContent({
   const status = getStationStatus(station);
   const address = getStationAddress(station);
   const imageSource = getStationImageSource(station);
-  const showDistance = hasValue(station.distanceMi);
+  const priceAmount = formatCurrencyAmount(
+    station.defaultPricePerKwh,
+    station.currency,
+  );
+  const hasPrice =
+    station.defaultPricePerKwh !== null &&
+    station.defaultPricePerKwh !== undefined;
+  const canNavigate =
+    typeof station.latitude === 'number' && typeof station.longitude === 'number';
+  const heroTopPad = Math.max(insets.top, 12);
 
   return (
-    <ScreenContainer edges={['top', 'bottom']}>
-      <StationDetailsHeader onBack={handleBack} />
-
+    <ScreenContainer edges={['bottom']} style={styles.screen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -438,40 +480,67 @@ function StationDetailsContent({
             contentFit="cover"
             transition={200}
           />
+          <View style={styles.heroScrim} pointerEvents="none" />
+
+          <View style={[styles.heroChrome, { paddingTop: heroTopPad }]}>
+            <Pressable
+              onPress={handleBack}
+              style={({ pressed }) => [
+                styles.heroIconButton,
+                pressed && styles.heroIconButtonPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={6}
+            >
+              <Icon name="back" size={22} color="#FFFFFF" />
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                void handleShare();
+              }}
+              style={({ pressed }) => [
+                styles.heroIconButton,
+                pressed && styles.heroIconButtonPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Share station"
+              hitSlop={6}
+            >
+              <Icon name="share" size={20} color="#FFFFFF" />
+            </Pressable>
+          </View>
 
           <View style={styles.verifiedBadge}>
-            <Icon name="checkmark" size={14} color={theme.colors.statusDot} />
+            <Icon name="star" size={12} color={theme.colors.statusAvailable} />
             <Text style={styles.verifiedText}>GridFlow Verified</Text>
           </View>
         </View>
 
         <View style={styles.summarySection}>
-          <View style={styles.titleRow}>
+          <View style={styles.identityBlock}>
             <Text style={styles.stationName} numberOfLines={2}>
               {formatText(station.name)}
             </Text>
 
-            <View style={styles.distanceBlock}>
-              <Text style={styles.distanceValue}>
-                {formatDetailDistance(station.distanceMi)}
+            <View style={styles.addressRow}>
+              <Icon name="map-pin" size={14} color={theme.colors.textMuted} />
+              <Text style={styles.addressText} numberOfLines={2}>
+                {formatText(address)}
               </Text>
-              {showDistance ? (
-                <Text style={styles.distanceLabel}>miles</Text>
-              ) : null}
             </View>
-          </View>
-
-          <View style={styles.addressRow}>
-            <Icon name="location" size={15} color={theme.colors.textMuted} />
-            <Text style={styles.addressText} numberOfLines={2}>
-              {formatText(address)}
-            </Text>
           </View>
 
           <View style={styles.infoTileRow}>
             <View style={styles.infoTile}>
-              <Text style={styles.infoTileLabel}>Status</Text>
-              <View style={styles.infoTileValueRow}>
+              <Text style={styles.infoTileLabel}>STATUS</Text>
+              <View
+                style={[
+                  styles.statusPill,
+                  status.variant === 'available' && styles.statusPillAvailable,
+                ]}
+              >
                 <View
                   style={[
                     styles.statusDot,
@@ -480,8 +549,8 @@ function StationDetailsContent({
                 />
                 <Text
                   style={[
-                    styles.infoTileValue,
-                    status.variant === 'available' && styles.infoTileValueAvailable,
+                    styles.statusPillText,
+                    status.variant === 'available' && styles.statusPillTextAvailable,
                   ]}
                 >
                   {status.label}
@@ -490,20 +559,29 @@ function StationDetailsContent({
             </View>
 
             <View style={styles.infoTile}>
-              <Text style={styles.infoTileLabel}>Pricing</Text>
-              <Text style={styles.infoTileValue}>
-                {formatDetailPricePerKwh(station.defaultPricePerKwh, station.currency)}
-              </Text>
+              <Text style={styles.infoTileLabel}>PRICING</Text>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceValue}>{priceAmount}</Text>
+                {hasPrice ? (
+                  <Text style={styles.priceUnit}>/kWh</Text>
+                ) : null}
+              </View>
             </View>
           </View>
 
           <Pressable
-            style={styles.navigateButton}
+            style={({ pressed }) => [
+              styles.navigateButton,
+              !canNavigate && styles.navigateButtonDisabled,
+              pressed && canNavigate && styles.navigateButtonPressed,
+            ]}
+            onPress={() => openStationNavigation(station)}
+            disabled={!canNavigate}
             accessibilityRole="button"
             accessibilityLabel={`Navigate to ${station.name}`}
           >
-            <Icon name="car" size={18} color={theme.colors.textInverse} />
-            <Text style={styles.navigateButtonText}>Navigate</Text>
+            <Icon name="navigate" size={18} color={ON_ACCENT} />
+            <Text style={styles.navigateButtonText}>Navigate to Station</Text>
           </Pressable>
 
           <View style={styles.queueSection}>
@@ -527,24 +605,19 @@ function StationDetailsContent({
               />
             ) : !stationActiveSession && station.queue ? (
               <View style={styles.bookQueueCard}>
-                <View style={styles.bookQueueCardHeader}>
-                  <View style={styles.bookQueueIconWrap}>
-                    <Icon name="list" size={18} color={theme.colors.brand} />
+                <View style={styles.bookQueueHeader}>
+                  <View style={styles.bookQueueTitleRow}>
+                    <Icon name="list" size={18} color={theme.colors.accent} />
+                    <Text style={styles.bookQueueTitle}>Queue Available</Text>
                   </View>
-                  <View style={styles.bookQueueCopy}>
-                    <View style={styles.bookQueueTitleRow}>
-                      <Text style={styles.bookQueueTitle}>Queue available</Text>
-                      <View style={styles.availablePill}>
-                        <View style={styles.availablePillDot} />
-                        <Text style={styles.availablePillText}>Open</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.bookQueueSubtitle}>
-                      Reserve your place in line and get notified when a charger
-                      is ready for you.
-                    </Text>
+                  <View style={styles.availablePill}>
+                    <View style={styles.availablePillDot} />
+                    <Text style={styles.availablePillText}>Open</Text>
                   </View>
                 </View>
+                <Text style={styles.bookQueueSubtitle}>
+                  Reserve your spot and get notified when a charger is ready.
+                </Text>
                 <Pressable
                   style={({ pressed }) => [
                     styles.bookQueueButton,
@@ -558,23 +631,23 @@ function StationDetailsContent({
                   }}
                   disabled={isOpeningQueue || isMembershipLoading}
                   accessibilityRole="button"
-                  accessibilityLabel="Book station queue"
+                  accessibilityLabel="Book queue position"
                 >
                   {isOpeningQueue || isMembershipLoading ? (
-                    <ActivityIndicator color={theme.colors.textInverse} />
+                    <ActivityIndicator color={ON_ACCENT} />
                   ) : (
                     <>
-                      <Icon name="list" size={16} color={theme.colors.textInverse} />
-                      <Text style={styles.bookQueueButtonText}>Book Queue</Text>
+                      <Icon name="list" size={16} color={ON_ACCENT} />
+                      <Text style={styles.bookQueueButtonText}>
+                        Book Queue Position
+                      </Text>
                     </>
                   )}
                 </Pressable>
               </View>
             ) : !stationActiveSession ? (
               <View style={styles.queueUnavailableCard}>
-                <View style={styles.queueUnavailableIconWrap}>
-                  <Icon name="list" size={18} color={theme.colors.textMuted} />
-                </View>
+                <Icon name="list" size={18} color={theme.colors.textMuted} />
                 <View style={styles.queueUnavailableCopy}>
                   <Text style={styles.queueUnavailableTitle}>
                     Queue not available
@@ -624,286 +697,334 @@ export function StationDetailsScreen(props: StationDetailsScreenProps) {
   return <StationDetailsContent {...props} />;
 }
 
-const styles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: theme.spacing.lg,
-  },
-  scrollContentTablet: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: MAX_CONTENT_WIDTH,
-  },
-  heroContainer: {
-    position: 'relative',
-    height: HERO_HEIGHT,
-    backgroundColor: theme.colors.placeholder,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    right: theme.spacing.lg,
-    bottom: theme.spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 6,
-    borderRadius: theme.radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    ...theme.shadows.badge,
-  },
-  verifiedText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-  },
-  summarySection: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    gap: theme.spacing.md,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: theme.spacing.md,
-  },
-  stationName: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.3,
-    lineHeight: 26,
-  },
-  distanceBlock: {
-    alignItems: 'flex-end',
-    gap: 1,
-  },
-  distanceValue: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.brand,
-    letterSpacing: -0.2,
-  },
-  distanceLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginTop: -4,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
-  infoTileRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-  },
-  infoTile: {
-    flex: 1,
-    backgroundColor: '#f3f5f9',
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    gap: 6,
-  },
-  infoTileLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  infoTileValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  infoTileValue: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-  },
-  infoTileValueAvailable: {
-    color: theme.colors.brand,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: theme.colors.statusUnavailable,
-  },
-  statusDotAvailable: {
-    backgroundColor: theme.colors.brand,
-  },
-  navigateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.brand,
-    borderRadius: theme.radius.md,
-    paddingVertical: 14,
-    marginTop: theme.spacing.xs,
-  },
-  navigateButtonText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textInverse,
-  },
-  queueSection: {
-    marginTop: theme.spacing.sm,
-  },
-  bookQueueCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.selectionBorder,
-    backgroundColor: theme.colors.brandMuted,
-    padding: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  bookQueueCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-  },
-  bookQueueIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookQueueCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  bookQueueTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-  },
-  bookQueueTitle: {
-    flexShrink: 1,
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.brandDark,
-  },
-  availablePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.surface,
-  },
-  availablePillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.statusDot,
-  },
-  availablePillText: {
-    fontSize: 11,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brandDark,
-  },
-  bookQueueSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
-  bookQueueButton: {
-    height: 44,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  bookQueueButtonPressed: {
-    opacity: 0.85,
-  },
-  bookQueueButtonDisabled: {
-    opacity: 0.7,
-  },
-  bookQueueButtonText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textInverse,
-  },
-  queueUnavailableCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: '#f8fafc',
-    padding: theme.spacing.md,
-  },
-  queueUnavailableIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.iconBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  queueUnavailableCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  queueUnavailableTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-  },
-  queueUnavailableSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
-  centeredState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.xxl,
-    gap: theme.spacing.sm,
-  },
-  stateTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  stateMessage: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  stateButton: {
-    marginTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
-  },
-  stateButtonText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textInverse,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: theme.colors.background,
+    },
+    scrollContent: {
+      paddingBottom: theme.spacing.xxxl,
+    },
+    scrollContentTablet: {
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: MAX_CONTENT_WIDTH,
+    },
+    heroContainer: {
+      position: 'relative',
+      height: HERO_HEIGHT,
+      backgroundColor: theme.colors.placeholder,
+    },
+    heroImage: {
+      width: '100%',
+      height: '100%',
+    },
+    heroScrim: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: 'rgba(6, 12, 24, 0.18)',
+    },
+    heroChrome: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: LAYOUT_EDGE,
+      paddingBottom: 8,
+    },
+    heroIconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(6, 12, 24, 0.45)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.18)',
+    },
+    heroIconButtonPressed: {
+      opacity: 0.85,
+    },
+    verifiedBadge: {
+      position: 'absolute',
+      right: LAYOUT_EDGE,
+      bottom: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      backgroundColor: 'rgba(6, 12, 24, 0.72)',
+      borderWidth: 1,
+      borderColor: 'rgba(0, 217, 160, 0.35)',
+    },
+    verifiedText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 11,
+      lineHeight: 16,
+      color: theme.colors.statusAvailable,
+    },
+    summarySection: {
+      paddingHorizontal: LAYOUT_EDGE,
+      paddingTop: SECTION_GAP,
+      gap: SECTION_GAP,
+    },
+    identityBlock: {
+      gap: 8,
+    },
+    stationName: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 22,
+      lineHeight: 26.4,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.2,
+    },
+    addressRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 6,
+    },
+    addressText: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      lineHeight: 19.5,
+      color: theme.colors.textMuted,
+    },
+    infoTileRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    infoTile: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    infoTileLabel: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      lineHeight: 16.5,
+      letterSpacing: 0.6,
+      color: theme.colors.textMuted,
+    },
+    statusPill: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: theme.radius.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.iconBackground,
+    },
+    statusPillAvailable: {
+      borderColor: theme.colors.statusAvailable,
+      backgroundColor: theme.colors.statusAvailableBg,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.statusUnavailable,
+    },
+    statusDotAvailable: {
+      backgroundColor: theme.colors.statusAvailable,
+    },
+    statusPillText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.colors.textSecondary,
+    },
+    statusPillTextAvailable: {
+      color: theme.colors.statusAvailable,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 4,
+      flexWrap: 'wrap',
+    },
+    priceValue: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 15,
+      lineHeight: 22.5,
+      color: theme.colors.textPrimary,
+    },
+    priceUnit: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 12,
+      lineHeight: 18,
+      color: theme.colors.textMuted,
+    },
+    navigateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      height: 48,
+      backgroundColor: theme.colors.accent,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+    },
+    navigateButtonPressed: {
+      opacity: 0.9,
+    },
+    navigateButtonDisabled: {
+      opacity: 0.55,
+    },
+    navigateButtonText: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: ON_ACCENT,
+      includeFontPadding: false,
+    },
+    queueSection: {
+      gap: SECTION_GAP,
+    },
+    bookQueueCard: {
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.selectionBorder,
+      backgroundColor: theme.colors.surface,
+      padding: 16,
+      gap: 12,
+    },
+    bookQueueHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    bookQueueTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 1,
+    },
+    bookQueueTitle: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 15,
+      lineHeight: 22.5,
+      color: theme.colors.accent,
+    },
+    availablePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.statusAvailableBg,
+    },
+    availablePillDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.statusAvailable,
+    },
+    availablePillText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 11,
+      lineHeight: 16,
+      color: theme.colors.statusAvailable,
+    },
+    bookQueueSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      lineHeight: 19.5,
+      color: theme.colors.textMuted,
+    },
+    bookQueueButton: {
+      height: 45,
+      borderRadius: 10,
+      backgroundColor: theme.colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 7,
+      paddingHorizontal: 12,
+    },
+    bookQueueButtonPressed: {
+      opacity: 0.9,
+    },
+    bookQueueButtonDisabled: {
+      opacity: 0.7,
+    },
+    bookQueueButtonText: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 14,
+      lineHeight: 21,
+      color: ON_ACCENT,
+      includeFontPadding: false,
+    },
+    queueUnavailableCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      padding: 16,
+    },
+    queueUnavailableCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    queueUnavailableTitle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.colors.textSecondary,
+    },
+    queueUnavailableSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      lineHeight: 19.5,
+      color: theme.colors.textMuted,
+    },
+    centeredState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: theme.spacing.xxl,
+      gap: theme.spacing.sm,
+    },
+    stateTitle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: theme.typography.fontSize.lg,
+      color: theme.colors.textPrimary,
+      textAlign: 'center',
+    },
+    stateMessage: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    stateButton: {
+      marginTop: theme.spacing.md,
+      paddingHorizontal: theme.spacing.xl,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.accent,
+    },
+    stateButtonText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: theme.typography.fontSize.md,
+      color: ON_ACCENT,
+    },
+  });
+}

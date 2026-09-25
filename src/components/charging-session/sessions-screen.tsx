@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,14 +8,13 @@ import {
   View,
 } from 'react-native';
 
+import { fetchPublicChargers } from '@/api/publicChargers';
+import { fetchPublicStation } from '@/api/publicStations';
 import { useAuth } from '@/auth/auth-context';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
-import { StationHeader } from '@/components/station/station-header';
 import { useChargingSessions } from '@/hooks/use-charging-sessions';
-import { fetchPublicStation } from '@/api/publicStations';
-import { fetchPublicChargers } from '@/api/publicChargers';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { ChargingSession, ChargingSessionStatus } from '@/types/charging-session';
 import { formatConnectorLabel, formatEvseLabel } from '@/utils/charging-session-labels';
 
@@ -37,7 +36,9 @@ async function resolveSessionLabels(session: ChargingSession): Promise<SessionLa
     ]);
 
     const charger = chargers.data.find((item) => item.id === session.chargerId);
-    const connector = charger?.connectors?.find((item) => item.id === session.connectorId);
+    const connector = charger?.connectors?.find(
+      (item) => item.id === session.connectorId,
+    );
 
     return {
       stationName: station?.name,
@@ -51,7 +52,11 @@ async function resolveSessionLabels(session: ChargingSession): Promise<SessionLa
 
 export function SessionsScreen() {
   const { token } = useAuth();
-  const [statusFilter, setStatusFilter] = useState<ChargingSessionStatus | undefined>();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [statusFilter, setStatusFilter] = useState<
+    ChargingSessionStatus | undefined
+  >();
   const [labelMap, setLabelMap] = useState<Record<string, SessionLabels>>({});
 
   const {
@@ -68,7 +73,8 @@ export function SessionsScreen() {
 
   useEffect(() => {
     const sessionsNeedingLabels = sessions.filter(
-      (session) => !session.stationName || !session.evseLabel || !session.connectorLabel,
+      (session) =>
+        !session.stationName || !session.evseLabel || !session.connectorLabel,
     );
 
     if (sessionsNeedingLabels.length === 0) {
@@ -78,7 +84,8 @@ export function SessionsScreen() {
     void (async () => {
       const entries = await Promise.all(
         sessionsNeedingLabels.map(
-          async (session) => [session.id, await resolveSessionLabels(session)] as const,
+          async (session) =>
+            [session.id, await resolveSessionLabels(session)] as const,
         ),
       );
       setLabelMap((current) => ({
@@ -107,7 +114,7 @@ export function SessionsScreen() {
     if (isInitialLoading) {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.brand} size="large" />
+          <ActivityIndicator color={theme.colors.accent} size="large" />
         </View>
       );
     }
@@ -143,8 +150,8 @@ export function SessionsScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={refresh}
-            tintColor={theme.colors.brand}
-            colors={[theme.colors.brand]}
+            tintColor={theme.colors.accent}
+            colors={[theme.colors.accent]}
           />
         }
         onEndReached={() => {
@@ -156,7 +163,7 @@ export function SessionsScreen() {
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator color={theme.colors.brand} />
+              <ActivityIndicator color={theme.colors.accent} />
             </View>
           ) : null
         }
@@ -179,39 +186,45 @@ export function SessionsScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top']}>
-      <StationHeader />
+    <ScreenContainer edges={['top']} style={styles.screen}>
       <SessionsScreenHeader
         onRefresh={() => void refresh()}
         isRefreshing={isRefreshing}
       />
-      <SessionStatusFilterRow activeStatus={statusFilter} onChange={setStatusFilter} />
-
+      <SessionStatusFilterRow
+        activeStatus={statusFilter}
+        onChange={setStatusFilter}
+      />
       <ScreenContent style={styles.contentArea}>{renderContent()}</ScreenContent>
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  contentArea: {
-    marginTop: theme.spacing.sm,
-  },
-  listContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-  },
-  listItem: {
-    marginBottom: theme.spacing.md,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.xl,
-  },
-  footerLoader: {
-    paddingVertical: theme.spacing.lg,
-    alignItems: 'center',
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: theme.colors.background,
+    },
+    contentArea: {
+      marginTop: 0,
+    },
+    listContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 24,
+    },
+    listItem: {
+      marginBottom: 0,
+    },
+    centered: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 24,
+    },
+    footerLoader: {
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+  });
+}

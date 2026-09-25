@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,21 +10,22 @@ import {
   View,
 } from 'react-native';
 
-import { useAuth } from '@/auth/auth-context';
 import { stopDriverChargingSession } from '@/api/chargingSessions';
+import { useAuth } from '@/auth/auth-context';
 import { Badge } from '@/components/ui/badge';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { useChargingSessionDetail } from '@/hooks/use-charging-session-detail';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { ChargingSession } from '@/types/charging-session';
 import { formatChargingSessionStatus } from '@/types/charging-session';
 import {
   EMPTY_METRIC,
+  formatCurrencyAmount,
+  formatCurrencyRate,
   formatDurationSeconds,
   formatEnergyKwh,
   formatPowerKw,
-  formatCurrencyAmount,
-  formatCurrencyRate,
   formatSessionDateTime,
   formatStopReason,
   formatTimelineEventLabel,
@@ -39,22 +40,24 @@ import {
 
 import { SessionDetailHeader } from './session-detail-header';
 
-function MetricTile({ label, value }: { label: string; value: string }) {
+type Theme = ReturnType<typeof useTheme>['theme'];
+type DetailStyles = ReturnType<typeof createStyles>;
+
+function DetailRow({
+  label,
+  value,
+  styles,
+  isLast = false,
+}: {
+  label: string;
+  value: string;
+  styles: DetailStyles;
+  isLast?: boolean;
+}) {
   const isEmpty = value === EMPTY_METRIC;
 
   return (
-    <View style={styles.metricTile}>
-      <Text style={styles.metricTileLabel}>{label}</Text>
-      <Text style={[styles.metricTileValue, isEmpty && styles.metricTileValueMuted]}>{value}</Text>
-    </View>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  const isEmpty = value === EMPTY_METRIC;
-
-  return (
-    <View style={styles.detailRow}>
+    <View style={[styles.detailRow, isLast && styles.detailRowLast]}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text
         style={[styles.detailValue, isEmpty && styles.detailValueMuted]}
@@ -66,23 +69,40 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SectionCard({
+function StreamSection({
+  icon,
   title,
   children,
+  styles,
+  theme,
+  isFirst = false,
 }: {
+  icon: IconName;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
+  styles: DetailStyles;
+  theme: Theme;
+  isFirst?: boolean;
 }) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionBody}>{children}</View>
+    <View style={[styles.streamSection, !isFirst && styles.streamSectionSpaced]}>
+      <View
+        style={[styles.streamHeader, !isFirst && styles.streamHeaderSpaced]}
+      >
+        <View style={styles.streamHeaderIcon}>
+          <Icon name={icon} size={16} color={theme.colors.accent} />
+        </View>
+        <Text style={styles.streamTitle}>{title}</Text>
+      </View>
+      <View style={styles.streamBody}>{children}</View>
     </View>
   );
 }
 
 export function SessionDetailScreen() {
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const params = useLocalSearchParams<{ id: string; sessionJson?: string }>();
 
   const fallbackSession = useMemo(() => {
@@ -107,9 +127,13 @@ export function SessionDetailScreen() {
   const isCharging = session?.status === 'CHARGING';
 
   const stationName =
-    typeof detail?.station?.name === 'string' ? detail.station.name : EMPTY_METRIC;
+    typeof detail?.station?.name === 'string'
+      ? detail.station.name
+      : EMPTY_METRIC;
   const chargerName =
-    typeof detail?.charger?.name === 'string' ? detail.charger.name : EMPTY_METRIC;
+    typeof detail?.charger?.name === 'string'
+      ? detail.charger.name
+      : EMPTY_METRIC;
   const evseLabel = formatEvseLabel(
     detail?.evse as { label?: string } | null,
     chargerName !== EMPTY_METRIC ? chargerName : undefined,
@@ -119,7 +143,10 @@ export function SessionDetailScreen() {
     detail?.connector as Parameters<typeof formatConnectorLabel>[0],
     session?.connectorId,
   );
-  const vehicleLabel = formatVehicleLabel(detail?.vehicle ?? null, session?.vehicleId);
+  const vehicleLabel = formatVehicleLabel(
+    detail?.vehicle ?? null,
+    session?.vehicleId,
+  );
 
   const showTelemetry =
     hasMetricValue(session?.energyKwh) ||
@@ -149,7 +176,9 @@ export function SessionDetailScreen() {
               } catch (stopError) {
                 Alert.alert(
                   'Unable to stop session',
-                  stopError instanceof Error ? stopError.message : 'Please try again.',
+                  stopError instanceof Error
+                    ? stopError.message
+                    : 'Please try again.',
                 );
               }
             })();
@@ -163,7 +192,7 @@ export function SessionDetailScreen() {
     if (isLoading) {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.brand} size="large" />
+          <ActivityIndicator color={theme.colors.accent} size="large" />
         </View>
       );
     }
@@ -183,14 +212,86 @@ export function SessionDetailScreen() {
       return null;
     }
 
+    const durationValue = formatDurationSeconds(
+      session.durationSeconds,
+      session.startedAt,
+    );
+    const energyValue = formatEnergyKwh(session.energyKwh);
+    const costValue = formatCurrencyAmount(session.totalCost);
+    const hasCost = hasMetricValue(session.totalCost);
+
+    const locationRows = [
+      { label: 'Station', value: stationName },
+      ...(chargerName !== EMPTY_METRIC
+        ? [{ label: 'Charger', value: chargerName }]
+        : []),
+      { label: 'EVSE', value: evseLabel },
+      { label: 'Connector', value: connectorLabel },
+    ];
+
+    const sessionRows = [
+      {
+        label: 'Started',
+        value: formatSessionDateTime(session.startedAt),
+      },
+      ...(session.endedAt
+        ? [
+            {
+              label: 'Ended',
+              value: formatSessionDateTime(session.endedAt),
+            },
+          ]
+        : []),
+      ...(vehicleLabel !== EMPTY_METRIC
+        ? [{ label: 'Vehicle', value: vehicleLabel }]
+        : []),
+      ...(session.stopReason
+        ? [
+            {
+              label: 'Stop reason',
+              value: formatStopReason(session.stopReason),
+            },
+          ]
+        : []),
+    ];
+
+    const chargingRows = [
+      ...(hasMetricValue(session.energyKwh)
+        ? [{ label: 'Energy', value: formatEnergyKwh(session.energyKwh) }]
+        : []),
+      ...(hasMetricValue(session.averagePowerKw)
+        ? [
+            {
+              label: 'Average power',
+              value: formatPowerKw(session.averagePowerKw),
+            },
+          ]
+        : []),
+      ...(hasMetricValue(session.maxPowerKw)
+        ? [
+            {
+              label: 'Maximum power',
+              value: formatPowerKw(session.maxPowerKw),
+            },
+          ]
+        : []),
+    ];
+
     return (
       <ScrollView
         showsVerticalScrollIndicator={false}
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.summarySection}>
-          <Text style={styles.stationName} numberOfLines={2}>
-            {stationName !== EMPTY_METRIC ? stationName : 'Charging session'}
+        <View style={styles.heroCard}>
+          <Text style={styles.heroEyebrow}>TOTAL TRANSACTION COST</Text>
+          <Text
+            style={[
+              styles.heroPrice,
+              !hasCost && styles.heroPriceMuted,
+            ]}
+          >
+            {costValue}
           </Text>
 
           <View style={styles.statusRow}>
@@ -199,310 +300,468 @@ export function SessionDetailScreen() {
               variant={isCharging ? 'available' : 'neutral'}
               showDot={isCharging}
             />
-            <Text style={styles.startedAt}>{formatSessionDateTime(session.startedAt)}</Text>
+            <Text style={styles.startedAt}>
+              {formatSessionDateTime(session.startedAt)}
+            </Text>
           </View>
 
-          <View style={styles.metricsRow}>
-            <MetricTile
-              label="Duration"
-              value={formatDurationSeconds(session.durationSeconds, session.startedAt)}
-            />
-            <MetricTile label="Energy" value={formatEnergyKwh(session.energyKwh)} />
-            <MetricTile label="Cost" value={formatCurrencyAmount(session.totalCost)} />
+          <View style={styles.heroDivider} />
+
+          <View style={styles.heroStatsRow}>
+            <View style={styles.heroStat}>
+              <Icon name="time" size={14} color={theme.colors.accent} />
+              <Text style={styles.heroStatText}>{durationValue}</Text>
+            </View>
+            <View style={styles.heroStatDivider} />
+            <View style={styles.heroStat}>
+              <Icon name="bolt" size={14} color={theme.colors.accent} />
+              <Text style={styles.heroStatText}>{energyValue}</Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.sections}>
-          <SectionCard title="Location">
-            <DetailRow label="Station" value={stationName} />
-            {chargerName !== EMPTY_METRIC ? (
-              <DetailRow label="Charger" value={chargerName} />
-            ) : null}
-            <DetailRow label="EVSE" value={evseLabel} />
-            <DetailRow label="Connector" value={connectorLabel} />
-          </SectionCard>
+        <View style={styles.streamCard}>
+          <StreamSection
+            icon="map-pin"
+            title="Location"
+            styles={styles}
+            theme={theme}
+            isFirst
+          >
+            {locationRows.map((row, index) => (
+              <DetailRow
+                key={row.label}
+                label={row.label}
+                value={row.value}
+                styles={styles}
+                isLast={index === locationRows.length - 1}
+              />
+            ))}
+          </StreamSection>
 
-          <SectionCard title="Session">
-            <DetailRow label="Started" value={formatSessionDateTime(session.startedAt)} />
-            {session.endedAt ? (
-              <DetailRow label="Ended" value={formatSessionDateTime(session.endedAt)} />
-            ) : null}
-            {vehicleLabel !== EMPTY_METRIC ? (
-              <DetailRow label="Vehicle" value={vehicleLabel} />
-            ) : null}
-            {session.stopReason ? (
-              <DetailRow label="Stop reason" value={formatStopReason(session.stopReason)} />
-            ) : null}
-          </SectionCard>
+          <StreamSection
+            icon="document"
+            title="Session"
+            styles={styles}
+            theme={theme}
+          >
+            {sessionRows.map((row, index) => (
+              <DetailRow
+                key={row.label}
+                label={row.label}
+                value={row.value}
+                styles={styles}
+                isLast={index === sessionRows.length - 1}
+              />
+            ))}
+          </StreamSection>
 
           {showTelemetry ? (
-            <SectionCard title="Charging data">
-              {hasMetricValue(session.energyKwh) ? (
-                <DetailRow label="Energy" value={formatEnergyKwh(session.energyKwh)} />
-              ) : null}
-              {hasMetricValue(session.averagePowerKw) ? (
-                <DetailRow label="Average power" value={formatPowerKw(session.averagePowerKw)} />
-              ) : null}
-              {hasMetricValue(session.maxPowerKw) ? (
-                <DetailRow label="Maximum power" value={formatPowerKw(session.maxPowerKw)} />
-              ) : null}
-            </SectionCard>
-          ) : null}
-
-          {showBilling ? (
-            <SectionCard title="Billing">
-              {hasMetricValue(session.pricePerKwh) ? (
-                <DetailRow label="Price per kWh" value={formatCurrencyRate(session.pricePerKwh)} />
-              ) : null}
-              {hasMetricValue(session.totalCost) ? (
-                <DetailRow label="Total cost" value={formatCurrencyAmount(session.totalCost)} />
-              ) : null}
-            </SectionCard>
-          ) : null}
-
-          {detail.timeline.length > 0 ? (
-            <SectionCard title="Timeline">
-              {detail.timeline.map((event, index) => {
-                const isLast = index === detail.timeline.length - 1;
-
-                return (
-                  <View key={`${event.type}-${event.at}-${index}`} style={styles.timelineRow}>
-                    <View style={styles.timelineRail}>
-                      <View style={styles.timelineDot} />
-                      {!isLast ? <View style={styles.timelineLine} /> : null}
-                    </View>
-                    <View style={[styles.timelineContent, isLast && styles.timelineContentLast]}>
-                      <Text style={styles.timelineTitle}>
-                        {formatTimelineEventLabel(event.type)}
-                      </Text>
-                      <Text style={styles.timelineMeta}>{formatSessionDateTime(event.at)}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </SectionCard>
-          ) : null}
-
-          <View style={styles.sessionIdBox}>
-            <Text style={styles.sessionIdLabel}>Session ID</Text>
-            <Text style={styles.sessionIdValue}>{truncateId(session.id, 12)}</Text>
-          </View>
-
-          {isCharging ? (
-            <Pressable style={styles.stopButton} onPress={handleStop}>
-              <Text style={styles.stopButtonText}>Stop charging</Text>
-            </Pressable>
+            <StreamSection
+              icon="bolt"
+              title="Charging data"
+              styles={styles}
+              theme={theme}
+            >
+              {chargingRows.map((row, index) => (
+                <DetailRow
+                  key={row.label}
+                  label={row.label}
+                  value={row.value}
+                  styles={styles}
+                  isLast={index === chargingRows.length - 1}
+                />
+              ))}
+            </StreamSection>
           ) : null}
         </View>
+
+        {showBilling ? (
+          <View style={styles.receiptCard}>
+            <View style={styles.streamHeader}>
+              <View style={styles.streamHeaderIcon}>
+                <Icon name="price" size={16} color={theme.colors.accent} />
+              </View>
+              <Text style={styles.streamTitle}>Billing & Invoice</Text>
+            </View>
+
+            {hasMetricValue(session.pricePerKwh) ? (
+              <Text style={styles.receiptSubtitle}>
+                Price per kWh · {formatCurrencyRate(session.pricePerKwh)}
+              </Text>
+            ) : null}
+
+            <View style={styles.receiptDots} />
+
+            <View style={styles.receiptTotalRow}>
+              <Text style={styles.receiptTotalLabel}>Total Cost</Text>
+              <Text
+                style={[
+                  styles.receiptTotalValue,
+                  !hasCost && styles.detailValueMuted,
+                ]}
+              >
+                {costValue}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {detail.timeline.length > 0 ? (
+          <View style={styles.timelineCard}>
+            <View style={styles.streamHeader}>
+              <View style={styles.streamHeaderIcon}>
+                <Icon name="time" size={16} color={theme.colors.accent} />
+              </View>
+              <Text style={styles.streamTitle}>Timeline</Text>
+            </View>
+
+            {detail.timeline.map((event, index) => {
+              const isLast = index === detail.timeline.length - 1;
+
+              return (
+                <View
+                  key={`${event.type}-${event.at}-${index}`}
+                  style={styles.timelineRow}
+                >
+                  <View style={styles.timelineRail}>
+                    <View style={styles.timelineDot} />
+                    {!isLast ? <View style={styles.timelineLine} /> : null}
+                  </View>
+                  <View
+                    style={[
+                      styles.timelineContent,
+                      isLast && styles.timelineContentLast,
+                    ]}
+                  >
+                    <Text style={styles.timelineTitle}>
+                      {formatTimelineEventLabel(event.type)}
+                    </Text>
+                    <Text style={styles.timelineMeta}>
+                      {formatSessionDateTime(event.at)}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        <Text style={styles.sessionIdFooter}>
+          Session ID · {truncateId(session.id, 12)}
+        </Text>
+
+        {isCharging ? (
+          <Pressable style={styles.stopButton} onPress={handleStop}>
+            <Text style={styles.stopButtonText}>Stop charging</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     );
   };
 
   return (
-    <ScreenContainer edges={['top', 'bottom']}>
+    <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
       <SessionDetailHeader onBack={() => router.back()} />
       {renderBody()}
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: theme.spacing.lg,
-  },
-  summarySection: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    gap: theme.spacing.md,
-  },
-  stationName: {
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.3,
-    lineHeight: 26,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  startedAt: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: theme.typography.lineHeight.tight,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-  },
-  metricTile: {
-    flex: 1,
-    backgroundColor: theme.colors.iconBackground,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    gap: 6,
-    alignItems: 'center',
-  },
-  metricTileLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  metricTileValue: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  metricTileValueMuted: {
-    color: theme.colors.textMuted,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  sections: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  card: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: 14,
-    overflow: 'hidden',
-    ...theme.shadows.card,
-  },
-  sectionTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-    marginBottom: theme.spacing.sm,
-  },
-  sectionBody: {
-    gap: theme.spacing.sm,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: theme.spacing.md,
-    paddingVertical: 2,
-  },
-  detailLabel: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: theme.typography.lineHeight.tight,
-  },
-  detailValue: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-    lineHeight: theme.typography.lineHeight.tight,
-  },
-  detailValueMuted: {
-    color: theme.colors.textMuted,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  timelineRail: {
-    width: 14,
-    alignItems: 'center',
-  },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.brand,
-    marginTop: 5,
-  },
-  timelineLine: {
-    flex: 1,
-    width: 2,
-    backgroundColor: theme.colors.border,
-    marginTop: 4,
-    marginBottom: -4,
-  },
-  timelineContent: {
-    flex: 1,
-    paddingBottom: theme.spacing.md,
-    gap: 2,
-  },
-  timelineContentLast: {
-    paddingBottom: 0,
-  },
-  timelineTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-  },
-  timelineMeta: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  sessionIdBox: {
-    alignItems: 'center',
-    paddingTop: theme.spacing.xs,
-    gap: 2,
-  },
-  sessionIdLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  sessionIdValue: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  stopButton: {
-    backgroundColor: theme.colors.brand,
-    borderRadius: theme.radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: theme.spacing.xs,
-  },
-  stopButtonText: {
-    color: theme.colors.textInverse,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: theme.typography.fontSize.md,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.xl,
-  },
-  errorBox: {
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.lg,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: theme.spacing.sm,
-  },
-  errorText: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.fontSize.sm,
-  },
-  retryText: {
-    color: theme.colors.brand,
-    fontWeight: theme.typography.fontWeight.semibold,
-    fontSize: theme.typography.fontSize.sm,
-  },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: theme.colors.background,
+    },
+    scroll: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollContent: {
+      paddingBottom: 28,
+      backgroundColor: theme.colors.background,
+    },
+    heroCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      padding: 18,
+      marginHorizontal: 16,
+      marginTop: 16,
+      alignItems: 'center',
+      shadowColor: theme.colors.accent,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.05,
+      shadowRadius: 15,
+      elevation: 3,
+    },
+    heroEyebrow: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 10,
+      color: theme.colors.textMuted,
+      letterSpacing: 0.8,
+    },
+    heroPrice: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 32,
+      color: theme.colors.statusAvailable,
+      marginVertical: 6,
+    },
+    heroPriceMuted: {
+      color: theme.colors.textMuted,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 4,
+    },
+    startedAt: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 12,
+      color: theme.colors.textMuted,
+    },
+    heroDivider: {
+      alignSelf: 'stretch',
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      marginTop: 14,
+      marginBottom: 14,
+    },
+    heroStatsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+    },
+    heroStat: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    heroStatDivider: {
+      width: StyleSheet.hairlineWidth,
+      height: 16,
+      backgroundColor: theme.colors.border,
+    },
+    heroStatText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      color: theme.colors.textPrimary,
+    },
+    streamCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginHorizontal: 16,
+      marginTop: 14,
+      padding: 16,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
+    },
+    streamSection: {
+      gap: 2,
+    },
+    streamSectionSpaced: {
+      marginTop: 16,
+      paddingTop: 0,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderLight,
+    },
+    streamHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    streamHeaderSpaced: {
+      marginTop: 16,
+    },
+    streamHeaderIcon: {
+      marginRight: 6,
+    },
+    streamTitle: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 14,
+      color: theme.colors.textPrimary,
+    },
+    streamBody: {
+      gap: 0,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.borderLight,
+    },
+    detailRowLast: {
+      borderBottomWidth: 0,
+    },
+    detailLabel: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
+    detailValue: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 13,
+      color: theme.colors.textPrimary,
+      textAlign: 'right',
+      paddingLeft: 20,
+    },
+    detailValueMuted: {
+      color: theme.colors.textMuted,
+    },
+    receiptCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginHorizontal: 16,
+      marginTop: 14,
+      padding: 16,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
+    },
+    receiptSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginTop: 10,
+      marginBottom: 4,
+    },
+    receiptDots: {
+      borderTopWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.border,
+      marginVertical: 14,
+      width: '100%',
+    },
+    receiptTotalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    receiptTotalLabel: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
+    receiptTotalValue: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+    },
+    timelineCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginHorizontal: 16,
+      marginTop: 14,
+      padding: 16,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
+    },
+    timelineRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    timelineRail: {
+      width: 14,
+      alignItems: 'center',
+    },
+    timelineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.statusDot,
+      marginTop: 5,
+    },
+    timelineLine: {
+      flex: 1,
+      width: 1.5,
+      backgroundColor: theme.colors.statusDot,
+      opacity: 0.35,
+      marginTop: 4,
+      marginBottom: -4,
+    },
+    timelineContent: {
+      flex: 1,
+      paddingBottom: 12,
+      gap: 2,
+    },
+    timelineContentLast: {
+      paddingBottom: 0,
+    },
+    timelineTitle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      color: theme.colors.textPrimary,
+    },
+    timelineMeta: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      color: theme.colors.textMuted,
+    },
+    sessionIdFooter: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      color: theme.colors.textVersion,
+      textAlign: 'center',
+      marginTop: 16,
+      marginBottom: 8,
+      paddingHorizontal: 16,
+    },
+    stopButton: {
+      backgroundColor: theme.colors.accent,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginTop: 4,
+      marginBottom: 8,
+    },
+    stopButtonText: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 15,
+      color: '#FFFFFF',
+    },
+    centered: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 24,
+      backgroundColor: theme.colors.background,
+    },
+    errorBox: {
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      gap: 8,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
+    },
+    errorText: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textPrimary,
+    },
+    retryText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      color: theme.colors.accent,
+    },
+  });
+}

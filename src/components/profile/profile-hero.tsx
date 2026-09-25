@@ -12,6 +12,8 @@ type ProfileHeroProps = {
   disabled?: boolean;
 };
 
+const ON_ACCENT = '#0F172A';
+
 export function ProfileHero({
   name,
   email,
@@ -28,21 +30,21 @@ export function ProfileHero({
       <Pressable
         onPress={onEdit}
         disabled={disabled}
-        style={styles.avatarButton}
+        style={[styles.avatarButton, disabled && styles.disabled]}
         accessibilityRole="button"
         accessibilityLabel="Edit profile"
       >
         <View style={styles.avatar}>
-          <Icon name="user" size={36} color={theme.colors.textSecondary} />
+          <Icon name="user" size={40} color={theme.colors.textMuted} />
         </View>
         <View style={styles.editBadge}>
-          <Icon name="create" size={13} color={theme.colors.textInverse} />
+          <Icon name="create" size={13} color={ON_ACCENT} />
         </View>
       </Pressable>
 
       <Text style={styles.name}>{name || 'Driver'}</Text>
-      <Text style={styles.email}>{email || '—'}</Text>
       {phoneLabel ? <Text style={styles.phone}>{phoneLabel}</Text> : null}
+      {email.trim() ? <Text style={styles.email}>{email.trim()}</Text> : null}
     </View>
   );
 }
@@ -51,24 +53,26 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     container: {
       alignItems: 'center',
-      paddingTop: theme.spacing.sm,
-      paddingBottom: theme.spacing.md,
+      paddingTop: 8,
+      paddingBottom: 4,
       gap: 6,
     },
     avatarButton: {
       position: 'relative',
-      marginBottom: theme.spacing.sm,
+      marginBottom: 10,
+    },
+    disabled: {
+      opacity: 0.55,
     },
     avatar: {
-      width: 92,
-      height: 92,
-      borderRadius: 46,
+      width: 96,
+      height: 96,
+      borderRadius: 48,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.iconBackground,
-      borderWidth: 3,
-      borderColor: theme.colors.surface,
-      ...theme.shadows.card,
+      backgroundColor: theme.colors.brandMuted,
+      borderWidth: 2,
+      borderColor: theme.colors.selectionBorder,
     },
     editBadge: {
       position: 'absolute',
@@ -79,26 +83,32 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.accent,
       borderWidth: 2,
-      borderColor: theme.colors.surface,
+      borderColor: theme.colors.background,
     },
     name: {
-      fontSize: theme.typography.fontSize.xxl,
-      fontWeight: theme.typography.fontWeight.bold,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 20,
+      lineHeight: 30,
       color: theme.colors.textPrimary,
-      letterSpacing: -0.4,
+      textAlign: 'center',
+      letterSpacing: -0.2,
+    },
+    phone: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      lineHeight: 19.5,
+      color: theme.colors.textMuted,
       textAlign: 'center',
     },
     email: {
-      fontSize: theme.typography.fontSize.md,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 12,
+      lineHeight: 18,
       color: theme.colors.textMuted,
       textAlign: 'center',
-    },
-    phone: {
-      fontSize: theme.typography.fontSize.sm,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
+      opacity: 0.9,
     },
   });
 }

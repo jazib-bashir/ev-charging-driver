@@ -1,5 +1,13 @@
-import { useMemo } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   driverVehicleTitle,
@@ -19,6 +27,14 @@ type ProfileVehicleCardProps = {
   disabled?: boolean;
   onMakeDefault: () => void;
   onManageVehicles: () => void;
+  onEditPlate: () => void;
+};
+
+type ActionItem = {
+  key: string;
+  label: string;
+  onPress: () => void;
+  tone?: 'default' | 'cancel';
 };
 
 function ProfileConnectorChip({
@@ -37,204 +53,273 @@ function ProfileConnectorChip({
 
 export function ProfileVehicleCard({
   vehicle,
-  index,
   isBusy = false,
   disabled = false,
   onMakeDefault,
   onManageVehicles,
+  onEditPlate,
 }: ProfileVehicleCardProps) {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const insets = useSafeAreaInsets();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const connectors = getDriverVehicleConnectors(vehicle);
   const title = driverVehicleTitle(vehicle);
   const subtitle = getVehicleProfileSubtitle(vehicle, title);
-  const iconBackgrounds = [
-    theme.colors.brandMuted,
-    theme.colors.iconBackground,
-    theme.colors.selectionBackground,
-    theme.colors.connectorBg,
-  ] as const;
-  const iconColors = [
-    theme.colors.brand,
-    theme.colors.accent,
-    theme.colors.brandDark,
-    theme.colors.brandLight,
-  ] as const;
-  const iconBackground = iconBackgrounds[index % iconBackgrounds.length];
-  const iconColor = iconColors[index % iconColors.length];
+  const isDefault = vehicle.isDefault;
 
-  const handleMenuPress = () => {
-    const options: {
-      text: string;
-      onPress?: () => void;
-      style?: 'cancel' | 'default' | 'destructive';
-    }[] = [];
+  const plateActionLabel = vehicle.licensePlate
+    ? 'Edit Number Plate'
+    : 'Add Number Plate';
 
-    if (!vehicle.isDefault) {
-      options.push({ text: 'Make default', onPress: onMakeDefault });
-    }
+  const actions: ActionItem[] = [
+    ...(!isDefault
+      ? [
+          {
+            key: 'default',
+            label: 'Make Default',
+            onPress: () => {
+              setMenuOpen(false);
+              onMakeDefault();
+            },
+          } satisfies ActionItem,
+        ]
+      : []),
+    {
+      key: 'plate',
+      label: plateActionLabel,
+      onPress: () => {
+        setMenuOpen(false);
+        onEditPlate();
+      },
+    },
+    {
+      key: 'manage',
+      label: 'Manage Vehicles',
+      onPress: () => {
+        setMenuOpen(false);
+        onManageVehicles();
+      },
+    },
+  ];
 
-    options.push({
-      text: vehicle.licensePlate ? 'Edit number plate' : 'Add number plate',
-      onPress: onManageVehicles,
-    });
-    options.push({ text: 'Manage vehicles', onPress: onManageVehicles });
-    options.push({ text: 'Cancel', style: 'cancel' });
-
-    Alert.alert(title, undefined, options);
-  };
+  const plateLabel = vehicle.licensePlate
+    ? `Plate: ${vehicle.licensePlate}`
+    : 'No plate';
+  const metaLine = `ID: ${formatVehicleRecordId(vehicle.id)} · ${plateLabel}`;
 
   return (
-    <View style={[styles.card, vehicle.isDefault && styles.cardDefault]}>
-      <View style={styles.header}>
-        <View style={[styles.iconWrap, { backgroundColor: iconBackground }]}>
-          <Icon name="car" size={20} color={iconColor} />
-        </View>
+    <>
+      <View style={[styles.card, isDefault && styles.cardDefault]}>
+        <View style={styles.topRow}>
+          <View
+            style={[
+              styles.iconWrap,
+              isDefault ? styles.iconWrapDefault : styles.iconWrapIdle,
+            ]}
+          >
+            <Icon
+              name="car"
+              size={20}
+              color={isDefault ? theme.colors.accent : theme.colors.textMuted}
+            />
+          </View>
 
-        <View style={styles.headerBody}>
-          <View style={styles.titleLine}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
-            {vehicle.isDefault ? (
-              <View style={styles.defaultBadge}>
-                <Icon name="star" size={9} color={theme.colors.textInverse} />
-                <Text style={styles.defaultBadgeText}>Default</Text>
-              </View>
+          <View style={styles.body}>
+            <View style={styles.titleLine}>
+              <Text style={styles.title} numberOfLines={1}>
+                {title}
+              </Text>
+              {isDefault ? (
+                <View style={styles.defaultBadge}>
+                  <Icon name="star" size={9} color={theme.colors.accent} />
+                  <Text style={styles.defaultBadgeText}>Default</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {subtitle ? (
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {subtitle}
+              </Text>
             ) : null}
-          </View>
 
-          {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {subtitle}
+            <Text style={styles.meta} numberOfLines={1}>
+              {metaLine}
             </Text>
-          ) : null}
-        </View>
-
-        <IconButton
-          accessibilityLabel={`Vehicle options for ${title}`}
-          onPress={handleMenuPress}
-          disabled={disabled || isBusy}
-          style={styles.menuButton}
-        >
-          <Icon name="more" size={17} color={theme.colors.textMuted} />
-        </IconButton>
-      </View>
-
-      <View style={styles.metadataBar}>
-        <Text style={styles.metadataText} numberOfLines={1}>
-          ID: {formatVehicleRecordId(vehicle.id)}
-        </Text>
-        <Text style={styles.metadataDivider}>•</Text>
-        <Text
-          style={[
-            styles.metadataText,
-            !vehicle.licensePlate && styles.metadataMuted,
-          ]}
-          numberOfLines={1}
-        >
-          {vehicle.licensePlate
-            ? `Plate: ${vehicle.licensePlate}`
-            : 'No plate added'}
-        </Text>
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.connectorSection}>
-          {connectors.length > 0 ? (
-            <>
-              <Text style={styles.connectorLabel}>Connectors:</Text>
-              <View style={styles.connectorRow}>
-                {connectors.map((connector) => (
-                  <ProfileConnectorChip
-                    key={connector}
-                    label={connector}
-                    styles={styles}
-                  />
-                ))}
-              </View>
-            </>
-          ) : (
-            <Text style={styles.connectorEmpty}>No connectors listed</Text>
-          )}
-        </View>
-
-        {vehicle.isDefault ? (
-          <View style={styles.activeRow}>
-            <Icon name="checkmark" size={14} color={theme.colors.brand} />
-            <Text style={styles.activeLabel}>Active</Text>
           </View>
-        ) : (
-          <Pressable
-            onPress={onMakeDefault}
+
+          <IconButton
+            accessibilityLabel={`Vehicle options for ${title}`}
+            onPress={() => setMenuOpen(true)}
             disabled={disabled || isBusy}
             style={[
-              styles.makeDefaultButton,
-              (disabled || isBusy) && styles.makeDefaultDisabled,
+              styles.menuButton,
+              // Prevent harsh blue focus ring in web / Expo web preview.
+              { outlineStyle: 'none', outlineWidth: 0 } as object,
             ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Make ${title} default`}
           >
-            {isBusy ? (
-              <ActivityIndicator size="small" color={theme.colors.brand} />
+            <Icon name="more" size={16} color={theme.colors.textMuted} />
+          </IconButton>
+        </View>
+
+        <View style={styles.footer}>
+          <View style={styles.connectorRow}>
+            {connectors.length > 0 ? (
+              connectors.map((connector) => (
+                <ProfileConnectorChip
+                  key={connector}
+                  label={connector}
+                  styles={styles}
+                />
+              ))
             ) : (
-              <>
-                <Icon name="star" size={11} color={theme.colors.textSecondary} />
-                <Text style={styles.makeDefaultLabel}>Make Default</Text>
-              </>
+              <Text style={styles.connectorEmpty}>No connectors listed</Text>
             )}
-          </Pressable>
-        )}
+          </View>
+
+          {!isDefault ? (
+            <Pressable
+              onPress={onMakeDefault}
+              disabled={disabled || isBusy}
+              style={[
+                styles.makeDefaultButton,
+                (disabled || isBusy) && styles.makeDefaultDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Make ${title} default`}
+            >
+              {isBusy ? (
+                <ActivityIndicator size="small" color={theme.colors.accent} />
+              ) : (
+                <>
+                  <Icon name="star" size={11} color={theme.colors.accent} />
+                  <Text style={styles.makeDefaultLabel}>Make Default</Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
       </View>
-    </View>
+
+      <Modal
+        transparent
+        visible={menuOpen}
+        animationType="slide"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setMenuOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss vehicle actions"
+          />
+          <View
+            style={[
+              styles.modalSheet,
+              { paddingBottom: Math.max(insets.bottom, 20) },
+            ]}
+          >
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle} numberOfLines={1}>
+              {title}
+            </Text>
+
+            {actions.map((action, index) => (
+              <Pressable
+                key={action.key}
+                onPress={action.onPress}
+                style={({ pressed }) => [
+                  styles.modalAction,
+                  index < actions.length - 1 && styles.modalActionDivider,
+                  pressed && styles.modalActionPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+              >
+                <Text style={styles.modalActionLabel}>{action.label}</Text>
+              </Pressable>
+            ))}
+
+            <Pressable
+              onPress={() => setMenuOpen(false)}
+              style={({ pressed }) => [
+                styles.modalCancel,
+                pressed && styles.modalActionPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
+              <Text style={styles.modalCancelLabel}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
-function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+function createStyles(
+  theme: ReturnType<typeof useTheme>['theme'],
+  isDark: boolean,
+) {
   return StyleSheet.create({
     card: {
+      backgroundColor: theme.colors.surface,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      padding: theme.spacing.lg,
-      gap: theme.spacing.md,
+      marginBottom: 10,
+      padding: 12,
+      gap: 12,
+      ...theme.shadows.card,
+      shadowColor: theme.colors.shadow,
     },
     cardDefault: {
       borderColor: theme.colors.selectionBorder,
-      backgroundColor: theme.colors.brandMuted,
     },
-    header: {
+    topRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: theme.spacing.md,
+      gap: 12,
     },
     iconWrap: {
-      width: 44,
-      height: 44,
+      width: 40,
+      height: 40,
       borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
+      flexShrink: 0,
     },
-    headerBody: {
+    iconWrapIdle: {
+      backgroundColor: theme.colors.iconBackground,
+      borderColor: theme.colors.border,
+    },
+    iconWrapDefault: {
+      backgroundColor: theme.colors.brandMuted,
+      borderColor: theme.colors.selectionBorder,
+    },
+    body: {
       flex: 1,
       minWidth: 0,
+      gap: 4,
       paddingTop: 1,
-      gap: 2,
     },
     titleLine: {
       flexDirection: 'row',
       alignItems: 'center',
       flexWrap: 'wrap',
       gap: 8,
-      paddingRight: theme.spacing.xs,
     },
     title: {
       flexShrink: 1,
-      fontSize: 16,
-      fontWeight: theme.typography.fontWeight.bold,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 14,
+      lineHeight: 21,
       color: theme.colors.textPrimary,
-      letterSpacing: -0.25,
     },
     defaultBadge: {
       flexDirection: 'row',
@@ -242,120 +327,142 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       gap: 3,
       paddingHorizontal: 7,
       paddingVertical: 2,
-      borderRadius: theme.radius.pill,
-      backgroundColor: theme.colors.brand,
+      borderRadius: 20,
+      backgroundColor: theme.colors.brandMuted,
     },
     defaultBadgeText: {
+      fontFamily: theme.typography.fontFamily.bold,
       fontSize: 10,
-      fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.textInverse,
+      lineHeight: 15,
+      color: theme.colors.accent,
     },
     subtitle: {
-      fontSize: 13,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 12,
+      lineHeight: 16,
       color: theme.colors.textMuted,
-      lineHeight: 18,
+    },
+    meta: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 11,
+      lineHeight: 16.5,
+      color: theme.colors.textMuted,
     },
     menuButton: {
       width: 28,
       height: 28,
       marginTop: -2,
-      marginRight: -8,
-    },
-    metadataBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-      borderRadius: 10,
-      backgroundColor: theme.colors.iconBackground,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: 9,
-    },
-    metadataText: {
-      flexShrink: 1,
-      fontSize: 13,
-      color: theme.colors.textSecondary,
-      fontWeight: theme.typography.fontWeight.medium,
-    },
-    metadataDivider: {
-      fontSize: 13,
-      color: theme.colors.textMuted,
-    },
-    metadataMuted: {
-      color: theme.colors.textMuted,
-      fontWeight: theme.typography.fontWeight.regular,
+      marginRight: -4,
     },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: theme.spacing.sm,
-      paddingTop: theme.spacing.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.borderLight,
+      gap: 10,
+      paddingLeft: 52,
     },
-    connectorSection: {
+    connectorRow: {
       flex: 1,
       flexDirection: 'row',
-      alignItems: 'center',
       flexWrap: 'wrap',
       gap: 6,
       minWidth: 0,
     },
-    connectorLabel: {
-      fontSize: 13,
-      color: theme.colors.textMuted,
-    },
-    connectorRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 6,
-    },
     connectorChip: {
       paddingHorizontal: 8,
       paddingVertical: 3,
-      borderRadius: 6,
-      backgroundColor: theme.colors.connectorBg,
+      borderRadius: 8,
+      backgroundColor: theme.colors.iconBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     connectorChipText: {
+      fontFamily: theme.typography.fontFamily.medium,
       fontSize: 11,
-      fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.connectorText,
-      letterSpacing: 0.1,
+      lineHeight: 16,
+      color: theme.colors.textSecondary,
     },
     connectorEmpty: {
-      fontSize: 13,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 12,
       color: theme.colors.textMuted,
-    },
-    activeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      flexShrink: 0,
-    },
-    activeLabel: {
-      fontSize: 13,
-      fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.brand,
     },
     makeDefaultButton: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       flexShrink: 0,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: theme.radius.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
     },
     makeDefaultDisabled: {
       opacity: 0.55,
     },
     makeDefaultLabel: {
+      fontFamily: theme.typography.fontFamily.medium,
       fontSize: 12,
-      fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.textSecondary,
+      lineHeight: 18,
+      color: theme.colors.accent,
+    },
+    modalRoot: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: theme.colors.overlay,
+    },
+    modalSheet: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      zIndex: 2,
+    },
+    modalHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.colors.border,
+      marginBottom: 0,
+    },
+    modalTitle: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 16,
+      lineHeight: 24,
+      color: theme.colors.textPrimary,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    modalAction: {
+      paddingVertical: 16,
+    },
+    modalActionDivider: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.borderLight,
+    },
+    modalActionPressed: {
+      opacity: 0.7,
+    },
+    modalActionLabel: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.colors.textPrimary,
+      textAlign: 'left',
+    },
+    modalCancel: {
+      marginTop: 8,
+      paddingVertical: 16,
+      borderRadius: 12,
+      backgroundColor: isDark ? theme.colors.iconBackground : '#F1F5F9',
+      alignItems: 'center',
+    },
+    modalCancelLabel: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.colors.textPrimary,
     },
   });
 }

@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 type AmenityItem = {
   icon: IconName;
@@ -10,13 +11,12 @@ type AmenityItem = {
 
 /**
  * Static amenities shown until the station API exposes amenity data.
- * Replace `STATIC_AMENITIES` with API-driven values when available.
+ * Labels match the station details design (Wifi / Coffee / WC).
  */
 const STATIC_AMENITIES: AmenityItem[] = [
-  { icon: 'wifi', label: 'Free WiFi' },
+  { icon: 'wifi', label: 'Wifi' },
   { icon: 'coffee', label: 'Coffee' },
-  { icon: 'dining', label: 'Dining' },
-  { icon: 'restroom', label: 'Restrooms' },
+  { icon: 'restroom', label: 'WC' },
 ];
 
 type StationAmenitiesSectionProps = {
@@ -26,6 +26,9 @@ type StationAmenitiesSectionProps = {
 export function StationAmenitiesSection({
   amenities = STATIC_AMENITIES,
 }: StationAmenitiesSectionProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (amenities.length === 0) {
     return null;
   }
@@ -37,10 +40,10 @@ export function StationAmenitiesSection({
       <View style={styles.row}>
         {amenities.map((amenity) => (
           <View key={amenity.label} style={styles.item}>
-            <View style={styles.iconCircle}>
-              <Icon name={amenity.icon} size={20} color={theme.colors.brand} />
+            <View style={styles.iconTile}>
+              <Icon name={amenity.icon} size={22} color={theme.colors.accent} />
             </View>
-            <Text style={styles.label} numberOfLines={2}>
+            <Text style={styles.label} numberOfLines={1}>
               {amenity.label}
             </Text>
           </View>
@@ -50,40 +53,46 @@ export function StationAmenitiesSection({
   );
 }
 
-const styles = StyleSheet.create({
-  section: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
-    gap: theme.spacing.md,
-  },
-  heading: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-  },
-  item: {
-    flex: 1,
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: theme.colors.iconBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    section: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      gap: 12,
+    },
+    heading: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 17,
+      lineHeight: 22,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.2,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 14,
+    },
+    item: {
+      alignItems: 'center',
+      gap: 8,
+      width: 64,
+    },
+    iconTile: {
+      width: 56,
+      height: 56,
+      borderRadius: 12,
+      backgroundColor: theme.colors.iconBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    label: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 12,
+      lineHeight: 16,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+  });
+}

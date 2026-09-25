@@ -8,6 +8,13 @@ export const CHARGING_SESSION_STATUSES = [
 
 export type ChargingSessionStatus = (typeof CHARGING_SESSION_STATUSES)[number];
 
+/** Status tabs shown on My Sessions (All + these three). */
+export const CHARGING_SESSION_STATUS_FILTERS = [
+  'CHARGING',
+  'COMPLETED',
+  'STOPPED',
+] as const satisfies readonly ChargingSessionStatus[];
+
 export const CHARGING_SESSION_STOP_REASONS = [
   'OPERATOR_STOP',
   'DRIVER_STOP',

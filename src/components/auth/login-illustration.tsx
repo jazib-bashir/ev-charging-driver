@@ -22,6 +22,9 @@ const MIN_HEIGHT = 84;
 type LoginIllustrationProps = {
   /** Soft cap used on short screens so the form stays above the fold. */
   maxHeightRatio?: number;
+  /** Optional fixed size (e.g. logged-out profile centerpiece). */
+  width?: number;
+  height?: number;
 };
 
 /**
@@ -30,15 +33,18 @@ type LoginIllustrationProps = {
  */
 export function LoginIllustration({
   maxHeightRatio = 0.19,
+  width: fixedWidth,
+  height: fixedHeight,
 }: LoginIllustrationProps) {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
   const responsiveCap = Math.round(windowHeight * maxHeightRatio);
-  const height = Math.max(
-    MIN_HEIGHT,
-    Math.min(MAX_HEIGHT, responsiveCap),
-  );
-  const width = Math.min(windowWidth - theme.spacing.lg * 2, height * (VIEWBOX_WIDTH / VIEWBOX_HEIGHT));
+  const height =
+    fixedHeight ??
+    Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, responsiveCap));
+  const width =
+    fixedWidth ??
+    Math.min(windowWidth - theme.spacing.lg * 2, height * (VIEWBOX_WIDTH / VIEWBOX_HEIGHT));
 
   return (
     <View
