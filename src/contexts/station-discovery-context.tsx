@@ -11,7 +11,7 @@ import {
 import { MAP_STATION_LIMIT, useStationDiscoveryData } from '@/hooks/use-station-discovery-data';
 import { useUserLocation } from '@/hooks/use-user-location';
 import type { PublicStationFilterState, Station } from '@/types/station';
-import { GeolocationError } from '@/utils/geolocation';
+import { GeolocationError, type Coordinates } from '@/utils/geolocation';
 import {
   attachDistancesToStations,
   sortStationsByDistance,
@@ -87,6 +87,7 @@ type StationDiscoveryContextValue = {
   openLocationSettings: () => Promise<void>;
   locationPermissionStatus: ReturnType<typeof useUserLocation>['permissionStatus'];
   isLocationLoading: boolean;
+  userCoords: Coordinates | null;
   locationError: string | null;
   clearLocationError: () => void;
   isLocationBannerDismissed: boolean;
@@ -334,6 +335,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       openLocationSettings: userLocation.openLocationSettings,
       locationPermissionStatus: userLocation.permissionStatus,
       isLocationLoading: userLocation.isLoading,
+      userCoords: userLocation.coords,
       locationError,
       clearLocationError,
       isLocationBannerDismissed,
@@ -369,6 +371,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       searchQuery,
       toggleFilter,
       userLocation.isLoading,
+      userLocation.coords,
       userLocation.openLocationSettings,
       userLocation.permissionStatus,
     ],

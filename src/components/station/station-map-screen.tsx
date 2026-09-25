@@ -1,6 +1,6 @@
 import { router, type Href } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
@@ -13,12 +13,12 @@ import { isExpoGoAndroid } from '@/utils/runtime';
 import { DiscoveryFilterChips } from './discovery-filter-chips';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
+import { LocationPermissionBanner } from './location-permission-banner';
 import { MapExpoGoNotice } from './map-expo-go-notice';
 import { MapLoadingState } from './map-loading-state';
 import { StationErrorState } from './station-error-state';
 import { StationHeader } from './station-header';
 import { StationMap } from './station-map';
-
 export function StationMapScreen() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -37,6 +37,9 @@ export function StationMapScreen() {
     openLocationSettings,
     locationPermissionStatus,
     isLocationLoading,
+    isLocationBannerDismissed,
+    dismissLocationBanner,
+    userCoords,
     hasActiveSearch,
     hasActiveFilters,
     activeFilterCount,
@@ -53,7 +56,6 @@ export function StationMapScreen() {
   } = map;
 
   const mappableCount = getStationsWithCoordinates(stations).length;
-  const stationCount = stations.length;
   const showExpoGoNotice = isExpoGoAndroid();
   const hasActiveDiscovery = hasActiveSearch || hasActiveFilters;
 
@@ -61,37 +63,11 @@ export function StationMapScreen() {
     router.navigate('/' as Href);
   };
 
-  const subtitle =
-    !isInitialLoading && !error
-      ? mappableCount === 0
-        ? stationCount === 1
-          ? '1 station'
-          : `${stationCount} stations`
-        : mappableCount === stationCount
-          ? mappableCount === 1
-            ? '1 station on map'
-            : `${mappableCount} stations on map`
-          : `${mappableCount} of ${stationCount} on map`
-      : null;
-
   return (
     <ScreenContainer edges={['top']} style={styles.screen}>
       <StationHeader variant="map" onBack={handleBackToList} />
 
-      <DiscoverySearchToolbar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search on map..."
-        onFilterPress={openFilterSheet}
-        activeFilterCount={activeFilterCount}
-      />
-      <DiscoveryFilterChips />
-
-      {subtitle ? (
-        <Text style={styles.subtitle}>{subtitle}</Text>
-      ) : null}
-
-      <View style={styles.mapArea}>
+      <View style={styles.mapStage}>
         {isInitialLoading ? <MapLoadingState /> : null}
 
         {!isInitialLoading && error && stations.length === 0 ? (
@@ -122,6 +98,10 @@ export function StationMapScreen() {
               stations={stations}
               variant="fullscreen"
               cameraFitKey={mapCameraFitKey}
+              userCoords={userCoords}
+              onRequestUserLocation={() => {
+                void enableLocationAccess().catch(() => undefined);
+              }}
             />
             {showExpoGoNotice ? <MapExpoGoNotice /> : null}
           </>
@@ -133,6 +113,31 @@ export function StationMapScreen() {
             message="Stations were found but none have valid map coordinates yet."
           />
         ) : null}
+
+        <View style={styles.floatingChrome} pointerEvents="box-none">
+          <DiscoverySearchToolbar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search on map..."
+            onFilterPress={openFilterSheet}
+            activeFilterCount={activeFilterCount}
+            floating
+          />
+          <DiscoveryFilterChips floating />
+          {!isLocationBannerDismissed ? (
+            <LocationPermissionBanner
+              permissionStatus={locationPermissionStatus}
+              isLoading={isLocationLoading}
+              onEnableLocation={() => {
+                void enableLocationAccess().catch(() => undefined);
+              }}
+              onOpenSettings={() => {
+                void openLocationSettings();
+              }}
+              onDismiss={dismissLocationBanner}
+            />
+          ) : null}
+        </View>
       </View>
 
       <FilterBottomSheet
@@ -157,15 +162,17 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     screen: {
       backgroundColor: theme.colors.background,
     },
-    subtitle: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingBottom: theme.spacing.sm,
-      fontSize: theme.typography.fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    mapArea: {
+    mapStage: {
       flex: 1,
       backgroundColor: theme.colors.placeholder,
+    },
+    floatingChrome: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 20,
+      backgroundColor: 'transparent',
     },
     errorWrap: {
       flex: 1,

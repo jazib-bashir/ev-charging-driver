@@ -84,8 +84,8 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     mapTitle: {
       flex: 1,
       marginLeft: 8,
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: theme.typography.fontSize.lg,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 18,
       color: theme.colors.textPrimary,
       letterSpacing: -0.2,
     },

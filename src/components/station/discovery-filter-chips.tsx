@@ -18,6 +18,10 @@ type ChipDef = {
   icon?: 'bolt' | 'check' | 'queue';
 };
 
+type DiscoveryFilterChipsProps = {
+  floating?: boolean;
+};
+
 const CHIPS: ChipDef[] = [
   { id: 'all', label: 'All' },
   { id: 'fast', label: 'Fast', icon: 'bolt' },
@@ -50,12 +54,10 @@ function QueueDotsIcon({ active, borderIdle }: { active: boolean; borderIdle: st
 function ChipIcon({
   icon,
   active,
-  statusFast,
   idleColor,
 }: {
   icon: NonNullable<ChipDef['icon']>;
   active: boolean;
-  statusFast: string;
   idleColor: string;
 }) {
   if (icon === 'queue') {
@@ -63,15 +65,15 @@ function ChipIcon({
   }
 
   if (icon === 'bolt') {
-    return <Icon name="bolt" size={12} color={active ? CHIP_TEXT_SELECTED : statusFast} />;
+    return <Icon name="bolt" size={12} color={active ? CHIP_TEXT_SELECTED : idleColor} />;
   }
 
   return <Icon name="check" size={12} color={active ? CHIP_TEXT_SELECTED : idleColor} />;
 }
 
-export function DiscoveryFilterChips() {
+export function DiscoveryFilterChips({ floating = false }: DiscoveryFilterChipsProps) {
   const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, floating), [theme, floating]);
   const [selected, setSelected] = useState<Set<ChipId>>(() => new Set(['all']));
 
   const selectChip = (id: ChipId) => {
@@ -120,7 +122,6 @@ export function DiscoveryFilterChips() {
                 <ChipIcon
                   icon={chip.icon}
                   active={active}
-                  statusFast={theme.colors.statusFast}
                   idleColor={theme.colors.textChip}
                 />
               ) : null}
@@ -135,17 +136,22 @@ export function DiscoveryFilterChips() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+function createStyles(
+  theme: ReturnType<typeof useTheme>['theme'],
+  floating: boolean,
+) {
   return StyleSheet.create({
     container: {
-      paddingTop: DISCOVERY_LAYOUT.sectionGap,
+      paddingTop: floating ? 8 : DISCOVERY_LAYOUT.sectionGap,
       paddingBottom: 0,
+      marginTop: floating ? 8 : 0,
+      backgroundColor: 'transparent',
     },
     content: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: CHIP_GAP,
-      paddingHorizontal: DISCOVERY_LAYOUT.edge,
+      paddingHorizontal: 12,
     },
     chip: {
       flexDirection: 'row',

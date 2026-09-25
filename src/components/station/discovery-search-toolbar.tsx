@@ -1,8 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { SearchInput } from '@/components/ui/search-input';
-
-import { DISCOVERY_LAYOUT } from './discovery-layout';
+import { useTheme } from '@/theme';
 
 type DiscoverySearchToolbarProps = {
   value: string;
@@ -10,6 +9,8 @@ type DiscoverySearchToolbarProps = {
   placeholder: string;
   onFilterPress?: () => void;
   activeFilterCount?: number;
+  /** Transparent wrapper + elevated surface field for map overlay. */
+  floating?: boolean;
 };
 
 export function DiscoverySearchToolbar({
@@ -18,16 +19,31 @@ export function DiscoverySearchToolbar({
   placeholder,
   onFilterPress,
   activeFilterCount = 0,
+  floating = false,
 }: DiscoverySearchToolbarProps) {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, floating && styles.wrapFloating]}>
       <SearchInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         onFilterPress={onFilterPress}
         activeFilterCount={activeFilterCount}
-        containerStyle={styles.input}
+        containerStyle={[
+          styles.input,
+          floating && {
+            borderRadius: 12,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            shadowColor: theme.colors.shadow,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 1,
+            shadowRadius: 10,
+            elevation: 4,
+          },
+        ]}
       />
     </View>
   );
@@ -35,11 +51,15 @@ export function DiscoverySearchToolbar({
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingTop: DISCOVERY_LAYOUT.sectionGap,
+    paddingTop: 12,
     paddingBottom: 0,
+    backgroundColor: 'transparent',
+  },
+  wrapFloating: {
+    paddingTop: 8,
   },
   input: {
     marginTop: 0,
-    marginHorizontal: DISCOVERY_LAYOUT.edge,
+    marginHorizontal: 12,
   },
 });

@@ -7,7 +7,7 @@ export type MapRegion = {
   longitudeDelta: number;
 };
 
-/** City-level default for Lahore — used when the map first opens. */
+/** Lahore city center — used when the map first opens. */
 export const LAHORE_DEFAULT_REGION: MapRegion = {
   latitude: 31.5204,
   longitude: 74.3587,
@@ -15,8 +15,20 @@ export const LAHORE_DEFAULT_REGION: MapRegion = {
   longitudeDelta: 0.35,
 };
 
-/** Wider fallback when no mappable stations are available after filtering. */
-export const PAKISTAN_DEFAULT_REGION: MapRegion = LAHORE_DEFAULT_REGION;
+/** Neighborhood-scale zoom used when centering on the driver's GPS position. */
+export const USER_LOCATION_REGION_DELTA = 0.045;
+
+export function getMapRegionForUserLocation(
+  latitude: number,
+  longitude: number,
+): MapRegion {
+  return {
+    latitude,
+    longitude,
+    latitudeDelta: USER_LOCATION_REGION_DELTA,
+    longitudeDelta: USER_LOCATION_REGION_DELTA,
+  };
+}
 
 const MIN_DELTA = 0.08;
 const SINGLE_STATION_DELTA = 0.12;

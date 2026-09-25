@@ -74,7 +74,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       gap: 12,
       marginHorizontal: DISCOVERY_LAYOUT.edge,
       marginTop: DISCOVERY_LAYOUT.sectionGap,
-      marginBottom: DISCOVERY_LAYOUT.sectionGap,
+      marginBottom: 0,
       paddingVertical: 12,
       paddingHorizontal: 12,
       borderRadius: 14,

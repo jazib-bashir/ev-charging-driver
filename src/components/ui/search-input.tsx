@@ -115,7 +115,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     input: {
       flex: 1,
-      fontFamily: theme.typography.fontFamily.regular,
+      fontFamily: theme.typography.fontFamily.medium,
       fontSize: theme.typography.fontSize.sm,
       lineHeight: theme.typography.lineHeight.normal,
       color: theme.colors.textPrimary,

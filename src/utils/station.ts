@@ -127,7 +127,7 @@ export function formatChargerAvailability(station: Station): string | null {
   }
 
   if (hasValue(available)) {
-    return `${available} / ${total} Open`;
+    return `${available}/${total} Available`;
   }
 
   const count = Number(total);
