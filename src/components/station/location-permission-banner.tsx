@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { LocationPermissionState } from '@/utils/geolocation';
+
+import { DISCOVERY_LAYOUT } from './discovery-layout';
 
 type LocationPermissionBannerProps = {
   permissionStatus: LocationPermissionState;
@@ -17,8 +20,10 @@ export function LocationPermissionBanner({
   isLoading = false,
   onEnableLocation,
   onOpenSettings,
-  onDismiss,
 }: LocationPermissionBannerProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (permissionStatus === 'granted') {
     return null;
   }
@@ -28,106 +33,103 @@ export function LocationPermissionBanner({
   return (
     <View style={styles.banner}>
       <View style={styles.iconWrap}>
-        <Icon name="location" size={18} color={theme.colors.brand} />
+        <Icon name="map-pin" size={14} color={theme.colors.accent} />
       </View>
 
       <View style={styles.copy}>
-        <Text style={styles.title}>Enable location access</Text>
-        <Text style={styles.subtitle}>
+        <Text style={styles.title} numberOfLines={1}>
+          Enable location access
+        </Text>
+        <Text style={styles.subtitle} numberOfLines={1}>
           {isDenied
-            ? 'Distance filters and nearby sorting need location access. Open Settings to allow it.'
-            : 'Allow location to filter stations by distance and see how far each charger is from you.'}
+            ? 'Open Settings to allow location access'
+            : 'Get distance & nearest stations'}
         </Text>
       </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionButton,
-            pressed && styles.actionButtonPressed,
-            isLoading && styles.actionButtonDisabled,
-          ]}
-          onPress={isDenied ? onOpenSettings : onEnableLocation}
-          disabled={isLoading}
-          accessibilityRole="button"
-          accessibilityLabel={isDenied ? 'Open location settings' : 'Enable location access'}
-        >
-          <Text style={styles.actionButtonText}>
-            {isDenied ? 'Settings' : isLoading ? 'Enabling...' : 'Enable'}
-          </Text>
-        </Pressable>
-
-        {onDismiss && !isDenied ? (
-          <Pressable
-            onPress={onDismiss}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss location prompt"
-          >
-            <Icon name="close" size={16} color={theme.colors.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
+      <Pressable
+        style={({ pressed }) => [
+          styles.actionButton,
+          pressed && styles.actionButtonPressed,
+          isLoading && styles.actionButtonDisabled,
+        ]}
+        onPress={isDenied ? onOpenSettings : onEnableLocation}
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={isDenied ? 'Open location settings' : 'Enable location access'}
+      >
+        <Text style={styles.actionButtonText}>
+          {isDenied ? 'Settings' : isLoading ? '...' : 'Enable'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-    marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.selectionBorder,
-    backgroundColor: theme.colors.brandMuted,
-  },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    flexShrink: 0,
-  },
-  copy: {
-    flex: 1,
-    gap: 4,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
-    lineHeight: 17,
-  },
-  actions: {
-    alignItems: 'flex-end',
-    gap: theme.spacing.sm,
-    flexShrink: 0,
-  },
-  actionButton: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 8,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
-  },
-  actionButtonPressed: {
-    opacity: 0.9,
-  },
-  actionButtonDisabled: {
-    opacity: 0.7,
-  },
-  actionButtonText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textInverse,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: DISCOVERY_LAYOUT.edge,
+      marginTop: DISCOVERY_LAYOUT.sectionGap,
+      marginBottom: DISCOVERY_LAYOUT.sectionGap,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    iconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0, 217, 160, 0.12)',
+      flexShrink: 0,
+      overflow: 'hidden',
+    },
+    copy: {
+      flex: 1,
+      gap: 2,
+      minWidth: 0,
+    },
+    title: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      lineHeight: 19.5,
+      color: theme.colors.textPrimary,
+    },
+    subtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      lineHeight: 16.5,
+      color: theme.colors.textMuted,
+    },
+    actionButton: {
+      height: 30,
+      minWidth: 63,
+      paddingHorizontal: 12,
+      borderRadius: 9,
+      backgroundColor: theme.colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    actionButtonPressed: {
+      opacity: 0.9,
+    },
+    actionButtonDisabled: {
+      opacity: 0.7,
+    },
+    actionButtonText: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 12,
+      lineHeight: 18,
+      color: theme.colors.textPrimary,
+    },
+  });
+}

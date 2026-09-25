@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,9 +9,10 @@ import {
 } from 'react-native';
 
 import { EmptyState } from '@/components/ui/empty-state';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { Station } from '@/types/station';
 
+import { DISCOVERY_LAYOUT } from './discovery-layout';
 import { StationCard } from './station-card';
 
 type StationListProps = {
@@ -40,6 +42,8 @@ export function StationList({
   onClearAllFilters,
   onSearchNearby,
 }: StationListProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_BREAKPOINT;
 
@@ -109,25 +113,26 @@ export function StationList({
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    gap: theme.spacing.md,
-  },
-  contentTablet: {
-    alignItems: 'center',
-  },
-  item: {
-    marginBottom: theme.spacing.md,
-  },
-  itemTablet: {
-    width: '100%',
-    maxWidth: 640,
-  },
-  footer: {
-    paddingVertical: theme.spacing.lg,
-    alignItems: 'center',
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    content: {
+      paddingHorizontal: DISCOVERY_LAYOUT.edge,
+      paddingTop: DISCOVERY_LAYOUT.sectionGap,
+      paddingBottom: DISCOVERY_LAYOUT.edge,
+    },
+    contentTablet: {
+      alignItems: 'center',
+    },
+    item: {
+      marginBottom: DISCOVERY_LAYOUT.cardGap,
+    },
+    itemTablet: {
+      width: '100%',
+      maxWidth: 640,
+    },
+    footer: {
+      paddingVertical: theme.spacing.lg,
+      alignItems: 'center',
+    },
+  });
+}

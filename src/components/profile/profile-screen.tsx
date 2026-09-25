@@ -1,11 +1,12 @@
 import { router, type Href, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -30,7 +31,7 @@ import {
   useRequestStatus,
 } from '@/components/ui/request-status';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { ChargingSession } from '@/types/charging-session';
 import type { DriverVehicle } from '@/types/vehicle';
 
@@ -50,6 +51,8 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
     isLoading,
     refreshUser,
   } = useAuth();
+  const { theme, isDark, setMode } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { status, showError, showSuccess, clearStatus } = useRequestStatus();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -389,6 +392,29 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
           )}
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.preferenceCard}>
+            <View style={styles.preferenceCopy}>
+              <Text style={styles.preferenceTitle}>Dark mode</Text>
+              <Text style={styles.preferenceSubtitle}>
+                Switch between light and dark appearance
+              </Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={(value) => setMode(value ? 'dark' : 'light')}
+              trackColor={{
+                false: theme.colors.border,
+                true: theme.colors.accent,
+              }}
+              thumbColor={theme.colors.surface}
+              ios_backgroundColor={theme.colors.border}
+              accessibilityLabel="Toggle dark mode"
+            />
+          </View>
+        </View>
+
         <RequestStatusBanner status={status} />
 
         <Pressable
@@ -415,133 +441,161 @@ export function ProfileScreen({ onLogin }: ProfileScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  scrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxl,
-    gap: theme.spacing.xl,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.md,
-  },
-  unauthenticatedContent: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    gap: theme.spacing.lg,
-  },
-  profileHint: {
-    marginTop: -theme.spacing.sm,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.brand,
-    textAlign: 'center',
-    lineHeight: theme.typography.lineHeight.normal,
-  },
-  section: {
-    gap: theme.spacing.md,
-  },
-  sectionTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.md,
-  },
-  viewAllLabel: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.brand,
-  },
-  vehicleList: {
-    gap: theme.spacing.md,
-  },
-  addVehicleButton: {
-    minHeight: 52,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
-  },
-  addVehicleLabel: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-  },
-  sessionCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.md,
-    ...theme.shadows.card,
-  },
-  sessionDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.borderLight,
-  },
-  emptyCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.xs,
-  },
-  emptyTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-  },
-  emptyMessage: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: theme.typography.lineHeight.normal,
-  },
-  inlineLoader: {
-    paddingVertical: theme.spacing.lg,
-    alignItems: 'center',
-  },
-  logoutButton: {
-    alignSelf: 'center',
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
-  },
-  logoutLabel: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.notification,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-    lineHeight: 22,
-  },
-  muted: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-  },
-  actionDisabled: {
-    opacity: 0.55,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    scrollContent: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxl,
+      gap: theme.spacing.xl,
+    },
+    centered: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.md,
+    },
+    unauthenticatedContent: {
+      flex: 1,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      gap: theme.spacing.lg,
+    },
+    profileHint: {
+      marginTop: -theme.spacing.sm,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.brand,
+      textAlign: 'center',
+      lineHeight: theme.typography.lineHeight.normal,
+    },
+    section: {
+      gap: theme.spacing.md,
+    },
+    sectionTitle: {
+      fontSize: theme.typography.fontSize.lg,
+      fontWeight: theme.typography.fontWeight.bold,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.2,
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing.md,
+    },
+    viewAllLabel: {
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: theme.typography.fontWeight.semibold,
+      color: theme.colors.brand,
+    },
+    vehicleList: {
+      gap: theme.spacing.md,
+    },
+    addVehicleButton: {
+      minHeight: 52,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+    },
+    addVehicleLabel: {
+      fontSize: theme.typography.fontSize.md,
+      fontWeight: theme.typography.fontWeight.semibold,
+      color: theme.colors.textSecondary,
+    },
+    preferenceCard: {
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      ...theme.shadows.card,
+    },
+    preferenceCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    preferenceTitle: {
+      fontSize: theme.typography.fontSize.md,
+      fontWeight: theme.typography.fontWeight.semibold,
+      color: theme.colors.textPrimary,
+    },
+    preferenceSubtitle: {
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      lineHeight: theme.typography.lineHeight.normal,
+    },
+    sessionCard: {
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: theme.spacing.md,
+      ...theme.shadows.card,
+    },
+    sessionDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.borderLight,
+    },
+    emptyCard: {
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      padding: theme.spacing.lg,
+      gap: theme.spacing.xs,
+    },
+    emptyTitle: {
+      fontSize: theme.typography.fontSize.md,
+      fontWeight: theme.typography.fontWeight.semibold,
+      color: theme.colors.textPrimary,
+    },
+    emptyMessage: {
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      lineHeight: theme.typography.lineHeight.normal,
+    },
+    inlineLoader: {
+      paddingVertical: theme.spacing.lg,
+      alignItems: 'center',
+    },
+    logoutButton: {
+      alignSelf: 'center',
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: theme.spacing.sm,
+    },
+    logoutLabel: {
+      fontSize: theme.typography.fontSize.md,
+      fontWeight: theme.typography.fontWeight.semibold,
+      color: theme.colors.notification,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: theme.typography.fontWeight.bold,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.4,
+    },
+    subtitle: {
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textMuted,
+      lineHeight: 22,
+    },
+    muted: {
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textMuted,
+    },
+    actionDisabled: {
+      opacity: 0.55,
+    },
+  });
+}

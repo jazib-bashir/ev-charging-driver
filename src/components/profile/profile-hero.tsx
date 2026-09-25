@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 type ProfileHeroProps = {
   name: string;
@@ -18,6 +19,8 @@ export function ProfileHero({
   onEdit,
   disabled = false,
 }: ProfileHeroProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const phoneLabel = phone?.trim() || null;
 
   return (
@@ -44,56 +47,58 @@ export function ProfileHero({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
-    gap: 6,
-  },
-  avatarButton: {
-    position: 'relative',
-    marginBottom: theme.spacing.sm,
-  },
-  avatar: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.iconBackground,
-    borderWidth: 3,
-    borderColor: theme.colors.surface,
-    ...theme.shadows.card,
-  },
-  editBadge: {
-    position: 'absolute',
-    right: 2,
-    bottom: 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.brand,
-    borderWidth: 2,
-    borderColor: theme.colors.surface,
-  },
-  name: {
-    fontSize: theme.typography.fontSize.xxl,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.4,
-    textAlign: 'center',
-  },
-  email: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  phone: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      paddingTop: theme.spacing.sm,
+      paddingBottom: theme.spacing.md,
+      gap: 6,
+    },
+    avatarButton: {
+      position: 'relative',
+      marginBottom: theme.spacing.sm,
+    },
+    avatar: {
+      width: 92,
+      height: 92,
+      borderRadius: 46,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.iconBackground,
+      borderWidth: 3,
+      borderColor: theme.colors.surface,
+      ...theme.shadows.card,
+    },
+    editBadge: {
+      position: 'absolute',
+      right: 2,
+      bottom: 2,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.brand,
+      borderWidth: 2,
+      borderColor: theme.colors.surface,
+    },
+    name: {
+      fontSize: theme.typography.fontSize.xxl,
+      fontWeight: theme.typography.fontWeight.bold,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.4,
+      textAlign: 'center',
+    },
+    email: {
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    phone: {
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+  });
+}

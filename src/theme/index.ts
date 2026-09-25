@@ -1,4 +1,12 @@
-import { lightColors, type ThemeColors } from '@/theme/colors';
+import {
+  lightColors,
+  darkColors,
+  ACCENT,
+  STATUS_AVAILABLE,
+  STATUS_FAST,
+  type ThemeColors,
+  type ThemeMode,
+} from '@/theme/colors';
 import { radius, type ThemeRadius } from '@/theme/radius';
 import { shadows, type ThemeShadows } from '@/theme/shadows';
 import { spacing, type ThemeSpacing } from '@/theme/spacing';
@@ -12,7 +20,7 @@ export type Theme = {
   shadows: ThemeShadows;
 };
 
-/** Active app theme. Swap `colors` here for dark mode or alternate brands later. */
+/** Static light theme fallback for StyleSheets that cannot use hooks. Prefer `useTheme()`. */
 export const theme: Theme = {
   colors: lightColors,
   spacing,
@@ -21,5 +29,10 @@ export const theme: Theme = {
   shadows,
 };
 
-export { lightColors, radius, shadows, spacing, typography };
-export type { ThemeColors, ThemeRadius, ThemeShadows, ThemeSpacing, ThemeTypography };
+export function getThemeColors(mode: ThemeMode): ThemeColors {
+  return mode === 'dark' ? (darkColors as ThemeColors) : lightColors;
+}
+
+export { lightColors, darkColors, ACCENT, STATUS_AVAILABLE, STATUS_FAST, radius, shadows, spacing, typography };
+export type { ThemeColors, ThemeMode, ThemeRadius, ThemeShadows, ThemeSpacing, ThemeTypography };
+export { ThemeProvider, useTheme } from '@/theme/theme-context';

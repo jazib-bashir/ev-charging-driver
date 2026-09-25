@@ -1,4 +1,5 @@
 import { router, type Href } from 'expo-router';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
@@ -6,9 +7,10 @@ import { useStationDiscoveryContext } from '@/contexts/station-discovery-context
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationsWithCoordinates } from '@/utils/map-region';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { isExpoGoAndroid } from '@/utils/runtime';
 
+import { DiscoveryFilterChips } from './discovery-filter-chips';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
 import { MapExpoGoNotice } from './map-expo-go-notice';
@@ -18,6 +20,8 @@ import { StationHeader } from './station-header';
 import { StationMap } from './station-map';
 
 export function StationMapScreen() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { token } = useAuth();
   const {
     searchQuery,
@@ -57,12 +61,6 @@ export function StationMapScreen() {
     router.navigate('/' as Href);
   };
 
-  const handleViewModeChange = (mode: 'list' | 'map') => {
-    if (mode === 'list') {
-      handleBackToList();
-    }
-  };
-
   const subtitle =
     !isInitialLoading && !error
       ? mappableCount === 0
@@ -84,11 +82,10 @@ export function StationMapScreen() {
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Search on map..."
-        viewMode="map"
-        onViewModeChange={handleViewModeChange}
         onFilterPress={openFilterSheet}
         activeFilterCount={activeFilterCount}
       />
+      <DiscoveryFilterChips />
 
       {subtitle ? (
         <Text style={styles.subtitle}>{subtitle}</Text>
@@ -155,21 +152,23 @@ export function StationMapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: theme.colors.background,
-  },
-  subtitle: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-  },
-  mapArea: {
-    flex: 1,
-    backgroundColor: theme.colors.placeholder,
-  },
-  errorWrap: {
-    flex: 1,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: theme.colors.background,
+    },
+    subtitle: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.sm,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+    },
+    mapArea: {
+      flex: 1,
+      backgroundColor: theme.colors.placeholder,
+    },
+    errorWrap: {
+      flex: 1,
+    },
+  });
+}

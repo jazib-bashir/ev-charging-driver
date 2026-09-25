@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { ComponentProps } from 'react';
+import { Platform, type StyleProp, type TextStyle } from 'react-native';
 
 import { theme } from '@/theme';
 
@@ -10,16 +11,23 @@ export type IconName =
   | 'bell'
   | 'search'
   | 'sliders'
+  | 'filter'
   | 'list'
   | 'map'
+  | 'map-outline'
   | 'navigate'
+  | 'navigate-outline'
   | 'charger'
   | 'home'
+  | 'home-outline'
   | 'user'
+  | 'person-outline'
+  | 'document'
   | 'image'
   | 'back'
   | 'share'
   | 'location'
+  | 'map-pin'
   | 'checkmark'
   | 'wifi'
   | 'coffee'
@@ -37,6 +45,7 @@ export type IconName =
   | 'time'
   | 'create'
   | 'star'
+  | 'star-outline'
   | 'add'
   | 'log-out'
   | 'trash'
@@ -55,16 +64,23 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   bell: { family: 'ionicons', name: 'notifications-outline' },
   search: { family: 'ionicons', name: 'search' },
   sliders: { family: 'ionicons', name: 'options' },
+  filter: { family: 'ionicons', name: 'filter' },
   list: { family: 'ionicons', name: 'list' },
   map: { family: 'ionicons', name: 'map' },
+  'map-outline': { family: 'ionicons', name: 'map-outline' },
   navigate: { family: 'ionicons', name: 'navigate' },
+  'navigate-outline': { family: 'ionicons', name: 'navigate-outline' },
   charger: { family: 'material', name: 'ev-station' },
   home: { family: 'ionicons', name: 'home' },
+  'home-outline': { family: 'ionicons', name: 'home-outline' },
   user: { family: 'ionicons', name: 'person' },
+  'person-outline': { family: 'ionicons', name: 'person-outline' },
+  document: { family: 'ionicons', name: 'document-text-outline' },
   image: { family: 'ionicons', name: 'image-outline' },
   back: { family: 'ionicons', name: 'chevron-back' },
   share: { family: 'ionicons', name: 'share-social-outline' },
   location: { family: 'ionicons', name: 'location-outline' },
+  'map-pin': { family: 'ionicons', name: 'location' },
   checkmark: { family: 'ionicons', name: 'checkmark-circle' },
   check: { family: 'ionicons', name: 'checkmark' },
   close: { family: 'ionicons', name: 'close' },
@@ -82,6 +98,7 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   time: { family: 'ionicons', name: 'time-outline' },
   create: { family: 'ionicons', name: 'create-outline' },
   star: { family: 'ionicons', name: 'star' },
+  'star-outline': { family: 'ionicons', name: 'star-outline' },
   add: { family: 'ionicons', name: 'add' },
   'log-out': { family: 'ionicons', name: 'log-out-outline' },
   trash: { family: 'ionicons', name: 'trash-outline' },
@@ -92,10 +109,32 @@ type IconProps = {
   name: IconName;
   size?: number;
   color?: string;
+  style?: StyleProp<TextStyle>;
 };
 
-export function Icon({ name, size = 20, color = theme.colors.textPrimary }: IconProps) {
+/** Optical offsets for glyphs whose visual mass is not centered in the font box. */
+const OPTICAL_OFFSET: Partial<Record<IconName, { x: number; y: number }>> = {
+  navigate: { x: -1, y: 1 },
+  'navigate-outline': { x: -1, y: 1 },
+  'map-pin': { x: 0, y: 1 },
+  location: { x: 0, y: 1 },
+};
+
+export function Icon({ name, size = 20, color = theme.colors.textPrimary, style }: IconProps) {
   const config = ICON_MAP[name];
+  const offset = OPTICAL_OFFSET[name];
+  const iconStyle: StyleProp<TextStyle> = [
+    {
+      width: size,
+      height: size,
+      textAlign: 'center',
+      ...Platform.select({ android: { includeFontPadding: false } }),
+      ...(offset
+        ? { transform: [{ translateX: offset.x }, { translateY: offset.y }] }
+        : null),
+    },
+    style,
+  ];
 
   if (config.family === 'material') {
     return (
@@ -103,6 +142,7 @@ export function Icon({ name, size = 20, color = theme.colors.textPrimary }: Icon
         name={config.name}
         size={size}
         color={color}
+        style={iconStyle}
       />
     );
   }
@@ -112,6 +152,7 @@ export function Icon({ name, size = 20, color = theme.colors.textPrimary }: Icon
       name={config.name}
       size={size}
       color={color}
+      style={iconStyle}
     />
   );
 }

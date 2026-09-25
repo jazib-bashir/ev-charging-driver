@@ -1,9 +1,12 @@
 export const typography = {
   fontFamily: {
-    regular: undefined,
-    medium: undefined,
-    semibold: undefined,
-    bold: undefined,
+    /** Inter — default UI typeface from design. */
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semibold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+    /** Outfit — brand wordmark only. */
+    brand: 'Outfit_700Bold',
   },
   fontSize: {
     xs: 11,
@@ -12,7 +15,7 @@ export const typography = {
     lg: 17,
     xl: 20,
     xxl: 22,
-    brand: 22,
+    brand: 15,
   },
   fontWeight: {
     regular: '400' as const,
@@ -24,6 +27,7 @@ export const typography = {
     tight: 18,
     normal: 20,
     relaxed: 22,
+    brand: 22,
   },
 } as const;
 

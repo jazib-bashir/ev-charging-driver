@@ -1,13 +1,12 @@
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
 import { NoticeToast } from '@/components/ui/notice-toast';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
-import { theme } from '@/theme';
 
+import { DiscoveryFilterChips } from './discovery-filter-chips';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
 import { LocationPermissionBanner } from './location-permission-banner';
@@ -73,12 +72,6 @@ export function StationDiscoveryScreen() {
     setNoticeMessage(null);
   }, []);
 
-  const handleViewModeChange = (mode: 'list' | 'map') => {
-    if (mode === 'map') {
-      router.navigate('/map' as Href);
-    }
-  };
-
   const renderContent = () => {
     if (error && stations.length === 0 && !isInitialLoading) {
       return <StationErrorState onRetry={retry} />;
@@ -114,11 +107,10 @@ export function StationDiscoveryScreen() {
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Search charging stations..."
-        viewMode="list"
-        onViewModeChange={handleViewModeChange}
         onFilterPress={openFilterSheet}
         activeFilterCount={activeFilterCount}
       />
+      <DiscoveryFilterChips />
 
       {!isLocationBannerDismissed ? (
         <LocationPermissionBanner
@@ -138,7 +130,7 @@ export function StationDiscoveryScreen() {
         <NoticeToast message={locationError} onDismiss={clearLocationError} />
       ) : null}
 
-      <ScreenContent style={styles.contentArea}>
+      <ScreenContent>
         {renderContent()}
       </ScreenContent>
 
@@ -158,9 +150,3 @@ export function StationDiscoveryScreen() {
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  contentArea: {
-    marginTop: theme.spacing.xs,
-  },
-});
