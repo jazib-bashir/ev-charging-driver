@@ -28,7 +28,7 @@ async function parseJsonBody<T>(response: Response): Promise<T> {
   }
 }
 
-function mapChargingSession(raw: Record<string, unknown>): ChargingSession {
+export function mapChargingSession(raw: Record<string, unknown>): ChargingSession {
   return {
     id: String(raw.id ?? ''),
     organizationId: String(raw.organizationId ?? ''),

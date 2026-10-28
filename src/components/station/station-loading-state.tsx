@@ -3,6 +3,8 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useTheme } from '@/theme';
 
+import { DISCOVERY_LAYOUT } from './discovery-layout';
+
 const TABLET_BREAKPOINT = 768;
 const SKELETON_COUNT = 3;
 
@@ -51,10 +53,10 @@ export function StationLoadingState() {
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     container: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.lg,
-      gap: theme.spacing.md,
+      paddingHorizontal: DISCOVERY_LAYOUT.edge,
+      paddingTop: 0,
+      paddingBottom: DISCOVERY_LAYOUT.edge,
+      gap: DISCOVERY_LAYOUT.cardGap,
     },
     containerTablet: {
       alignItems: 'center',

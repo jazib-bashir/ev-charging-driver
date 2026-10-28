@@ -18,6 +18,10 @@ import {
   readAccessToken,
   saveAccessToken,
 } from '@/auth/token-storage';
+import {
+  clearCachedExpoPushToken,
+  deactivatePushTokenRegistration,
+} from '@/notifications/push-registration';
 
 export type PendingBooking = {
   stationId: string;
@@ -47,10 +51,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
 
   const logout = useCallback(async () => {
+    const activeToken = token ?? (await readAccessToken());
+
+    if (activeToken) {
+      await deactivatePushTokenRegistration(activeToken);
+    } else {
+      clearCachedExpoPushToken();
+    }
+
     await clearAccessToken();
     setToken(null);
     setUser(null);
-  }, []);
+  }, [token]);
 
   const refreshUser = useCallback(async () => {
     const activeToken = token ?? (await readAccessToken());

@@ -9,6 +9,14 @@ module.exports = {
   ...expo,
   plugins: [
     ...(expo.plugins ?? []),
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/gridflow-logo.png',
+        color: '#f5f7f9',
+        defaultChannel: 'default',
+      },
+    ],
     'expo-secure-store',
     [
       'expo-location',
@@ -39,10 +47,12 @@ module.exports = {
   },
   android: {
     ...expo.android,
+    googleServicesFile: './google-services.json',
     permissions: [
       ...(expo.android?.permissions ?? []),
       'ACCESS_COARSE_LOCATION',
       'ACCESS_FINE_LOCATION',
+      'android.permission.POST_NOTIFICATIONS',
     ],
     config: {
       ...expo.android?.config,

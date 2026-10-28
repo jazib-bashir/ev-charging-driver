@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { listDriverChargingSessions } from '@/api/chargingSessions';
 import { AuthApiError } from '@/api/auth';
 import type { ChargingSession, ChargingSessionStatus } from '@/types/charging-session';
+import { subscribeChargingSessionsRefresh } from '@/utils/charging-sessions-refresh';
 
 const PAGE_SIZE = 20;
 
@@ -67,6 +68,12 @@ export function useChargingSessions({ token, status }: UseChargingSessionsOption
 
   useEffect(() => {
     void loadPage(1, 'initial');
+  }, [loadPage]);
+
+  useEffect(() => {
+    return subscribeChargingSessionsRefresh(() => {
+      void loadPage(1, 'refresh');
+    });
   }, [loadPage]);
 
   const refresh = useCallback(async () => {

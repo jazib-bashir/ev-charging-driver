@@ -60,7 +60,7 @@ function mapAllocation(
   };
 }
 
-function mapQueueMember(raw: Record<string, unknown>): QueueMember {
+export function mapQueueMember(raw: Record<string, unknown>): QueueMember {
   return {
     id: String(raw.id ?? ''),
     queueId: String(raw.queueId ?? ''),

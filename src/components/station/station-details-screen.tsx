@@ -32,7 +32,6 @@ import { useTheme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import type { QueueMember } from '@/types/queue';
 import { formatCurrencyAmount } from '@/utils/charging-session-format';
-import { getQueueRank } from '@/utils/queue-display';
 import { openStationNavigation } from '@/utils/open-station-navigation';
 import {
   formatText,
@@ -41,6 +40,7 @@ import {
 } from '@/utils/station';
 
 import { ChargerDetailsSheet } from './charger-details-sheet';
+import { QueueBookingConfirmationSheet } from './queue-booking-confirmation-sheet';
 import { QueueJoinSheet } from './queue-join-sheet';
 import { QueueStatusCard } from './queue-status-card';
 import { StationAmenitiesSection } from './station-amenities-section';
@@ -153,6 +153,8 @@ function StationDetailsContent({
   const [queueMembership, setQueueMembership] = useState<QueueMember | null>(null);
   const [isMembershipLoading, setIsMembershipLoading] = useState(false);
   const [isLeavingQueue, setIsLeavingQueue] = useState(false);
+  const [queueConfirmationMember, setQueueConfirmationMember] =
+    useState<QueueMember | null>(null);
   const [activeConnectorLabel, setActiveConnectorLabel] = useState<string>();
   const resumeHandledRef = useRef(false);
 
@@ -320,10 +322,7 @@ function StationDetailsContent({
       setQueueMembership(member);
       retryStation();
       void loadQueueMembership();
-      Alert.alert(
-        'Queue booked',
-        `You are #${getQueueRank(member)} in line at this station.`,
-      );
+      setQueueConfirmationMember(member);
     },
     [retryStation, loadQueueMembership],
   );
@@ -590,8 +589,12 @@ function StationDetailsContent({
                 session={stationActiveSession}
                 stationName={station.name}
                 connectorLabel={activeConnectorLabel}
-                compact
-                onPress={() => router.push('/sessions/active' as Href)}
+                variant="compact"
+                onPress={() =>
+                  router.push(
+                    `/sessions/${encodeURIComponent(stationActiveSession.id)}` as Href,
+                  )
+                }
               />
             ) : null}
 
@@ -688,6 +691,13 @@ function StationDetailsContent({
         authToken={token}
         onClose={() => setIsQueueSheetVisible(false)}
         onJoined={handleQueueJoined}
+      />
+
+      <QueueBookingConfirmationSheet
+        visible={queueConfirmationMember !== null}
+        stationName={station.name}
+        member={queueConfirmationMember}
+        onConfirm={() => setQueueConfirmationMember(null)}
       />
     </ScreenContainer>
   );

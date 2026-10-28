@@ -1,4 +1,5 @@
 import type { QueueMember, QueueMemberAllocationSummary } from '@/types/queue';
+import { hasMetricValue } from '@/utils/charging-session-format';
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString(undefined, {
@@ -47,6 +48,137 @@ export function getPeopleAhead(member: QueueMember): number {
   return Math.max(0, getQueueRank(member) - 1);
 }
 
+export function formatQueuePositionPadded(member: QueueMember): string | null {
+  const rank = getQueueRank(member);
+
+  if (!Number.isFinite(rank) || rank <= 0) {
+    return null;
+  }
+
+  return String(rank).padStart(2, '0');
+}
+
+export function formatDriversAheadHeadline(member: QueueMember): string | null {
+  const ahead = getPeopleAhead(member);
+
+  if (!Number.isFinite(ahead)) {
+    return null;
+  }
+
+  if (ahead === 0) {
+    return "You're next";
+  }
+
+  return `${ahead} driver${ahead === 1 ? '' : 's'} ahead`;
+}
+
+export function formatDriversAheadSubtext(member: QueueMember): string | null {
+  const ahead = getPeopleAhead(member);
+
+  if (!Number.isFinite(ahead)) {
+    return null;
+  }
+
+  return ahead === 0 ? 'No drivers ahead' : null;
+}
+
+export function formatReadyChargerBayNumber(
+  allocation: QueueMemberAllocationSummary | null | undefined,
+): string | null {
+  const label = allocation?.evse?.label?.trim();
+
+  if (!label) {
+    return null;
+  }
+
+  const stripped = label.replace(/^evse\s*/i, '').replace(/^charger\s*/i, '').trim();
+
+  return stripped || null;
+}
+
+export type HomeJourneyVisualVariant =
+  | 'queued'
+  | 'at-station'
+  | 'ready'
+  | 'charging'
+  | 'session-pending'
+  | 'other';
+
+export function resolveHomeJourneyVisualVariant(
+  membership: QueueMember | null | undefined,
+  options?: { hasActiveSession?: boolean; chargingWithoutSession?: boolean },
+): HomeJourneyVisualVariant {
+  if (options?.hasActiveSession) {
+    return 'charging';
+  }
+
+  if (!membership) {
+    return 'other';
+  }
+
+  if (options?.chargingWithoutSession || membership.state === 'CHARGING') {
+    return 'session-pending';
+  }
+
+  if (membership.state === 'APPROACHING') {
+    return 'at-station';
+  }
+
+  if (membership.state === 'READY') {
+    return 'ready';
+  }
+
+  if (membership.state === 'QUEUED') {
+    return 'queued';
+  }
+
+  return 'other';
+}
+
+export function resolveHomeJourneyStepIndex(variant: HomeJourneyVisualVariant): number {
+  switch (variant) {
+    case 'at-station':
+      return 1;
+    case 'ready':
+      return 2;
+    case 'charging':
+    case 'session-pending':
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+export function homeJourneyStatusBadgeLabel(variant: HomeJourneyVisualVariant): string {
+  switch (variant) {
+    case 'at-station':
+      return 'At station';
+    case 'ready':
+      return 'Ready';
+    case 'charging':
+    case 'session-pending':
+      return 'Charging';
+    case 'queued':
+      return 'Queued';
+    default:
+      return 'Queued';
+  }
+}
+
+export function homeJourneyActionLabel(variant: HomeJourneyVisualVariant): string {
+  switch (variant) {
+    case 'at-station':
+      return 'Open arrival details';
+    case 'ready':
+      return 'Open charger details';
+    case 'charging':
+    case 'session-pending':
+      return 'Open charging session';
+    default:
+      return 'Open queue';
+  }
+}
+
 export const EVSE_UNAVAILABLE_MESSAGE =
   'Your assigned charger is currently unavailable. The station is finding another compatible charger.';
 
@@ -90,6 +222,92 @@ export function shouldShowQueueTiming(state: string): boolean {
 
 export function shouldShowQueuePosition(state: string): boolean {
   return state === 'QUEUED';
+}
+
+/** Assigned charger/connector label for Home READY card (does not require EVSE AVAILABLE). */
+export function formatReadyAssignedChargerIdentifier(
+  allocation: QueueMemberAllocationSummary | null | undefined,
+): string | null {
+  const evse = allocation?.evse;
+
+  if (!evse?.label?.trim()) {
+    return null;
+  }
+
+  const connectorLabel = evse.connectorTypes?.filter(Boolean).join(', ');
+  const powerLabel = hasMetricValue(evse.maxPowerKw) ? `${evse.maxPowerKw} kW` : null;
+  const parts = [`EVSE ${evse.label.trim()}`];
+
+  if (connectorLabel) {
+    parts.push(connectorLabel);
+  }
+
+  if (powerLabel) {
+    parts.push(powerLabel);
+  }
+
+  return parts.join(' · ');
+}
+
+/** Home Ready card — primary charger title (e.g. "Charger 03"). */
+export function formatReadyAssignedChargerTitle(
+  allocation: QueueMemberAllocationSummary | null | undefined,
+): string | null {
+  const rawLabel = allocation?.evse?.label?.trim();
+
+  if (!rawLabel) {
+    return null;
+  }
+
+  if (/^charger\b/i.test(rawLabel)) {
+    return rawLabel;
+  }
+
+  const stripped = rawLabel.replace(/^evse\s*/i, '').trim();
+
+  return stripped ? `Charger ${stripped}` : null;
+}
+
+/** First connector type for Ready card badge (e.g. CCS2). */
+export function formatReadyConnectorBadge(
+  allocation: QueueMemberAllocationSummary | null | undefined,
+): string | null {
+  const connector = allocation?.evse?.connectorTypes?.find(Boolean);
+
+  return connector ?? null;
+}
+
+export function getAtStationPreparationHeadline(membership: QueueMember): string {
+  if (membership.needsEvseReassignment) {
+    return 'Finding a compatible charger';
+  }
+
+  return 'Operator is getting your charger ready';
+}
+
+export type HomeQueueJourneyVariant = 'queued' | 'at-station' | 'ready' | 'session-pending' | 'other';
+
+export function resolveHomeQueueJourneyVariant(
+  membership: QueueMember,
+  options?: { chargingWithoutSession?: boolean },
+): HomeQueueJourneyVariant {
+  if (options?.chargingWithoutSession || membership.state === 'CHARGING') {
+    return 'session-pending';
+  }
+
+  if (membership.state === 'APPROACHING') {
+    return 'at-station';
+  }
+
+  if (membership.state === 'READY') {
+    return 'ready';
+  }
+
+  if (membership.state === 'QUEUED') {
+    return 'queued';
+  }
+
+  return 'other';
 }
 
 export function formatEvseHeadline(

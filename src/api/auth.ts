@@ -46,6 +46,23 @@ export type DriverVehicleSummary = {
   } | null;
 };
 
+export type DriverActiveJourneyLookup = 'ok' | 'failed';
+
+export type DriverActiveChargingJourney = {
+  kind: 'CHARGING';
+  session: Record<string, unknown>;
+  stationName?: string | null;
+};
+
+export type DriverActiveQueuedJourney = {
+  kind: 'QUEUED';
+  membership: Record<string, unknown>;
+  stationName?: string | null;
+  queueMemberChargingWithoutSession?: boolean;
+};
+
+export type DriverActiveJourney = DriverActiveChargingJourney | DriverActiveQueuedJourney;
+
 export type WhoAmIResponse = {
   id: string;
   name: string;
@@ -53,6 +70,8 @@ export type WhoAmIResponse = {
   phoneNumber?: string | null;
   isOnboarded?: boolean;
   defaultVehicle?: DriverVehicleSummary | null;
+  activeJourney?: DriverActiveJourney | null;
+  activeJourneyLookup?: DriverActiveJourneyLookup;
   metaData?: {
     isOnboarded?: boolean;
     role?: string;

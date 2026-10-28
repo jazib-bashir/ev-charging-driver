@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -26,6 +26,7 @@ type StationListProps = {
   onEndReached?: () => void;
   onClearAllFilters?: () => void;
   onSearchNearby?: () => void;
+  listHeader?: ReactNode;
 };
 
 const TABLET_BREAKPOINT = 768;
@@ -41,6 +42,7 @@ export function StationList({
   onEndReached,
   onClearAllFilters,
   onSearchNearby,
+  listHeader,
 }: StationListProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -49,7 +51,11 @@ export function StationList({
 
   if (stations.length === 0) {
     return (
-      <EmptyState
+      <View style={styles.emptyWrap}>
+        {listHeader ? (
+          <View style={[styles.discoveryInset, styles.listHeader]}>{listHeader}</View>
+        ) : null}
+        <EmptyState
         title="No Stations Found"
         message={
           hasActiveSearch || hasActiveFilters
@@ -63,7 +69,8 @@ export function StationList({
         onPrimaryAction={onClearAllFilters}
         secondaryActionLabel="Search Nearby"
         onSecondaryAction={onSearchNearby}
-      />
+        />
+      </View>
     );
   }
 
@@ -100,6 +107,9 @@ export function StationList({
         }
       }}
       onEndReachedThreshold={0.35}
+      ListHeaderComponent={
+        listHeader ? () => <View style={styles.listHeader}>{listHeader}</View> : undefined
+      }
       ListFooterComponent={
         isLoadingMore
           ? (
@@ -115,6 +125,16 @@ export function StationList({
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
+    emptyWrap: {
+      flex: 1,
+    },
+    listHeader: {
+      marginBottom: DISCOVERY_LAYOUT.cardGap,
+    },
+    discoveryInset: {
+      paddingHorizontal: DISCOVERY_LAYOUT.edge,
+      paddingTop: DISCOVERY_LAYOUT.sectionGap,
+    },
     content: {
       paddingHorizontal: DISCOVERY_LAYOUT.edge,
       paddingTop: DISCOVERY_LAYOUT.sectionGap,

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "867587508106",
+    "project_id": "ev-charging-driver",
+    "storage_bucket": "ev-charging-driver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:867587508106:android:353265634aed152e056a73",
+        "android_client_info": {
+          "package_name": "com.gridflow.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnPT8iB6yzNZTRHA64stuTA73TTYPkuFg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

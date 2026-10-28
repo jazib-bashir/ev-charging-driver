@@ -234,6 +234,41 @@ export function formatPowerKw(value: number | null | undefined): string {
   return `${value!.toFixed(1)} kW`;
 }
 
+/** Compact duration for Home journey card (e.g. "18 min"). */
+export function formatHomeJourneyDuration(
+  seconds: number | null | undefined,
+  startedAt?: string | null,
+): string | null {
+  let totalSeconds = seconds;
+
+  if (!hasMetricValue(totalSeconds) && startedAt) {
+    const started = new Date(startedAt);
+
+    if (!Number.isNaN(started.getTime())) {
+      totalSeconds = Math.max(0, Math.floor((Date.now() - started.getTime()) / 1000));
+    }
+  }
+
+  if (!hasMetricValue(totalSeconds)) {
+    return null;
+  }
+
+  const minutes = Math.floor(totalSeconds! / 60);
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+
+    return remainder > 0 ? `${hours} h ${remainder} min` : `${hours} h`;
+  }
+
+  if (minutes <= 0) {
+    return '< 1 min';
+  }
+
+  return `${minutes} min`;
+}
+
 export function formatPricePerKwh(value: number | null | undefined): string {
   if (!hasMetricValue(value)) {
     return EMPTY_METRIC;
