@@ -9,7 +9,7 @@ import type { Station } from '@/types/station';
 const STATION_IMAGE_ASSETS: ImageSource[] = [
   require('@/assets/images/stations/charger-2.jpg'),
   require('@/assets/images/stations/mark-station.jpg'),
-  require('@/assets/images/stations/charger-6.png'),
+  require('@/assets/images/stations/charger-6.jpg'),
 ];
 
 function getStableImageIndex(stationId: string): number {
