@@ -1,5 +1,10 @@
 import { AuthApiError, authFetch } from '@/api/auth';
 import { pushRegLog, sanitizeRegistrationError } from '@/notifications/push-registration-debug';
+import { Platform } from 'react-native';
+
+function resolveRegistrationPlatform(): 'android' | 'ios' {
+  return Platform.OS === 'ios' ? 'ios' : 'android';
+}
 
 async function parseErrorMessage(response: Response): Promise<string> {
   try {
@@ -27,7 +32,7 @@ export async function registerDriverDeviceToken(
       method: 'POST',
       body: JSON.stringify({
         token: expoPushToken,
-        platform: 'android',
+        platform: resolveRegistrationPlatform(),
       }),
     });
   } catch (error) {

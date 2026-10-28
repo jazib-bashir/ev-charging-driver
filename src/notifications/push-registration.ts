@@ -215,6 +215,12 @@ export function syncPushTokenRegistration(
     return Promise.resolve();
   }
 
+  const overrideToken = expoPushTokenOverride?.trim();
+
+  if (overrideToken && cachedExpoPushToken && cachedExpoPushToken !== overrideToken) {
+    lastSyncedRegistrationKey = null;
+  }
+
   if (!supportsPushNotifications()) {
     pushRegLog('syncPushTokenRegistration: exit (guard: unsupported platform or not a physical device)', {
       platform: Platform.OS,
@@ -233,6 +239,7 @@ export function syncPushTokenRegistration(
       pushRegLog('syncPushTokenRegistration: registration failed', {
         error: sanitizeRegistrationError(error),
       });
+      lastSyncedRegistrationKey = null;
       // Registration failures should not break auth or navigation flows.
     })
     .finally(() => {
