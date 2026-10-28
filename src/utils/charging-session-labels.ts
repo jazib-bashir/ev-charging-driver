@@ -12,7 +12,30 @@ type EvseLike = {
 const EMPTY = '—';
 
 function isTechnicalId(value: string): boolean {
-  return value.length > 28 || value.includes('dev-seed');
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  if (trimmed.includes('dev-seed')) {
+    return true;
+  }
+
+  if (/^[a-f0-9]{24}$/i.test(trimmed)) {
+    return true;
+  }
+
+  return trimmed.length > 28;
+}
+
+/** True for Mongo-style ids and other values that must not be shown as user-facing labels. */
+export function isTechnicalIdentifier(value: string | null | undefined): boolean {
+  if (value == null) {
+    return true;
+  }
+
+  return isTechnicalId(value);
 }
 
 export function formatConnectorLabel(

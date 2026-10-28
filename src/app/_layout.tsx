@@ -14,6 +14,7 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/auth-context';
+import { GridflowRealtimeProvider } from '@/realtime/gridflow-realtime-provider';
 import { PushNotificationsManager } from '@/notifications/push-notifications-manager';
 import { ThemeProvider, useTheme } from '@/theme';
 
@@ -64,8 +65,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <PushNotificationsManager />
-          <RootNavigator />
+          <GridflowRealtimeProvider>
+            <PushNotificationsManager />
+            <RootNavigator />
+          </GridflowRealtimeProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

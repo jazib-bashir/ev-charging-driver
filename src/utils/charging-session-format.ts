@@ -234,6 +234,35 @@ export function formatPowerKw(value: number | null | undefined): string {
   return `${value!.toFixed(1)} kW`;
 }
 
+function looksLikeObjectId(value: string): boolean {
+  return /^[a-f0-9]{24}$/i.test(value.trim());
+}
+
+/** Short connector type for tight Home journey metrics (never raw ids). */
+export function formatHomeJourneyConnectorLabel(
+  ...candidates: (string | null | undefined)[]
+): string {
+  for (const candidate of candidates) {
+    const raw = candidate?.trim();
+
+    if (!raw || raw === EMPTY_METRIC || looksLikeObjectId(raw)) {
+      continue;
+    }
+
+    const fromMeta = extractConnectorType(raw);
+
+    if (fromMeta) {
+      return fromMeta;
+    }
+
+    if (raw.length <= 14) {
+      return raw;
+    }
+  }
+
+  return '—';
+}
+
 /** Compact duration for Home journey card (e.g. "18 min"). */
 export function formatHomeJourneyDuration(
   seconds: number | null | undefined,

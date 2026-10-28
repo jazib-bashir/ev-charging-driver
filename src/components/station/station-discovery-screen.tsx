@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { useAuth } from '@/auth/auth-context';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
 import { useActiveDriverQueueMembership } from '@/hooks/use-active-driver-queue-membership';
+import { useGridflowRealtimeConnected } from '@/hooks/use-gridflow-realtime-connected';
 import { useChargingSessionDisplayLabels } from '@/hooks/use-charging-session-display-labels';
 import { HomeActiveJourneyCard } from '@/components/station/home-active-journey-card';
 import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
@@ -45,6 +46,7 @@ export function StationDiscoveryScreen() {
     membership: activeQueueMembership,
     stationName: activeQueueStationName,
     isLoading: isActiveQueueLoading,
+    isRefreshing: isActiveQueueRefreshing,
   } = useActiveDriverQueueMembership({
     token,
     seedMembership: whoAmIJourney ? whoAmIJourney.queueMembership : undefined,
@@ -69,15 +71,16 @@ export function StationDiscoveryScreen() {
     whoAmIJourney?.queueMembership?.state,
   ]);
 
-  const { session: activeSession, isLoading: isActiveSessionLoading } =
+  const realtimeConnected = useGridflowRealtimeConnected();
+  const shouldPollActiveSession =
+    !realtimeConnected &&
+    (Boolean(whoAmIJourney?.chargingSession) || pendingChargingSessionFromQueue);
+
+  const { session: activeSession, isLoading: isActiveSessionLoading, isRefreshing: isActiveSessionRefreshing } =
     useActiveChargingSession({
       token,
-      pollIntervalMs:
-        whoAmIJourney?.chargingSession || pendingChargingSessionFromQueue
-          ? 15_000
-          : null,
-      pollWithoutActiveSession:
-        pendingChargingSessionFromQueue && !whoAmIJourney?.chargingSession,
+      pollIntervalMs: shouldPollActiveSession ? 15_000 : null,
+      pollWithoutActiveSession: pendingChargingSessionFromQueue,
       seedSession: whoAmIJourney ? whoAmIJourney.chargingSession : undefined,
       journeyLookupFailed,
       authJourneySeedKey,
@@ -171,6 +174,10 @@ export function StationDiscoveryScreen() {
     journeyStationMeta?.name,
   ]);
 
+  const isJourneyRefreshing =
+    (showQueueJourney || hasActiveCharging) &&
+    (isActiveQueueRefreshing || isActiveSessionRefreshing);
+
   const journeyListHeader = useMemo((): ReactNode => {
     if (!hasActiveCharging && !showQueueJourney) {
       return null;
@@ -179,12 +186,15 @@ export function StationDiscoveryScreen() {
     return (
       <HomeActiveJourneyCard
         session={hasActiveCharging ? activeSession : null}
-        membership={showQueueJourney ? activeQueueMembership : null}
+        membership={
+          hasActiveCharging || showQueueJourney ? activeQueueMembership : null
+        }
         stationName={journeyStationName}
         stationSubtitle={journeyStationSubtitle}
         connectorLabel={activeSessionLabels.connectorLabel}
         vehicleLabel={activeSession?.vehicleLabel}
         chargingWithoutSession={queueMemberChargingWithoutSession}
+        isRefreshing={isJourneyRefreshing}
         onPress={() => {
           if (hasActiveCharging && activeSession) {
             router.push(`/sessions/${encodeURIComponent(activeSession.id)}` as Href);
@@ -205,6 +215,7 @@ export function StationDiscoveryScreen() {
     activeSessionLabels.connectorLabel,
     activeSessionLabels.stationName,
     hasActiveCharging,
+    isJourneyRefreshing,
     journeyStationName,
     journeyStationSubtitle,
     queueMemberChargingWithoutSession,

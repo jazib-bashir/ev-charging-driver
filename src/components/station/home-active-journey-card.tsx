@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Fragment } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/ui/icon';
@@ -9,6 +10,7 @@ import type { QueueMember } from '@/types/queue';
 import {
   EMPTY_METRIC,
   formatEnergyKwh,
+  formatHomeJourneyConnectorLabel,
   formatHomeJourneyDuration,
   formatPowerKw,
 } from '@/utils/charging-session-format';
@@ -50,6 +52,7 @@ type HomeActiveJourneyCardProps = {
   connectorLabel?: string | null;
   vehicleLabel?: string | null;
   chargingWithoutSession?: boolean;
+  isRefreshing?: boolean;
   onPress?: () => void;
 };
 
@@ -69,7 +72,7 @@ function JourneyStepIndicator({
         const connectorActive = index > 0 && index <= currentStepIndex;
 
         return (
-          <View key={label} style={styles.stepperSegment}>
+          <Fragment key={label}>
             {index > 0 ? (
               <View
                 style={[
@@ -118,7 +121,7 @@ function JourneyStepIndicator({
                 {label}
               </Text>
             </View>
-          </View>
+          </Fragment>
         );
       })}
     </View>
@@ -283,10 +286,12 @@ function ReadyBody({ membership }: { membership: QueueMember }) {
 
 function ChargingBody({
   session,
+  membership,
   connectorLabel,
   vehicleLabel,
 }: {
   session: ChargingSession;
+  membership?: QueueMember | null;
   connectorLabel?: string | null;
   vehicleLabel?: string | null;
 }) {
@@ -295,25 +300,29 @@ function ChargingBody({
   const energyRaw = formatEnergyKwh(session.energyKwh);
   const energy = energyRaw !== EMPTY_METRIC ? energyRaw : null;
   const duration = formatHomeJourneyDuration(session.durationSeconds, session.startedAt);
-  const connector =
-    connectorLabel?.trim() ||
-    session.connectorLabel?.trim() ||
-    null;
+  const connector = formatHomeJourneyConnectorLabel(
+    connectorLabel,
+    session.connectorLabel,
+    formatReadyConnectorBadge(membership?.allocation),
+  );
   const vehicle =
     vehicleLabel?.trim() ||
     session.vehicleLabel?.trim() ||
     null;
 
   const metrics: { label: string; value: string }[] = [];
-  if (energy) {
-    metrics.push({ label: 'Energy delivered', value: energy });
-  }
-  if (duration) {
-    metrics.push({ label: 'Session time', value: duration });
-  }
-  if (connector) {
-    metrics.push({ label: 'Connector', value: connector });
-  }
+  metrics.push({
+    label: 'Energy delivered',
+    value: energy ?? '—',
+  });
+  metrics.push({
+    label: 'Session time',
+    value: duration ?? '—',
+  });
+  metrics.push({
+    label: 'Connector',
+    value: connector,
+  });
 
   return (
     <>
@@ -323,33 +332,79 @@ function ChargingBody({
         </View>
         <View style={styles.chargingHeroCopy}>
           <Text style={styles.chargingHeroEyebrow}>Charging now</Text>
-          {power ? <Text style={styles.chargingHeroPower}>{power}</Text> : null}
-          {vehicle ? <Text style={styles.chargingHeroVehicle}>{vehicle}</Text> : null}
+          <Text style={styles.chargingHeroPower} numberOfLines={2}>
+            {power ?? 'Starting…'}
+          </Text>
+          {vehicle ? (
+            <Text style={styles.chargingHeroVehicle} numberOfLines={1}>
+              {vehicle}
+            </Text>
+          ) : null}
         </View>
       </View>
 
-      {metrics.length > 0 ? (
-        <View style={styles.chargingMetricsPanel}>
-          {metrics.map((metric, index) => (
-            <View key={metric.label} style={styles.chargingMetricWrap}>
-              {index > 0 ? <View style={styles.chargingMetricDivider} /> : null}
-              <View style={styles.chargingMetricColumn}>
-                <Text style={styles.chargingMetricLabel}>{metric.label}</Text>
-                <Text style={styles.chargingMetricValue}>{metric.value}</Text>
-              </View>
+      <View style={styles.chargingMetricsPanel}>
+        {metrics.map((metric, index) => (
+          <Fragment key={metric.label}>
+            {index > 0 ? <View style={styles.chargingMetricDivider} /> : null}
+            <View style={styles.chargingMetricColumn}>
+              <Text style={styles.chargingMetricLabel} numberOfLines={2}>
+                {metric.label}
+              </Text>
+              <Text
+                style={styles.chargingMetricValue}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {metric.value}
+              </Text>
             </View>
-          ))}
-        </View>
-      ) : null}
+          </Fragment>
+        ))}
+      </View>
     </>
   );
 }
 
-function SessionPendingBody() {
+function SessionPendingBody({ membership }: { membership?: QueueMember | null }) {
+  const bayNumber = membership ? formatReadyChargerBayNumber(membership.allocation) : null;
+  const connector = membership ? formatReadyConnectorBadge(membership.allocation) : null;
+
   return (
-    <Text style={styles.pendingText}>
-      Your charging session is being connected. This card will update when charging begins.
-    </Text>
+    <>
+      <View style={styles.connectingHeroRow}>
+        <View style={styles.connectingIconWrap}>
+          <Icon name="bolt" size={22} color={theme.colors.brandDark} />
+        </View>
+        <View style={styles.connectingCopy}>
+          <Text style={styles.connectingEyebrow}>Connecting session</Text>
+          <Text style={styles.connectingTitle}>Linking your charger</Text>
+          <Text style={styles.pendingText}>
+            Live stats appear here once the session is active. Updates arrive automatically.
+          </Text>
+        </View>
+      </View>
+
+      {bayNumber || connector ? (
+        <View style={styles.insetPanel}>
+          {bayNumber ? (
+            <>
+              <View style={styles.insetColumn}>
+                <Text style={styles.insetEyebrow}>Bay</Text>
+                <Text style={styles.insetValueLarge}>{bayNumber}</Text>
+              </View>
+              {connector ? <View style={styles.insetDivider} /> : null}
+            </>
+          ) : null}
+          {connector ? (
+            <View style={styles.insetColumn}>
+              <Text style={styles.insetEyebrow}>Connector</Text>
+              <Text style={styles.insetValue}>{connector}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -361,6 +416,7 @@ export function HomeActiveJourneyCard({
   connectorLabel,
   vehicleLabel,
   chargingWithoutSession = false,
+  isRefreshing = false,
   onPress,
 }: HomeActiveJourneyCardProps) {
   const hasActiveSession = session?.status === 'CHARGING';
@@ -389,12 +445,13 @@ export function HomeActiveJourneyCard({
     body = (
       <ChargingBody
         session={session}
+        membership={membership}
         connectorLabel={connectorLabel}
         vehicleLabel={vehicleLabel}
       />
     );
   } else if (variant === 'session-pending') {
-    body = <SessionPendingBody />;
+    body = <SessionPendingBody membership={membership} />;
   }
 
   const content = (
@@ -402,9 +459,20 @@ export function HomeActiveJourneyCard({
       style={[
         styles.card,
         isDark ? styles.cardDark : styles.cardLight,
+        isRefreshing && styles.cardRefreshing,
       ]}
     >
       <View style={[styles.topAccent, isDark && styles.topAccentDark]} />
+
+      {isRefreshing ? (
+        <View
+          style={[styles.refreshOverlay, isDark && styles.refreshOverlayDark]}
+          accessibilityLiveRegion="polite"
+          accessibilityLabel="Updating journey"
+        >
+          <ActivityIndicator color={isDark ? theme.colors.brandLight : theme.colors.brand} />
+        </View>
+      ) : null}
 
       <ActiveJourneyEyebrow
         badgeLabel={badgeLabel}
@@ -468,6 +536,19 @@ const styles = StyleSheet.create({
   cardLight: {
     backgroundColor: '#F2FCF8',
     borderColor: theme.colors.selectionBorder,
+  },
+  cardRefreshing: {
+    opacity: 0.88,
+  },
+  refreshOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    zIndex: 2,
+  },
+  refreshOverlayDark: {
+    backgroundColor: 'rgba(11, 61, 52, 0.55)',
   },
   cardDark: {
     backgroundColor: CHARGING_CARD.background,
@@ -538,20 +619,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: theme.spacing.xs,
   },
-  stepperSegment: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
   stepNode: {
+    width: 52,
     alignItems: 'center',
-    minWidth: 52,
   },
   stepConnector: {
     flex: 1,
     height: 2,
     marginTop: 13,
-    marginHorizontal: 2,
+    minWidth: 6,
     backgroundColor: theme.colors.borderLight,
   },
   stepConnectorDark: {
@@ -847,16 +923,13 @@ const styles = StyleSheet.create({
   },
   chargingMetricsPanel: {
     flexDirection: 'row',
+    alignItems: 'stretch',
     backgroundColor: CHARGING_CARD.panelBg,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: CHARGING_CARD.panelBorder,
     paddingVertical: theme.spacing.md,
-  },
-  chargingMetricWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'stretch',
+    paddingHorizontal: theme.spacing.xs,
   },
   chargingMetricDivider: {
     width: StyleSheet.hairlineWidth,
@@ -865,10 +938,11 @@ const styles = StyleSheet.create({
   },
   chargingMetricColumn: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingHorizontal: theme.spacing.xs,
+    paddingHorizontal: 4,
   },
   chargingMetricLabel: {
     fontSize: theme.typography.fontSize.xs,
@@ -885,6 +959,36 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 20,
     color: theme.colors.textMuted,
+    marginTop: 4,
+  },
+  connectingHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+  },
+  connectingIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.brandMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectingCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  connectingEyebrow: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textMuted,
+  },
+  connectingTitle: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
   },
   footer: {
     gap: theme.spacing.sm,

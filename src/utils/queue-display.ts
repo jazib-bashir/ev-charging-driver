@@ -156,8 +156,9 @@ export function homeJourneyStatusBadgeLabel(variant: HomeJourneyVisualVariant): 
     case 'ready':
       return 'Ready';
     case 'charging':
-    case 'session-pending':
       return 'Charging';
+    case 'session-pending':
+      return 'Connecting';
     case 'queued':
       return 'Queued';
     default:

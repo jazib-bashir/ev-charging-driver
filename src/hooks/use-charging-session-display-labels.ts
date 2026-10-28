@@ -4,6 +4,7 @@ import { fetchPublicChargers } from '@/api/publicChargers';
 import { fetchPublicStation } from '@/api/publicStations';
 import type { ChargingSession } from '@/types/charging-session';
 import { formatConnectorLabel, formatEvseLabel } from '@/utils/charging-session-labels';
+import { formatHomeJourneyConnectorLabel } from '@/utils/charging-session-format';
 
 export function useChargingSessionDisplayLabels(session: ChargingSession | null) {
   const [stationName, setStationName] = useState<string>();
@@ -17,6 +18,11 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
       setConnectorLabel(undefined);
       return;
     }
+
+    setStationName(session.stationName ?? undefined);
+    setEvseLabel(session.evseLabel ?? undefined);
+    const seededConnector = formatHomeJourneyConnectorLabel(session.connectorLabel);
+    setConnectorLabel(seededConnector !== '—' ? seededConnector : undefined);
 
     let cancelled = false;
 
@@ -40,7 +46,9 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
         setEvseLabel(
           formatEvseLabel(session.evseLabel, charger?.name, session.evseId),
         );
-        setConnectorLabel(formatConnectorLabel(connector, session.connectorId));
+        setConnectorLabel(
+          formatConnectorLabel(connector, session.connectorLabel ?? session.connectorId),
+        );
       } catch {
         if (!cancelled) {
           setStationName(session.stationName ?? undefined);

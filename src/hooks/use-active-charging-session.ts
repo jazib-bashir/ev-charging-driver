@@ -7,6 +7,12 @@ import { AuthApiError } from '@/api/auth';
 import type { ChargingSession } from '@/types/charging-session';
 import { requestChargingSessionsRefresh } from '@/utils/charging-sessions-refresh';
 import { requestQueueMembershipRefresh } from '@/utils/queue-membership-refresh';
+import { useGridflowRealtimeConnected } from '@/hooks/use-gridflow-realtime-connected';
+import {
+  useDebouncedGridflowRealtimeHandler,
+  useGridflowRealtimeReconnectSnapshot,
+} from '@/realtime/gridflow-realtime-provider';
+import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
 
 type UseActiveChargingSessionOptions = {
   token: string | null;
@@ -35,9 +41,11 @@ export function useActiveChargingSession({
 }: UseActiveChargingSessionOptions) {
   const [session, setSession] = useState<ChargingSession | null>(seedSession ?? null);
   const [isLoading, setIsLoading] = useState(!seedSession);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previousSessionIdRef = useRef<string | null>(seedSession?.id ?? null);
   const loadRequestRef = useRef(0);
+  const realtimeConnected = useGridflowRealtimeConnected();
 
   useEffect(() => {
     if (journeyLookupFailed || authJourneySeedKey == null) {
@@ -61,6 +69,7 @@ export function useActiveChargingSession({
       if (!token) {
         setSession(null);
         setIsLoading(false);
+        setIsRefreshing(false);
         previousSessionIdRef.current = null;
         return;
       }
@@ -70,6 +79,8 @@ export function useActiveChargingSession({
 
       if (showLoading) {
         setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
       }
 
       setError(null);
@@ -108,10 +119,34 @@ export function useActiveChargingSession({
       } finally {
         if (requestId === loadRequestRef.current) {
           setIsLoading(false);
+          setIsRefreshing(false);
         }
       }
     },
     [journeyLookupFailed, token],
+  );
+
+  useDebouncedGridflowRealtimeHandler(
+    useCallback(
+      (event) => {
+        if (
+          event.kind !== GridflowRealtimeEventKind.ACTIVE_SESSION &&
+          event.kind !== GridflowRealtimeEventKind.QUEUE_MEMBERSHIP
+        ) {
+          return;
+        }
+
+        void load({ showLoading: false });
+      },
+      [load],
+    ),
+    300,
+  );
+
+  useGridflowRealtimeReconnectSnapshot(
+    useCallback(() => {
+      void load({ showLoading: false });
+    }, [load]),
   );
 
   useEffect(() => {
@@ -133,6 +168,10 @@ export function useActiveChargingSession({
     const intervalMs =
       activeCharging && pollIntervalMs == null ? 15_000 : pollIntervalMs;
 
+    if (realtimeConnected) {
+      return undefined;
+    }
+
     if (intervalMs == null) {
       return undefined;
     }
@@ -146,7 +185,7 @@ export function useActiveChargingSession({
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [load, pollIntervalMs, pollWithoutActiveSession, session, token]);
+  }, [load, pollIntervalMs, pollWithoutActiveSession, realtimeConnected, session, token]);
 
   useEffect(() => {
     if (!refreshOnAppForeground) {
@@ -169,6 +208,7 @@ export function useActiveChargingSession({
   return {
     session,
     isLoading,
+    isRefreshing,
     error,
     refresh: load,
   };

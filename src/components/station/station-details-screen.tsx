@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
+import { AuthApiError, resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
 import { fetchPublicChargers } from '@/api/publicChargers';
 import {
   findActiveMembershipForStation,
@@ -24,6 +24,13 @@ import {
 import { useAuth } from '@/auth/auth-context';
 import { ActiveSessionCard } from '@/components/charging-session/active-session-card';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
+import { useGridflowRealtimeConnected } from '@/hooks/use-gridflow-realtime-connected';
+import {
+  useDebouncedGridflowRealtimeHandler,
+  useGridflowRealtimeReconnectSnapshot,
+  useGridflowRealtimeStation,
+} from '@/realtime/gridflow-realtime-provider';
+import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
 import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationImageSource } from '@/data/station-images';
@@ -32,6 +39,8 @@ import { useTheme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import type { QueueMember } from '@/types/queue';
 import { formatCurrencyAmount } from '@/utils/charging-session-format';
+import { requestQueueMembershipRefresh } from '@/utils/queue-membership-refresh';
+import { showUserAlert } from '@/utils/user-prompt';
 import { openStationNavigation } from '@/utils/open-station-navigation';
 import {
   formatText,
@@ -219,6 +228,39 @@ function StationDetailsContent({
     }
   }, [token, stationId]);
 
+  const realtimeConnected = useGridflowRealtimeConnected();
+  useGridflowRealtimeStation(stationId);
+
+  useDebouncedGridflowRealtimeHandler(
+    useCallback(
+      (event) => {
+        if (event.stationId && event.stationId !== stationId) {
+          return;
+        }
+
+        if (
+          event.kind === GridflowRealtimeEventKind.QUEUE_MEMBERSHIP ||
+          event.kind === GridflowRealtimeEventKind.STATION_QUEUE ||
+          event.kind === GridflowRealtimeEventKind.STATION_ALLOCATION
+        ) {
+          void loadQueueMembership();
+        }
+
+        if (event.kind === GridflowRealtimeEventKind.ACTIVE_SESSION) {
+          void refreshActiveChargingSession();
+        }
+      },
+      [loadQueueMembership, refreshActiveChargingSession, stationId],
+    ),
+  );
+
+  useGridflowRealtimeReconnectSnapshot(
+    useCallback(() => {
+      void loadQueueMembership();
+      void refreshActiveChargingSession();
+    }, [loadQueueMembership, refreshActiveChargingSession]),
+  );
+
   useEffect(() => {
     void loadQueueMembership();
   }, [loadQueueMembership]);
@@ -259,7 +301,7 @@ function StationDetailsContent({
   }, [stationActiveSession]);
 
   useEffect(() => {
-    if (!token || !queueMembership) {
+    if (!token || !queueMembership || realtimeConnected) {
       return;
     }
 
@@ -268,7 +310,7 @@ function StationDetailsContent({
     }, 15_000);
 
     return () => clearInterval(interval);
-  }, [token, queueMembership?.id, loadQueueMembership]);
+  }, [token, queueMembership?.id, loadQueueMembership, realtimeConnected]);
 
   const handleJoinQueuePress = useCallback(async () => {
     if (isOpeningQueue || queueMembership || !station?.queue) {
@@ -337,14 +379,28 @@ function StationDetailsContent({
     try {
       await leaveQueueMember(token, queueMembership.id);
       setQueueMembership(null);
+      requestQueueMembershipRefresh();
+      void refreshUser();
       retryStation();
-      Alert.alert('Left queue', 'You have been removed from the station queue.');
-    } catch {
-      Alert.alert('Unable to leave queue', 'Please try again.');
+      void loadQueueMembership();
+      showUserAlert('Left queue', 'You have been removed from the station queue.');
+    } catch (error) {
+      const message =
+        error instanceof AuthApiError && error.message
+          ? error.message
+          : 'Please try again.';
+      showUserAlert('Unable to leave queue', message);
     } finally {
       setIsLeavingQueue(false);
     }
-  }, [token, queueMembership, isLeavingQueue, retryStation]);
+  }, [
+    token,
+    queueMembership,
+    isLeavingQueue,
+    retryStation,
+    loadQueueMembership,
+    refreshUser,
+  ]);
 
   const completeBookingPlaceholder = useCallback(() => {
     setPendingBooking(null);

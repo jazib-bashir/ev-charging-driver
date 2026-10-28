@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { theme } from '@/theme';
 import type { QueueMember } from '@/types/queue';
 import { formatQueueMemberState } from '@/types/queue';
+import { confirmAsync } from '@/utils/user-prompt';
 import {
   formatArrivalWindow,
   formatAssignedEvse,
@@ -122,14 +123,17 @@ export function QueueStatusCard({
       return;
     }
 
-    Alert.alert(
-      'Leave queue?',
-      'You will lose your place in line at this station.',
-      [
-        { text: 'Stay in queue', style: 'cancel' },
-        { text: 'Leave queue', style: 'destructive', onPress: onLeave },
-      ],
-    );
+    void confirmAsync({
+      title: 'Leave queue?',
+      message: 'You will lose your place in line at this station.',
+      confirmText: 'Leave queue',
+      cancelText: 'Stay in queue',
+      destructive: true,
+    }).then((confirmed) => {
+      if (confirmed) {
+        onLeave();
+      }
+    });
   };
 
   return (

@@ -8,6 +8,12 @@ import { AuthApiError } from '@/api/auth';
 import type { QueueMember } from '@/types/queue';
 import { subscribeQueueMembershipRefresh } from '@/utils/queue-membership-refresh';
 import { selectPrimaryActiveQueueMembership } from '@/utils/select-primary-queue-membership';
+import {
+  useDebouncedGridflowRealtimeHandler,
+  useGridflowRealtimeReconnectSnapshot,
+  useGridflowRealtimeStation,
+} from '@/realtime/gridflow-realtime-provider';
+import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
 
 type UseActiveDriverQueueMembershipOptions = {
   token: string | null;
@@ -29,8 +35,11 @@ export function useActiveDriverQueueMembership({
   const [membership, setMembership] = useState<QueueMember | null>(seedMembership ?? null);
   const [stationName, setStationName] = useState<string | undefined>(seedStationName);
   const [isLoading, setIsLoading] = useState(!seedMembership);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
+
+  useGridflowRealtimeStation(membership?.stationId);
 
   useEffect(() => {
     if (journeyLookupFailed || authJourneySeedKey == null) {
@@ -60,6 +69,7 @@ export function useActiveDriverQueueMembership({
         setMembership(null);
         setStationName(undefined);
         setIsLoading(false);
+        setIsRefreshing(false);
         return;
       }
 
@@ -68,6 +78,8 @@ export function useActiveDriverQueueMembership({
 
       if (showLoading) {
         setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
       }
 
       setError(null);
@@ -120,10 +132,31 @@ export function useActiveDriverQueueMembership({
       } finally {
         if (requestId === loadRequestRef.current) {
           setIsLoading(false);
+          setIsRefreshing(false);
         }
       }
     },
     [journeyLookupFailed, token],
+  );
+
+  useDebouncedGridflowRealtimeHandler(
+    useCallback((event) => {
+      if (
+        event.kind !== GridflowRealtimeEventKind.QUEUE_MEMBERSHIP &&
+        event.kind !== GridflowRealtimeEventKind.STATION_QUEUE &&
+        event.kind !== GridflowRealtimeEventKind.STATION_ALLOCATION
+      ) {
+        return;
+      }
+
+      void load({ showLoading: false });
+    }, [load]),
+  );
+
+  useGridflowRealtimeReconnectSnapshot(
+    useCallback(() => {
+      void load({ showLoading: false });
+    }, [load]),
   );
 
   useEffect(() => {
@@ -164,6 +197,7 @@ export function useActiveDriverQueueMembership({
     membership,
     stationName,
     isLoading,
+    isRefreshing,
     error,
     refresh: load,
   };
