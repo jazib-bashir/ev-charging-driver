@@ -48,6 +48,9 @@ export function StationMapScreen() {
     list,
   } = useStationDiscoveryContext();
 
+  const focusClosestStation =
+    typeof advancedFilters.radiusKm === 'number' && advancedFilters.radiusKm > 0;
+
   const {
     stations,
     isInitialLoading,
@@ -98,6 +101,7 @@ export function StationMapScreen() {
               stations={stations}
               variant="fullscreen"
               cameraFitKey={mapCameraFitKey}
+              focusClosestStation={focusClosestStation}
               userCoords={userCoords}
               onRequestUserLocation={() => {
                 void enableLocationAccess().catch(() => undefined);

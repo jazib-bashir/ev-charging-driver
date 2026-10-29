@@ -31,6 +31,8 @@ export function useStationDiscoveryData({
 
   const requestIdRef = useRef(0);
   const isLoadingMoreRef = useRef(false);
+  /** After the first successful list load, filter/search updates soft-refresh so the map stays mounted. */
+  const hasLoadedOnceRef = useRef(false);
 
   const loadStations = useCallback(
     async ({
@@ -113,6 +115,7 @@ export function useStationDiscoveryData({
         setTotalCount(response.pagination?.total);
         setOffset(nextOffset);
         setHasMore(enablePagination ? (response.pagination?.hasMore ?? false) : false);
+        hasLoadedOnceRef.current = true;
       } catch {
         if (requestId !== requestIdRef.current) {
           return;
@@ -146,6 +149,7 @@ export function useStationDiscoveryData({
       search: debouncedSearch,
       currentAdvancedFilters: advancedFilters,
       append: false,
+      refresh: hasLoadedOnceRef.current,
     });
   }, [advancedFilters, debouncedSearch, loadStations]);
 

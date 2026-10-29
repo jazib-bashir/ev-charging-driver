@@ -136,9 +136,32 @@ export function formatChargerAvailability(station: Station): string | null {
 
 export type StationFilters = {
   fast: boolean;
+  available: boolean;
+  queue: boolean;
+  /** True when the quick chip radius (< 3 km) is active. */
+  distance: boolean;
   tesla: boolean;
   ccs: boolean;
 };
+
+/** Radius used by the Home/Map “< 3 km” quick chip. */
+export const QUICK_DISTANCE_RADIUS_KM = 3;
+
+export function stationMatchesAvailableFilter(station: Station): boolean {
+  if (getStationStatus(station).variant === 'available') {
+    return true;
+  }
+
+  return (
+    station.availableChargers != null &&
+    !Number.isNaN(station.availableChargers) &&
+    station.availableChargers > 0
+  );
+}
+
+export function stationMatchesQueueOpenFilter(station: Station): boolean {
+  return station.queue != null && station.queue.status === 'ACTIVE';
+}
 
 export function matchesSearch(station: Station, query: string): boolean {
   const normalized = query.trim().toLowerCase();

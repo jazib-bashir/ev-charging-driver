@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
+import {
+  useStationDiscoveryContext,
+  type DiscoveryQuickChipId,
+} from '@/contexts/station-discovery-context';
 import { useTheme } from '@/theme';
 
 import { DISCOVERY_LAYOUT } from './discovery-layout';
@@ -10,12 +14,10 @@ const CHIP_TEXT_SELECTED = '#0F172A';
 const CHIP_GAP = 8;
 const ICON_TEXT_GAP = 6;
 
-type ChipId = 'all' | 'fast' | 'available' | 'queue' | 'distance';
-
 type ChipDef = {
-  id: ChipId;
+  id: DiscoveryQuickChipId;
   label: string;
-  icon?: 'bolt' | 'check' | 'queue';
+  icon?: 'bolt' | 'check';
 };
 
 type DiscoveryFilterChipsProps = {
@@ -26,30 +28,8 @@ const CHIPS: ChipDef[] = [
   { id: 'all', label: 'All' },
   { id: 'fast', label: 'Fast', icon: 'bolt' },
   { id: 'available', label: 'Available', icon: 'check' },
-  { id: 'queue', label: 'Queue Open', icon: 'queue' },
   { id: 'distance', label: '< 3 km' },
 ];
-
-function QueueDotsIcon({ active, borderIdle }: { active: boolean; borderIdle: string }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 2,
-        height: 12,
-        paddingHorizontal: 4,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: active ? 'rgba(15, 23, 42, 0.25)' : borderIdle,
-      }}
-    >
-      <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#EF4444' }} />
-      <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#F59E0B' }} />
-      <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#22C55E' }} />
-    </View>
-  );
-}
 
 function ChipIcon({
   icon,
@@ -60,10 +40,6 @@ function ChipIcon({
   active: boolean;
   idleColor: string;
 }) {
-  if (icon === 'queue') {
-    return <QueueDotsIcon active={active} borderIdle={idleColor} />;
-  }
-
   if (icon === 'bolt') {
     return <Icon name="bolt" size={12} color={active ? CHIP_TEXT_SELECTED : idleColor} />;
   }
@@ -74,30 +50,16 @@ function ChipIcon({
 export function DiscoveryFilterChips({ floating = false }: DiscoveryFilterChipsProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme, floating), [theme, floating]);
-  const [selected, setSelected] = useState<Set<ChipId>>(() => new Set(['all']));
+  const { filters, toggleQuickChip } = useStationDiscoveryContext();
 
-  const selectChip = (id: ChipId) => {
-    setSelected((prev) => {
-      if (id === 'all') {
-        return new Set(['all']);
-      }
-
-      const next = new Set(prev);
-      next.delete('all');
-
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-
-      if (next.size === 0) {
-        return new Set(['all']);
-      }
-
-      return next;
-    });
-  };
+  const selected = useMemo(() => {
+    const next = new Set<DiscoveryQuickChipId>();
+    if (filters.fast) next.add('fast');
+    if (filters.available) next.add('available');
+    if (filters.distance) next.add('distance');
+    if (next.size === 0) next.add('all');
+    return next;
+  }, [filters.available, filters.distance, filters.fast]);
 
   return (
     <View style={styles.container}>
@@ -112,7 +74,7 @@ export function DiscoveryFilterChips({ floating = false }: DiscoveryFilterChipsP
           return (
             <Pressable
               key={chip.id}
-              onPress={() => selectChip(chip.id)}
+              onPress={() => toggleQuickChip(chip.id)}
               style={[styles.chip, active ? styles.chipActive : styles.chipIdle]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}

@@ -10,6 +10,7 @@ import MapView, {
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 import {
+  getMapRegionForClosestStation,
   getMapRegionForStations,
   getMapRegionForUserLocation,
   getStationsWithCoordinates,
@@ -46,6 +47,7 @@ export function StationMap({
   stations,
   variant = 'embedded',
   cameraFitKey = '',
+  focusClosestStation = false,
   userCoords = null,
   onRequestUserLocation,
 }: StationMapProps) {
@@ -73,8 +75,11 @@ export function StationMap({
   );
 
   const fitRegion = useMemo(
-    () => getMapRegionForStations(stations),
-    [stations],
+    () =>
+      focusClosestStation
+        ? getMapRegionForClosestStation(stations)
+        : getMapRegionForStations(stations),
+    [focusClosestStation, stations],
   );
 
   const selectedStation = useMemo(
@@ -129,7 +134,7 @@ export function StationMap({
     [bumpMarkerRedraw, mapReady],
   );
 
-  // Open on city center. Reframe to station bounds only after search/filter changes.
+  // Open on city center. Reframe after search/filter changes (closest station when distance filter is on).
   useEffect(() => {
     if (!cameraFitKey || mappableStations.length === 0) {
       return;
@@ -142,7 +147,7 @@ export function StationMap({
     const isFirstStationPayload = lastCameraFitKeyRef.current === null;
     lastCameraFitKeyRef.current = cameraFitKey;
 
-    if (isFirstStationPayload) {
+    if (isFirstStationPayload && !focusClosestStation) {
       applyCameraRegion(LAHORE_DEFAULT_REGION, false);
       return;
     }
@@ -152,6 +157,7 @@ export function StationMap({
     applyCameraRegion,
     cameraFitKey,
     fitRegion,
+    focusClosestStation,
     mappableStations.length,
   ]);
 

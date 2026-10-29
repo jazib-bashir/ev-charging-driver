@@ -304,6 +304,8 @@ export function FilterBottomSheet({
       lng: null,
       connectorTypes: null,
       isFastCharger: null,
+      availableOnly: null,
+      queueOpenOnly: null,
       vehicleId: null,
       sortBy: null,
       sortOrder: null,

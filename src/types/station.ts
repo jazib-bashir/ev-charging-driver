@@ -66,6 +66,10 @@ export type PublicStationFilterState = {
   lng?: number | null;
   connectorTypes?: string[] | null;
   isFastCharger?: boolean | null;
+  /** Client-side: stations marked available / with free chargers. */
+  availableOnly?: boolean | null;
+  /** Client-side: stations with an ACTIVE public queue. */
+  queueOpenOnly?: boolean | null;
   /** Selected driver vehicle id → API `vehicleId`. */
   vehicleId?: string | null;
   sortBy?: StationSortBy | null;

@@ -32,6 +32,8 @@ export function getMapRegionForUserLocation(
 
 const MIN_DELTA = 0.08;
 const SINGLE_STATION_DELTA = 0.12;
+/** Tight neighborhood zoom when focusing the nearest station (e.g. &lt; 3 km filter). */
+const CLOSEST_STATION_DELTA = 0.035;
 const REGION_PADDING = 1.35;
 
 export function hasValidCoordinates(station: Station): boolean {
@@ -92,5 +94,40 @@ export function getMapRegionForStations(stations: Station[]): MapRegion {
     longitude: (minLng + maxLng) / 2,
     latitudeDelta,
     longitudeDelta,
+  };
+}
+
+/** Zoom to the nearest station (by distanceKm when present, otherwise first mappable). */
+export function getMapRegionForClosestStation(stations: Station[]): MapRegion {
+  const validStations = getStationsWithCoordinates(stations);
+
+  if (validStations.length === 0) {
+    return LAHORE_DEFAULT_REGION;
+  }
+
+  const ranked = [...validStations].sort((left, right) => {
+    const leftDistance =
+      typeof left.distanceKm === 'number' && Number.isFinite(left.distanceKm)
+        ? left.distanceKm
+        : Number.POSITIVE_INFINITY;
+    const rightDistance =
+      typeof right.distanceKm === 'number' && Number.isFinite(right.distanceKm)
+        ? right.distanceKm
+        : Number.POSITIVE_INFINITY;
+
+    if (leftDistance !== rightDistance) {
+      return leftDistance - rightDistance;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+
+  const closest = ranked[0];
+
+  return {
+    latitude: closest.latitude!,
+    longitude: closest.longitude!,
+    latitudeDelta: CLOSEST_STATION_DELTA,
+    longitudeDelta: CLOSEST_STATION_DELTA,
   };
 }

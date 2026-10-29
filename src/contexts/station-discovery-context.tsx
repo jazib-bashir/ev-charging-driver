@@ -16,7 +16,17 @@ import {
   attachDistancesToStations,
   sortStationsByDistance,
 } from '@/utils/location-helpers';
-import type { StationFilters } from '@/utils/station';
+import {
+  QUICK_DISTANCE_RADIUS_KM,
+  stationMatchesAvailableFilter,
+  type StationFilters,
+} from '@/utils/station';
+
+export type DiscoveryQuickChipId =
+  | 'all'
+  | 'fast'
+  | 'available'
+  | 'distance';
 
 const EMPTY_ADVANCED_FILTERS: PublicStationFilterState = {
   radiusKm: null,
@@ -26,6 +36,8 @@ const EMPTY_ADVANCED_FILTERS: PublicStationFilterState = {
   lng: null,
   connectorTypes: null,
   isFastCharger: null,
+  availableOnly: null,
+  queueOpenOnly: null,
   vehicleId: null,
   sortBy: null,
   sortOrder: null,
@@ -70,12 +82,26 @@ function enrichStationsWithDistance(
   return sortByDistance ? sortStationsByDistance(withDistance) : withDistance;
 }
 
+function applyClientSideStationFilters(
+  stations: Station[],
+  filters: PublicStationFilterState,
+): Station[] {
+  let next = stations;
+
+  if (filters.availableOnly) {
+    next = next.filter(stationMatchesAvailableFilter);
+  }
+
+  return next;
+}
+
 type StationDiscoveryContextValue = {
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   debouncedSearch: string;
   filters: StationFilters;
   toggleFilter: (key: keyof StationFilters) => void;
+  toggleQuickChip: (id: DiscoveryQuickChipId) => void;
   advancedFilters: PublicStationFilterState;
   applyAdvancedFilters: (filters: PublicStationFilterState) => void;
   isFilterSheetOpen: boolean;
@@ -155,27 +181,33 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
   const enrichedList = useMemo(
     () => ({
       ...list,
-      stations: enrichStationsWithDistance(
-        list.stations,
-        originCoords?.lat,
-        originCoords?.lng,
-        sortByDistance,
+      stations: applyClientSideStationFilters(
+        enrichStationsWithDistance(
+          list.stations,
+          originCoords?.lat,
+          originCoords?.lng,
+          sortByDistance,
+        ),
+        advancedFilters,
       ),
     }),
-    [list, originCoords?.lat, originCoords?.lng, sortByDistance],
+    [advancedFilters, list, originCoords?.lat, originCoords?.lng, sortByDistance],
   );
 
   const enrichedMap = useMemo(
     () => ({
       ...map,
-      stations: enrichStationsWithDistance(
-        map.stations,
-        originCoords?.lat,
-        originCoords?.lng,
-        sortByDistance,
+      stations: applyClientSideStationFilters(
+        enrichStationsWithDistance(
+          map.stations,
+          originCoords?.lat,
+          originCoords?.lng,
+          sortByDistance,
+        ),
+        advancedFilters,
       ),
     }),
-    [map, originCoords?.lat, originCoords?.lng, sortByDistance],
+    [advancedFilters, map, originCoords?.lat, originCoords?.lng, sortByDistance],
   );
 
   const toggleFilter = useCallback((key: keyof StationFilters) => {
@@ -184,6 +216,43 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
         ...prev,
         isFastCharger: prev.isFastCharger === true ? null : true,
       }));
+      return;
+    }
+
+    if (key === 'available') {
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        availableOnly: prev.availableOnly === true ? null : true,
+      }));
+      return;
+    }
+
+    if (key === 'distance') {
+      if (advancedFilters.radiusKm === QUICK_DISTANCE_RADIUS_KM) {
+        setAdvancedFilters((prev) => ({ ...prev, radiusKm: null }));
+        return;
+      }
+
+      void (async () => {
+        setLocationError(null);
+        try {
+          const coords = userLocation.coords ?? (await userLocation.enableLocation());
+          setAdvancedFilters((prev) => ({
+            ...prev,
+            radiusKm: QUICK_DISTANCE_RADIUS_KM,
+            lat: coords.lat,
+            lng: coords.lng,
+            city: null,
+          }));
+          setIsLocationBannerDismissed(true);
+        } catch (err) {
+          const message =
+            err instanceof GeolocationError
+              ? err.message
+              : 'Unable to read your current location. Please try again.';
+          setLocationError(message);
+        }
+      })();
       return;
     }
 
@@ -207,7 +276,26 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
         };
       });
     }
-  }, []);
+  }, [advancedFilters.radiusKm, userLocation]);
+
+  const toggleQuickChip = useCallback(
+    (id: DiscoveryQuickChipId) => {
+      if (id === 'all') {
+        setAdvancedFilters((prev) => ({
+          ...prev,
+          isFastCharger: null,
+          availableOnly: null,
+          queueOpenOnly: null,
+          radiusKm:
+            prev.radiusKm === QUICK_DISTANCE_RADIUS_KM ? null : prev.radiusKm,
+        }));
+        return;
+      }
+
+      toggleFilter(id);
+    },
+    [toggleFilter],
+  );
 
   const applyAdvancedFilters = useCallback((newFilters: PublicStationFilterState) => {
     setLocationError(null);
@@ -226,7 +314,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const clearAllFilters = useCallback(() => {
-    setAdvancedFilters(EMPTY_ADVANCED_FILTERS);
+    setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS });
     setLocationError(null);
     setSearchQuery('');
     setDebouncedSearch('');
@@ -286,10 +374,18 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
   const quickChipState: StationFilters = useMemo(
     () => ({
       fast: Boolean(advancedFilters.isFastCharger),
+      available: Boolean(advancedFilters.availableOnly),
+      queue: false,
+      distance: advancedFilters.radiusKm === QUICK_DISTANCE_RADIUS_KM,
       tesla: (advancedFilters.connectorTypes ?? []).includes('NACS'),
       ccs: (advancedFilters.connectorTypes ?? []).includes('CCS2'),
     }),
-    [advancedFilters.connectorTypes, advancedFilters.isFastCharger],
+    [
+      advancedFilters.availableOnly,
+      advancedFilters.connectorTypes,
+      advancedFilters.isFastCharger,
+      advancedFilters.radiusKm,
+    ],
   );
 
   const hasActiveSearch = debouncedSearch.length > 0;
@@ -298,6 +394,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       advancedFilters.city ||
       typeof advancedFilters.isPrimarySite === 'boolean' ||
       typeof advancedFilters.isFastCharger === 'boolean' ||
+      advancedFilters.availableOnly ||
       (advancedFilters.connectorTypes && advancedFilters.connectorTypes.length > 0) ||
       advancedFilters.vehicleId ||
       advancedFilters.sortBy,
@@ -308,6 +405,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
     (advancedFilters.city ? 1 : 0) +
     (typeof advancedFilters.isPrimarySite === 'boolean' ? 1 : 0) +
     (typeof advancedFilters.isFastCharger === 'boolean' ? 1 : 0) +
+    (advancedFilters.availableOnly ? 1 : 0) +
     (advancedFilters.connectorTypes?.length ? 1 : 0) +
     (advancedFilters.vehicleId ? 1 : 0) +
     (advancedFilters.sortBy ? 1 : 0);
@@ -324,6 +422,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       debouncedSearch,
       filters: quickChipState,
       toggleFilter,
+      toggleQuickChip,
       advancedFilters,
       applyAdvancedFilters,
       isFilterSheetOpen,
@@ -370,6 +469,7 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
       searchNearby,
       searchQuery,
       toggleFilter,
+      toggleQuickChip,
       userLocation.isLoading,
       userLocation.coords,
       userLocation.openLocationSettings,
