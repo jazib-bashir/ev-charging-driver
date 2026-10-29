@@ -1,8 +1,9 @@
 import type { Station } from '@/types/station';
+import { hasMetricValue } from '@/utils/charging-session-format';
 
 type StationLocationFields = Pick<
   Station,
-  'city' | 'regionCity' | 'state' | 'formattedAddress'
+  'city' | 'regionCity' | 'state' | 'formattedAddress' | 'distanceKm'
 >;
 
 /** Compact subtitle for Home journey card (e.g. "Johar Town · Lahore"). */
@@ -42,4 +43,35 @@ export function formatStationDiscoverySubtitle(
   }
 
   return city || region || station.state?.trim() || null;
+}
+
+/** Home journey subtitle with optional distance (e.g. "Johar Town · 2.4 km"). */
+export function formatHomeJourneyStationSubtitle(
+  station: StationLocationFields | null | undefined,
+): string | null {
+  const base = formatStationDiscoverySubtitle(station);
+  const km = station?.distanceKm;
+
+  if (!hasMetricValue(km)) {
+    return base;
+  }
+
+  const distance = `${Number(km).toFixed(1)} km`;
+
+  if (!base) {
+    return distance;
+  }
+
+  const region = station?.regionCity?.trim();
+  const city = station?.city?.trim();
+
+  if (region) {
+    return `${region} · ${distance}`;
+  }
+
+  if (city) {
+    return `${city} · ${distance}`;
+  }
+
+  return `${base} · ${distance}`;
 }

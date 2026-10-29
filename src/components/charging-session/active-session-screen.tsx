@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,7 +25,9 @@ import { ActiveSessionCard } from './active-session-card';
 
 export function ActiveSessionScreen() {
   const { token } = useAuth();
-  const { session, isLoading, error, refresh } = useActiveChargingSession({ token });
+  const { session, isLoading, isRefreshing, error, refresh } = useActiveChargingSession({
+    token,
+  });
   const [stationName, setStationName] = useState<string>();
   const [evseLabel, setEvseLabel] = useState<string>();
   const [connectorLabel, setConnectorLabel] = useState<string>();
@@ -119,7 +122,20 @@ export function ActiveSessionScreen() {
         ) : null}
 
         {session ? (
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={() => {
+                  void refresh({ showLoading: false });
+                }}
+                tintColor={theme.colors.brand}
+                colors={[theme.colors.brand]}
+              />
+            }
+          >
             <ActiveSessionCard
               session={session}
               stationName={stationName}

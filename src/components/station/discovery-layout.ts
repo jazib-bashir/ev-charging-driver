@@ -8,4 +8,6 @@ export const DISCOVERY_LAYOUT = {
   cardGap: 14,
   searchHeight: 45,
   chipHeight: 30,
+  /** Extra space under the last station card so scroll doesn’t feel clipped. */
+  listBottomPad: 40,
 } as const;

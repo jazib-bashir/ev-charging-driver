@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -26,6 +27,7 @@ type StationListProps = {
   onEndReached?: () => void;
   onClearAllFilters?: () => void;
   onSearchNearby?: () => void;
+  /** Full-bleed chrome (journey, search, filters) that scrolls with the list. */
   listHeader?: ReactNode;
 };
 
@@ -49,28 +51,41 @@ export function StationList({
   const { width } = useWindowDimensions();
   const isTablet = width >= TABLET_BREAKPOINT;
 
+  const refreshControl = onRefresh ? (
+    <RefreshControl
+      refreshing={isRefreshing}
+      onRefresh={onRefresh}
+      tintColor={theme.colors.brand}
+      colors={[theme.colors.brand]}
+    />
+  ) : undefined;
+
   if (stations.length === 0) {
     return (
-      <View style={styles.emptyWrap}>
-        {listHeader ? (
-          <View style={[styles.discoveryInset, styles.listHeader]}>{listHeader}</View>
-        ) : null}
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.emptyContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
+      >
+        {listHeader ? <View style={styles.listHeader}>{listHeader}</View> : null}
         <EmptyState
-        title="No Stations Found"
-        message={
-          hasActiveSearch || hasActiveFilters
-            ? 'Try adjusting your filters or searching in a different area to find a place to charge.'
-            : 'Check back later for newly added charging locations.'
-        }
-        iconName="search-off"
-        primaryActionLabel={
-          hasActiveSearch || hasActiveFilters ? 'Clear All Filters' : undefined
-        }
-        onPrimaryAction={onClearAllFilters}
-        secondaryActionLabel="Search Nearby"
-        onSecondaryAction={onSearchNearby}
+          title="No Stations Found"
+          message={
+            hasActiveSearch || hasActiveFilters
+              ? 'Try adjusting your filters or searching in a different area to find a place to charge.'
+              : 'Check back later for newly added charging locations.'
+          }
+          iconName="search-off"
+          primaryActionLabel={
+            hasActiveSearch || hasActiveFilters ? 'Clear All Filters' : undefined
+          }
+          onPrimaryAction={onClearAllFilters}
+          secondaryActionLabel="Search Nearby"
+          onSecondaryAction={onSearchNearby}
         />
-      </View>
+      </ScrollView>
     );
   }
 
@@ -83,24 +98,10 @@ export function StationList({
           <StationCard station={item} />
         </View>
       )}
-      contentContainerStyle={[
-        styles.content,
-        isTablet && styles.contentTablet,
-      ]}
+      contentContainerStyle={[styles.content, isTablet && styles.contentTablet]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-      refreshControl={
-        onRefresh
-          ? (
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.colors.brand}
-              colors={[theme.colors.brand]}
-            />
-          )
-          : undefined
-      }
+      refreshControl={refreshControl}
       onEndReached={() => {
         if (hasMore && !isLoadingMore) {
           onEndReached?.();
@@ -108,16 +109,14 @@ export function StationList({
       }}
       onEndReachedThreshold={0.35}
       ListHeaderComponent={
-        listHeader ? () => <View style={styles.listHeader}>{listHeader}</View> : undefined
+        listHeader ? <View style={styles.listHeader}>{listHeader}</View> : null
       }
       ListFooterComponent={
-        isLoadingMore
-          ? (
-            <View style={styles.footer}>
-              <ActivityIndicator color={theme.colors.brand} />
-            </View>
-          )
-          : null
+        isLoadingMore ? (
+          <View style={styles.footer}>
+            <ActivityIndicator color={theme.colors.brand} />
+          </View>
+        ) : null
       }
     />
   );
@@ -125,30 +124,31 @@ export function StationList({
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
-    emptyWrap: {
+    flex: {
       flex: 1,
     },
-    listHeader: {
-      marginBottom: DISCOVERY_LAYOUT.cardGap,
+    emptyContent: {
+      flexGrow: 1,
+      paddingBottom: DISCOVERY_LAYOUT.listBottomPad,
     },
-    discoveryInset: {
-      paddingHorizontal: DISCOVERY_LAYOUT.edge,
-      paddingTop: DISCOVERY_LAYOUT.sectionGap,
+    listHeader: {
+      marginBottom: DISCOVERY_LAYOUT.sectionGap,
     },
     content: {
-      paddingHorizontal: DISCOVERY_LAYOUT.edge,
       paddingTop: DISCOVERY_LAYOUT.sectionGap,
-      paddingBottom: DISCOVERY_LAYOUT.edge,
+      paddingBottom: DISCOVERY_LAYOUT.listBottomPad,
     },
     contentTablet: {
       alignItems: 'center',
     },
     item: {
+      marginHorizontal: DISCOVERY_LAYOUT.edge,
       marginBottom: DISCOVERY_LAYOUT.cardGap,
     },
     itemTablet: {
       width: '100%',
       maxWidth: 640,
+      alignSelf: 'center',
     },
     footer: {
       paddingVertical: theme.spacing.lg,

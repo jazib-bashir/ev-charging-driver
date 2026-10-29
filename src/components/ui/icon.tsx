@@ -30,6 +30,8 @@ export type IconName =
   | 'map-pin'
   | 'checkmark'
   | 'wifi'
+  | 'wifi-off'
+  | 'plug'
   | 'coffee'
   | 'dining'
   | 'restroom'
@@ -46,6 +48,7 @@ export type IconName =
   | 'create'
   | 'star'
   | 'star-outline'
+  | 'sparkles'
   | 'add'
   | 'log-out'
   | 'trash'
@@ -87,6 +90,8 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   locate: { family: 'ionicons', name: 'locate-outline' },
   'search-off': { family: 'material', name: 'magnify-close' },
   wifi: { family: 'ionicons', name: 'wifi' },
+  'wifi-off': { family: 'ionicons', name: 'cloud-offline-outline' },
+  plug: { family: 'material', name: 'power-plug-outline' },
   coffee: { family: 'ionicons', name: 'cafe-outline' },
   dining: { family: 'ionicons', name: 'restaurant-outline' },
   restroom: { family: 'ionicons', name: 'male-female-outline' },
@@ -99,6 +104,7 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   create: { family: 'ionicons', name: 'create-outline' },
   star: { family: 'ionicons', name: 'star' },
   'star-outline': { family: 'ionicons', name: 'star-outline' },
+  sparkles: { family: 'ionicons', name: 'sparkles-outline' },
   add: { family: 'ionicons', name: 'add' },
   'log-out': { family: 'ionicons', name: 'log-out-outline' },
   trash: { family: 'ionicons', name: 'trash-outline' },

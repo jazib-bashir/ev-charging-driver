@@ -64,7 +64,7 @@ export function mapQueueMember(raw: Record<string, unknown>): QueueMember {
   return {
     id: String(raw.id ?? ''),
     queueId: String(raw.queueId ?? ''),
-    stationId: String(raw.stationId ?? ''),
+    stationId: String(raw.stationId ?? raw.station ?? ''),
     driverUserId: String(raw.driverUserId ?? ''),
     vehicleId: (raw.vehicleId as string | null | undefined) ?? null,
     connectorPreference:

@@ -22,6 +22,27 @@ export function formatEstimatedTurn(iso: string | null | undefined): string | nu
   return formatTime(date);
 }
 
+/** Relative wait for Home queued card (e.g. "~6 min"). */
+export function formatEstimatedWaitRelative(iso: string | null | undefined): string | null {
+  if (!iso) {
+    return null;
+  }
+
+  const date = new Date(iso);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const minutes = Math.max(0, Math.round((date.getTime() - Date.now()) / 60_000));
+
+  if (minutes <= 0) {
+    return '< 1 min';
+  }
+
+  return `~${minutes} min`;
+}
+
 export function formatArrivalWindow(
   startIso: string | null | undefined,
   endIso: string | null | undefined,
@@ -79,7 +100,11 @@ export function formatDriversAheadSubtext(member: QueueMember): string | null {
     return null;
   }
 
-  return ahead === 0 ? 'No drivers ahead' : null;
+  return 'Stay nearby. We’ll let you know as soon as a charger is ready.';
+}
+
+export function formatQueuedCenterEyebrow(): string {
+  return "You're in the queue";
 }
 
 export function formatReadyChargerBayNumber(
@@ -152,7 +177,7 @@ export function resolveHomeJourneyStepIndex(variant: HomeJourneyVisualVariant): 
 export function homeJourneyStatusBadgeLabel(variant: HomeJourneyVisualVariant): string {
   switch (variant) {
     case 'at-station':
-      return 'At station';
+      return 'Checked In';
     case 'ready':
       return 'Ready';
     case 'charging':
@@ -169,14 +194,31 @@ export function homeJourneyStatusBadgeLabel(variant: HomeJourneyVisualVariant): 
 export function homeJourneyActionLabel(variant: HomeJourneyVisualVariant): string {
   switch (variant) {
     case 'at-station':
-      return 'Open arrival details';
+      return 'View arrival journey';
     case 'ready':
-      return 'Open charger details';
+      return 'Open charger journey';
     case 'charging':
+      return 'Open live session';
     case 'session-pending':
-      return 'Open charging session';
+      return 'View journey details';
     default:
-      return 'Open queue';
+      return 'View queue journey';
+  }
+}
+
+/** Secondary line under the Home journey CTA (Figma). */
+export function homeJourneyActionSubtitle(variant: HomeJourneyVisualVariant): string {
+  switch (variant) {
+    case 'at-station':
+      return 'Check-in details and station instructions';
+    case 'ready':
+      return 'Wayfinding and connection instructions';
+    case 'charging':
+      return 'Telemetry, timeline and charger details';
+    case 'session-pending':
+      return 'Timeline, station access and next steps';
+    default:
+      return 'Timeline, station access and next steps';
   }
 }
 
@@ -283,7 +325,7 @@ export function getAtStationPreparationHeadline(membership: QueueMember): string
     return 'Finding a compatible charger';
   }
 
-  return 'Operator is getting your charger ready';
+  return 'Preparing your charger';
 }
 
 export type HomeQueueJourneyVariant = 'queued' | 'at-station' | 'ready' | 'session-pending' | 'other';

@@ -11,13 +11,22 @@ import { DISCOVERY_LAYOUT } from './discovery-layout';
 
 type StationHeaderProps = {
   variant?: 'default' | 'map';
+  /** Dark-mode charging cockpit chrome (white wordmark on teal). */
+  appearance?: 'default' | 'charging';
   onBack?: () => void;
 };
 
-export function StationHeader({ variant = 'default', onBack }: StationHeaderProps) {
+export function StationHeader({
+  variant = 'default',
+  appearance = 'default',
+  onBack,
+}: StationHeaderProps) {
   const { theme } = useTheme();
   const isMap = variant === 'map';
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const isCharging = appearance === 'charging';
+  const styles = useMemo(() => createStyles(theme, isCharging), [theme, isCharging]);
+  const textColor = isCharging ? '#FFFFFF' : theme.colors.textPrimary;
+  const bellColor = isCharging ? '#FFFFFF' : theme.colors.textPrimary;
 
   const openNotifications = () => {
     router.push('/notifications' as Href);
@@ -33,7 +42,7 @@ export function StationHeader({ variant = 'default', onBack }: StationHeaderProp
           accessibilityLabel="Back to station list"
           style={styles.backButton}
         >
-          <Icon name="back" size={20} color={theme.colors.textPrimary} />
+          <Icon name="back" size={20} color={textColor} />
         </Pressable>
       ) : (
         <View style={styles.brandRow}>
@@ -51,14 +60,17 @@ export function StationHeader({ variant = 'default', onBack }: StationHeaderProp
         accessibilityLabel="Notifications"
         style={styles.notificationButton}
       >
-        <Icon name="bell" size={18} color={theme.colors.textPrimary} />
+        <Icon name="bell" size={18} color={bellColor} />
         <View style={styles.notificationDot} />
       </IconButton>
     </View>
   );
 }
 
-function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+function createStyles(
+  theme: ReturnType<typeof useTheme>['theme'],
+  isCharging: boolean,
+) {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',
@@ -67,6 +79,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       paddingTop: DISCOVERY_LAYOUT.sectionGap,
       paddingBottom: 0,
       minHeight: 44,
+      backgroundColor: isCharging ? 'transparent' : undefined,
     },
     brandRow: {
       flexDirection: 'row',
@@ -78,7 +91,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       fontFamily: theme.typography.fontFamily.brand,
       fontSize: theme.typography.fontSize.brand,
       lineHeight: theme.typography.lineHeight.brand,
-      color: theme.colors.textPrimary,
+      color: isCharging ? '#FFFFFF' : theme.colors.textPrimary,
       letterSpacing: 0,
     },
     mapTitle: {
@@ -101,12 +114,12 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       backgroundColor: theme.colors.iconBackground,
     },
     notificationButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 9,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: 'transparent',
+      borderColor: isCharging ? 'rgba(255,255,255,0.18)' : theme.colors.border,
+      backgroundColor: isCharging ? 'rgba(0,0,0,0.22)' : theme.colors.surface,
     },
     notificationDot: {
       position: 'absolute',
@@ -117,7 +130,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderRadius: 4,
       backgroundColor: theme.colors.notification,
       borderWidth: 1.5,
-      borderColor: theme.colors.background,
+      borderColor: isCharging ? '#0A2F2A' : theme.colors.background,
     },
   });
 }

@@ -31,6 +31,7 @@ function RootNavigator() {
         <Stack.Screen name="stations/[id]" />
         <Stack.Screen name="sessions/[id]" />
         <Stack.Screen name="sessions/active" />
+        <Stack.Screen name="journey/details" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="auth/index" options={{ presentation: 'card' }} />
         <Stack.Screen name="auth/onboarding" options={{ presentation: 'card' }} />

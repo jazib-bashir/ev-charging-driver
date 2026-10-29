@@ -36,3 +36,4 @@ export function getThemeColors(mode: ThemeMode): ThemeColors {
 export { lightColors, darkColors, ACCENT, STATUS_AVAILABLE, STATUS_FAST, radius, shadows, spacing, typography };
 export type { ThemeColors, ThemeMode, ThemeRadius, ThemeShadows, ThemeSpacing, ThemeTypography };
 export { ThemeProvider, useTheme } from '@/theme/theme-context';
+export type { AppTheme } from '@/theme/theme-context';

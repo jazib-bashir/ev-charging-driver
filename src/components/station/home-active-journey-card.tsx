@@ -1,15 +1,13 @@
 import type { ReactNode } from 'react';
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme, type AppTheme } from '@/theme';
 import type { ChargingSession } from '@/types/charging-session';
 import type { QueueMember } from '@/types/queue';
 import {
   EMPTY_METRIC,
-  formatEnergyKwh,
   formatHomeJourneyConnectorLabel,
   formatHomeJourneyDuration,
   formatPowerKw,
@@ -17,32 +15,45 @@ import {
 import {
   formatDriversAheadHeadline,
   formatDriversAheadSubtext,
-  formatEstimatedTurn,
+  formatEstimatedWaitRelative,
   formatQueuePositionPadded,
+  formatQueuedCenterEyebrow,
   formatReadyChargerBayNumber,
   formatReadyConnectorBadge,
+  getAtStationPreparationHeadline,
   homeJourneyActionLabel,
   homeJourneyStatusBadgeLabel,
   resolveHomeJourneyStepIndex,
   resolveHomeJourneyVisualVariant,
+  type HomeJourneyVisualVariant,
 } from '@/utils/queue-display';
 
-const JOURNEY_STEPS = ['Queue', 'Arrived', 'Ready', 'Charge'] as const;
+const JOURNEY_STEPS = ['Queue', 'Arrived', 'Ready', 'Charging'] as const;
+const STEP_COUNT = JOURNEY_STEPS.length;
+const STEP_SIZE = 26;
+const STEP_RADIUS = STEP_SIZE / 2;
 
-const CHARGING_CARD = {
-  background: '#0B3D34',
-  border: 'rgba(0, 217, 160, 0.35)',
-  topAccent: theme.colors.brand,
+/** Distinctive charging surface — not reused for queue states. */
+const CHARGING_SURFACE = {
+  background: '#0A2F2A',
+  border: 'rgba(0, 217, 160, 0.32)',
   textPrimary: '#FFFFFF',
-  textMuted: 'rgba(255, 255, 255, 0.72)',
+  textMuted: 'rgba(255, 255, 255, 0.68)',
   panelBg: 'rgba(0, 0, 0, 0.22)',
   panelBorder: 'rgba(255, 255, 255, 0.12)',
 } as const;
 
-const READY_PANEL = {
-  background: '#0D4A42',
-  badgeBg: 'rgba(0, 217, 160, 0.2)',
+/** Dark-theme queue journey card (Queued / Arrived / Ready). */
+const DARK_JOURNEY_SURFACE = {
+  background: '#121E1D',
+  border: 'rgba(0, 217, 160, 0.22)',
+  textPrimary: '#F4FFFB',
+  textMuted: 'rgba(244, 255, 251, 0.62)',
+  panelBg: 'rgba(0, 0, 0, 0.28)',
+  panelBorder: 'rgba(255, 255, 255, 0.1)',
 } as const;
+
+type SurfaceMode = 'light' | 'dark-journey' | 'charging';
 
 type HomeActiveJourneyCardProps = {
   membership?: QueueMember | null;
@@ -56,231 +67,363 @@ type HomeActiveJourneyCardProps = {
   onPress?: () => void;
 };
 
+function resolveSurfaceMode(
+  variant: HomeJourneyVisualVariant,
+  isThemeDark: boolean,
+): SurfaceMode {
+  if (variant === 'charging') {
+    return 'charging';
+  }
+  return isThemeDark ? 'dark-journey' : 'light';
+}
+
 function JourneyStepIndicator({
   currentStepIndex,
-  dark = false,
+  surface,
+  styles,
+  activeLabelColor,
 }: {
   currentStepIndex: number;
-  dark?: boolean;
+  surface: SurfaceMode;
+  styles: ReturnType<typeof createStyles>;
+  activeLabelColor: string;
 }) {
+  const isDark = surface !== 'light';
+
   return (
     <View style={styles.stepperRow}>
       {JOURNEY_STEPS.map((label, index) => {
         const isComplete = index < currentStepIndex;
         const isCurrent = index === currentStepIndex;
-        const isUpcoming = index > currentStepIndex;
-        const connectorActive = index > 0 && index <= currentStepIndex;
+        const isActive = isComplete || isCurrent;
+        const leftActive = index > 0 && index <= currentStepIndex;
+        const rightActive = index < currentStepIndex;
 
         return (
-          <Fragment key={label}>
+          <View key={label} style={styles.stepSlot}>
             {index > 0 ? (
-              <View
-                style={[
-                  styles.stepConnector,
-                  dark && styles.stepConnectorDark,
-                  connectorActive && styles.stepConnectorActive,
-                  dark && connectorActive && styles.stepConnectorActiveDark,
-                ]}
-              />
-            ) : null}
-            <View style={styles.stepNode}>
-              <View
-                style={[
-                  styles.stepCircle,
-                  dark && styles.stepCircleDark,
-                  isComplete && styles.stepCircleComplete,
-                  isCurrent && styles.stepCircleCurrent,
-                  isUpcoming && (dark ? styles.stepCircleUpcomingDark : styles.stepCircleUpcoming),
-                ]}
-              >
-                {isComplete ? (
-                  <Icon name="check" size={14} color={theme.colors.textInverse} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.stepNumber,
-                      isCurrent && styles.stepNumberCurrent,
-                      isUpcoming && styles.stepNumberUpcoming,
-                      dark && isUpcoming && styles.stepNumberUpcomingDark,
-                      dark && isCurrent && styles.stepNumberCurrentDark,
-                    ]}
-                  >
-                    {index + 1}
-                  </Text>
-                )}
+              <View style={styles.stepRailLeftTrack}>
+                <View
+                  style={[
+                    styles.stepRailFill,
+                    isDark && styles.stepRailFillDark,
+                    leftActive && styles.stepRailFillActive,
+                  ]}
+                />
               </View>
-              <Text
-                style={[
-                  styles.stepLabel,
-                  dark && styles.stepLabelDark,
-                  (isComplete || isCurrent) && styles.stepLabelActive,
-                  dark && (isComplete || isCurrent) && styles.stepLabelActiveDark,
-                ]}
-                numberOfLines={1}
-              >
-                {label}
-              </Text>
+            ) : null}
+            {index < STEP_COUNT - 1 ? (
+              <View style={styles.stepRailRightTrack}>
+                <View
+                  style={[
+                    styles.stepRailFill,
+                    isDark && styles.stepRailFillDark,
+                    rightActive && styles.stepRailFillActive,
+                  ]}
+                />
+              </View>
+            ) : null}
+
+            <View
+              style={[
+                styles.stepCircle,
+                isActive && styles.stepCircleFilled,
+                !isActive && (isDark ? styles.stepCircleUpcomingDark : styles.stepCircleUpcoming),
+              ]}
+            >
+              {isComplete ? (
+                <Icon
+                  name="check"
+                  size={12}
+                  color={surface === 'charging' ? CHARGING_SURFACE.background : '#FFFFFF'}
+                />
+              ) : (
+                <Text
+                  style={[
+                    styles.stepNumber,
+                    isCurrent && styles.stepNumberOnBrand,
+                    !isActive && styles.stepNumberUpcoming,
+                    isDark && !isActive && styles.stepNumberUpcomingDark,
+                  ]}
+                >
+                  {index + 1}
+                </Text>
+              )}
             </View>
-          </Fragment>
+
+            <Text
+              style={[
+                styles.stepLabel,
+                isDark && styles.stepLabelDark,
+                isActive && { color: activeLabelColor, fontWeight: '700' },
+              ]}
+              numberOfLines={1}
+            >
+              {label}
+            </Text>
+          </View>
         );
       })}
     </View>
   );
 }
 
+function StatusBadge({
+  label,
+  surface,
+  filled,
+  styles,
+}: {
+  label: string;
+  surface: SurfaceMode;
+  filled?: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const isDark = surface !== 'light';
+
+  return (
+    <View
+      style={[
+        styles.statusBadge,
+        filled && styles.statusBadgeFilled,
+        isDark && !filled && styles.statusBadgeDarkSoft,
+        isDark && filled && styles.statusBadgeDarkFilled,
+      ]}
+    >
+      <Text
+        style={[
+          styles.statusBadgeText,
+          filled && styles.statusBadgeTextFilled,
+          isDark && !filled && styles.statusBadgeTextDarkSoft,
+          isDark && filled && styles.statusBadgeTextDarkFilled,
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function JourneyCardFooter({
   actionLabel,
-  dark = false,
+  surface,
+  styles,
 }: {
   actionLabel: string;
-  dark?: boolean;
+  surface: SurfaceMode;
+  styles: ReturnType<typeof createStyles>;
 }) {
+  const isDark = surface !== 'light';
+  const arrowColor =
+    surface === 'charging'
+      ? CHARGING_SURFACE.background
+      : surface === 'dark-journey'
+        ? DARK_JOURNEY_SURFACE.background
+        : '#FFFFFF';
+
   return (
     <View style={styles.footer}>
-      <View style={[styles.footerDivider, dark && styles.footerDividerDark]} />
-      <View style={styles.footerRow}>
-        <Text style={[styles.footerAction, dark && styles.footerActionDark]}>{actionLabel}</Text>
-        <View style={[styles.footerButton, dark && styles.footerButtonDark]}>
-          <Icon
-            name="chevron-forward"
-            size={18}
-            color={dark ? CHARGING_CARD.background : theme.colors.textInverse}
-          />
-        </View>
+      <Text style={[styles.footerAction, isDark && styles.footerActionDark]}>{actionLabel}</Text>
+      <View style={styles.footerButton}>
+        <Icon name="chevron-forward" size={18} color={arrowColor} />
       </View>
     </View>
   );
 }
 
-function ActiveJourneyEyebrow({
-  badgeLabel,
-  dark = false,
-  badgeVariant = 'available',
+function StationHeaderBlock({
+  stationName,
+  stationSubtitle,
+  stationIdentifier,
+  surface,
+  styles,
+  mutedIconColor,
 }: {
-  badgeLabel: string;
-  dark?: boolean;
-  badgeVariant?: 'available' | 'neutral';
+  stationName?: string;
+  stationSubtitle?: string | null;
+  stationIdentifier?: string | null;
+  surface: SurfaceMode;
+  styles: ReturnType<typeof createStyles>;
+  mutedIconColor: string;
 }) {
+  if (!stationName && !stationIdentifier && !stationSubtitle) {
+    return null;
+  }
+
+  const isDark = surface !== 'light';
+
   return (
-    <View style={styles.eyebrowRow}>
-      <View style={styles.eyebrowLeft}>
-        <View style={[styles.eyebrowDot, dark && styles.eyebrowDotDark]} />
-        <Text style={[styles.eyebrowLabel, dark && styles.eyebrowLabelDark]}>
-          Active journey
-        </Text>
-      </View>
-      <Badge label={badgeLabel} variant={badgeVariant} showDot />
+    <View style={styles.stationBlock}>
+      {(stationName || stationIdentifier) && (
+        <View style={styles.stationTitleRow}>
+          {stationName ? (
+            <Text
+              style={[styles.stationName, isDark && styles.stationNameDark]}
+              numberOfLines={2}
+            >
+              {stationName}
+            </Text>
+          ) : (
+            <View style={styles.stationNameSpacer} />
+          )}
+          {stationIdentifier ? (
+            <Text
+              style={[styles.stationIdentifier, isDark && styles.stationIdentifierDark]}
+              numberOfLines={2}
+            >
+              {stationIdentifier}
+            </Text>
+          ) : null}
+        </View>
+      )}
+
+      {stationSubtitle ? (
+        <View
+          style={[
+            styles.subtitleRow,
+            stationIdentifier ? styles.subtitleRowWithIdentifier : null,
+          ]}
+        >
+          <Icon name="map-pin" size={14} color={mutedIconColor} />
+          <Text
+            style={[styles.stationSubtitle, isDark && styles.stationSubtitleDark]}
+            numberOfLines={1}
+          >
+            {stationSubtitle}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function QueuedMetricsPanel({ membership }: { membership: QueueMember }) {
+function QueuedMetricsPanel({
+  membership,
+  styles,
+}: {
+  membership: QueueMember;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const position = formatQueuePositionPadded(membership);
   const headline = formatDriversAheadHeadline(membership);
   const subtext = formatDriversAheadSubtext(membership);
-  const estTurn = formatEstimatedTurn(membership.estimatedTurnAt);
+  const estWait = formatEstimatedWaitRelative(membership.estimatedTurnAt);
 
-  if (!position && !headline && !estTurn) {
+  if (!position && !headline && !estWait) {
     return null;
   }
 
   return (
-    <View style={styles.insetPanel}>
+    <View style={styles.queuedPanel}>
       {position ? (
         <>
-          <View style={styles.insetColumn}>
-            <Text style={styles.insetEyebrow}>Queue position</Text>
-            <Text style={styles.insetValueLarge}>{position}</Text>
+          <View style={styles.queuedSideColumn}>
+            <Text style={styles.queuedSideEyebrow}>Position</Text>
+            <Text style={styles.queuedPositionValue}>{position}</Text>
           </View>
-          <View style={styles.insetDivider} />
+          <View style={styles.queuedDivider} />
         </>
       ) : null}
       {headline ? (
         <>
-          <View style={[styles.insetColumn, styles.insetColumnFlex]}>
-            <Text style={styles.insetHeadline}>{headline}</Text>
-            {subtext ? <Text style={styles.insetSubtext}>{subtext}</Text> : null}
+          <View style={styles.queuedCenterColumn}>
+            <Text style={styles.queuedCenterEyebrow}>{formatQueuedCenterEyebrow()}</Text>
+            <Text style={styles.queuedHeadline}>{headline}</Text>
+            {subtext ? <Text style={styles.queuedSubtext}>{subtext}</Text> : null}
           </View>
-          {estTurn ? <View style={styles.insetDivider} /> : null}
+          {estWait ? <View style={styles.queuedDivider} /> : null}
         </>
       ) : null}
-      {estTurn ? (
-        <View style={styles.insetColumn}>
-          <Text style={styles.insetEyebrow}>Est. turn</Text>
-          <Text style={styles.insetValue}>{estTurn}</Text>
+      {estWait ? (
+        <View style={styles.queuedSideColumn}>
+          <Text style={styles.queuedSideEyebrow}>Est. wait</Text>
+          <Text style={styles.queuedWaitValue}>{estWait}</Text>
         </View>
       ) : null}
     </View>
   );
 }
 
-function AtStationBody({ membership }: { membership: QueueMember }) {
+function AtStationBody({
+  membership,
+  styles,
+  brand,
+}: {
+  membership: QueueMember;
+  styles: ReturnType<typeof createStyles>;
+  brand: string;
+}) {
+  const showPrep = membership.needsEvseReassignment === true;
+
   return (
     <>
-      <View style={styles.messageRow}>
-        <View style={styles.messageIconWrap}>
-          <Icon name="map-pin" size={20} color={theme.colors.brandDark} />
+      <View style={styles.infoPanel}>
+        <View style={styles.infoIconWrap}>
+          <Icon name="map-pin" size={22} color={brand} />
         </View>
-        <View style={styles.messageCopy}>
-          <Text style={styles.messageEyebrow}>Arrival confirmed</Text>
-          <Text style={styles.messageTitle}>{"You're checked in"}</Text>
-          <Text style={styles.messageBody}>
-            Stay nearby while the operator prepares your charger.
+        <View style={styles.infoCopy}>
+          <Text style={styles.infoEyebrow}>Arrival confirmed</Text>
+          <Text style={styles.infoTitle}>{"You're checked in"}</Text>
+          <Text style={styles.infoBody}>
+            Park in the waiting area while the operator prepares your charger.
           </Text>
         </View>
       </View>
 
-      <View style={styles.happeningPanel}>
-        <View style={styles.happeningIconWrap}>
-          <Icon name="charger" size={18} color={theme.colors.brandDark} />
+      {showPrep ? (
+        <View style={styles.prepPanel}>
+          <View style={styles.prepIconWrap}>
+            <Icon name="charger" size={18} color={brand} />
+          </View>
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoEyebrow}>Happening now</Text>
+            <Text style={styles.prepTitle}>{getAtStationPreparationHeadline(membership)}</Text>
+          </View>
         </View>
-        <View style={styles.happeningCopy}>
-          <Text style={styles.happeningEyebrow}>Happening now</Text>
-          <Text style={styles.happeningTitle}>
-            {membership.needsEvseReassignment
-              ? 'Finding a compatible charger'
-              : 'Charger preparation in progress'}
-          </Text>
-        </View>
-      </View>
+      ) : null}
     </>
   );
 }
 
-function ReadyBody({ membership }: { membership: QueueMember }) {
+function ReadyBody({
+  membership,
+  styles,
+  brand,
+}: {
+  membership: QueueMember;
+  styles: ReturnType<typeof createStyles>;
+  brand: string;
+}) {
   const bayNumber = formatReadyChargerBayNumber(membership.allocation);
   const connector = formatReadyConnectorBadge(membership.allocation);
 
+  const eyebrow = bayNumber ? `Charger ${bayNumber} is ready` : 'Charger is ready';
+  const instruction = bayNumber
+    ? connector
+      ? `Go to Bay ${bayNumber} and connect your vehicle using the ${connector} cable.`
+      : `Go to Bay ${bayNumber} and connect your vehicle.`
+    : connector
+      ? `Connect your vehicle using the ${connector} cable.`
+      : 'Connect your vehicle, then follow the charger screen.';
+
   return (
-    <>
-      {bayNumber ? (
-        <View style={styles.readyPanel}>
-          <View style={styles.readyPanelLeft}>
-            <Text style={styles.readyPanelEyebrow}>Charger</Text>
-            <Text style={styles.readyPanelNumber}>{bayNumber}</Text>
-          </View>
-          <View style={styles.readyPanelCenter}>
-            <Text style={styles.readyPanelStatusEyebrow}>Your charger is ready</Text>
-            <Text style={styles.readyPanelStatusTitle}>Plug in to begin</Text>
-            <Text style={styles.readyPanelHint}>
-              {`Follow signs to bay ${bayNumber}`}
-            </Text>
-          </View>
-          {connector ? (
-            <View style={styles.readyConnectorBadge}>
-              <Text style={styles.readyConnectorText}>{connector}</Text>
-            </View>
-          ) : null}
+    <View style={styles.readyPanel}>
+      <View style={styles.readyIconWrap}>
+        <Icon name="plug" size={22} color={brand} />
+      </View>
+
+      <View style={styles.readyCopy}>
+        <Text style={styles.infoEyebrow}>{eyebrow}</Text>
+        <Text style={styles.infoTitle}>Plug in to begin</Text>
+        <Text style={styles.infoBody}>{instruction}</Text>
+      </View>
+
+      {connector ? (
+        <View style={styles.connectorBadge}>
+          <Text style={styles.connectorBadgeText}>{connector}</Text>
         </View>
       ) : null}
-
-      <View style={styles.guidanceRow}>
-        <Icon name="bolt" size={16} color={theme.colors.textMuted} />
-        <Text style={styles.guidanceText}>
-          Connect your vehicle, then follow the charger screen
-        </Text>
-      </View>
-    </>
+    </View>
   );
 }
 
@@ -289,123 +432,132 @@ function ChargingBody({
   membership,
   connectorLabel,
   vehicleLabel,
+  styles,
 }: {
   session: ChargingSession;
   membership?: QueueMember | null;
   connectorLabel?: string | null;
   vehicleLabel?: string | null;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const powerRaw = formatPowerKw(session.averagePowerKw ?? session.maxPowerKw);
   const power = powerRaw !== EMPTY_METRIC ? powerRaw : null;
-  const energyRaw = formatEnergyKwh(session.energyKwh);
-  const energy = energyRaw !== EMPTY_METRIC ? energyRaw : null;
+  const energy =
+    session.energyKwh != null && !Number.isNaN(session.energyKwh)
+      ? `${session.energyKwh.toFixed(1)} kWh`
+      : null;
   const duration = formatHomeJourneyDuration(session.durationSeconds, session.startedAt);
-  const connector = formatHomeJourneyConnectorLabel(
+  const connectorRaw = formatHomeJourneyConnectorLabel(
     connectorLabel,
     session.connectorLabel,
     formatReadyConnectorBadge(membership?.allocation),
   );
-  const vehicle =
-    vehicleLabel?.trim() ||
-    session.vehicleLabel?.trim() ||
+  const connector = connectorRaw !== EMPTY_METRIC && connectorRaw !== '—' ? connectorRaw : null;
+  const vehicle = vehicleLabel?.trim() || session.vehicleLabel?.trim() || null;
+  const charger =
+    session.evseLabel?.trim() ||
+    formatReadyChargerBayNumber(membership?.allocation) ||
     null;
+  const chargerLine = charger
+    ? /^charger\b/i.test(charger)
+      ? charger
+      : `Charger ${charger}`
+    : null;
+  const metaLine = [vehicle, chargerLine].filter(Boolean).join(' · ') || null;
 
   const metrics: { label: string; value: string }[] = [];
-  metrics.push({
-    label: 'Energy delivered',
-    value: energy ?? '—',
-  });
-  metrics.push({
-    label: 'Session time',
-    value: duration ?? '—',
-  });
-  metrics.push({
-    label: 'Connector',
-    value: connector,
-  });
+  if (energy) {
+    metrics.push({ label: 'Energy', value: energy });
+  }
+  if (duration) {
+    metrics.push({ label: 'Session', value: duration });
+  }
+  if (connector) {
+    metrics.push({ label: 'Connector', value: connector });
+  }
 
   return (
     <>
       <View style={styles.chargingHeroRow}>
         <View style={styles.chargingBoltWrap}>
-          <Icon name="bolt" size={26} color={CHARGING_CARD.background} />
+          <Icon name="bolt" size={26} color={CHARGING_SURFACE.background} />
         </View>
         <View style={styles.chargingHeroCopy}>
           <Text style={styles.chargingHeroEyebrow}>Charging now</Text>
-          <Text style={styles.chargingHeroPower} numberOfLines={2}>
-            {power ?? 'Starting…'}
-          </Text>
-          {vehicle ? (
+          {power ? (
+            <Text style={styles.chargingHeroPower} numberOfLines={1}>
+              {power}
+            </Text>
+          ) : null}
+          {metaLine ? (
             <Text style={styles.chargingHeroVehicle} numberOfLines={1}>
-              {vehicle}
+              {metaLine}
             </Text>
           ) : null}
         </View>
       </View>
 
-      <View style={styles.chargingMetricsPanel}>
-        {metrics.map((metric, index) => (
-          <Fragment key={metric.label}>
-            {index > 0 ? <View style={styles.chargingMetricDivider} /> : null}
-            <View style={styles.chargingMetricColumn}>
-              <Text style={styles.chargingMetricLabel} numberOfLines={2}>
-                {metric.label}
-              </Text>
-              <Text
-                style={styles.chargingMetricValue}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {metric.value}
-              </Text>
-            </View>
-          </Fragment>
-        ))}
-      </View>
-    </>
-  );
-}
-
-function SessionPendingBody({ membership }: { membership?: QueueMember | null }) {
-  const bayNumber = membership ? formatReadyChargerBayNumber(membership.allocation) : null;
-  const connector = membership ? formatReadyConnectorBadge(membership.allocation) : null;
-
-  return (
-    <>
-      <View style={styles.connectingHeroRow}>
-        <View style={styles.connectingIconWrap}>
-          <Icon name="bolt" size={22} color={theme.colors.brandDark} />
-        </View>
-        <View style={styles.connectingCopy}>
-          <Text style={styles.connectingEyebrow}>Connecting session</Text>
-          <Text style={styles.connectingTitle}>Linking your charger</Text>
-          <Text style={styles.pendingText}>
-            Live stats appear here once the session is active. Updates arrive automatically.
-          </Text>
-        </View>
-      </View>
-
-      {bayNumber || connector ? (
-        <View style={styles.insetPanel}>
-          {bayNumber ? (
-            <>
-              <View style={styles.insetColumn}>
-                <Text style={styles.insetEyebrow}>Bay</Text>
-                <Text style={styles.insetValueLarge}>{bayNumber}</Text>
+      {metrics.length > 0 ? (
+        <View style={styles.chargingMetricsPanel}>
+          {metrics.map((metric, index) => (
+            <Fragment key={metric.label}>
+              {index > 0 ? <View style={styles.chargingMetricDivider} /> : null}
+              <View style={styles.chargingMetricColumn}>
+                <Text style={styles.chargingMetricLabel} numberOfLines={1}>
+                  {metric.label}
+                </Text>
+                <Text style={styles.chargingMetricValue} numberOfLines={1}>
+                  {metric.value}
+                </Text>
               </View>
-              {connector ? <View style={styles.insetDivider} /> : null}
-            </>
-          ) : null}
-          {connector ? (
-            <View style={styles.insetColumn}>
-              <Text style={styles.insetEyebrow}>Connector</Text>
-              <Text style={styles.insetValue}>{connector}</Text>
-            </View>
-          ) : null}
+            </Fragment>
+          ))}
         </View>
       ) : null}
     </>
   );
+}
+
+function SessionPendingBody({
+  membership,
+  styles,
+  brand,
+}: {
+  membership?: QueueMember | null;
+  styles: ReturnType<typeof createStyles>;
+  brand: string;
+}) {
+  const bayNumber = membership ? formatReadyChargerBayNumber(membership.allocation) : null;
+  const connector = membership ? formatReadyConnectorBadge(membership.allocation) : null;
+
+  return (
+    <View style={styles.infoPanel}>
+      <View style={styles.infoIconWrap}>
+        <Icon name="bolt" size={22} color={brand} />
+      </View>
+      <View style={styles.infoCopy}>
+        <Text style={styles.infoEyebrow}>Connecting session</Text>
+        <Text style={styles.infoTitle}>Linking your charger</Text>
+        <Text style={styles.infoBody}>
+          Live stats appear here once the session is active.
+          {bayNumber ? ` Bay ${bayNumber}.` : ''}
+          {connector ? ` ${connector}.` : ''}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function resolveStationIdentifier(
+  session: ChargingSession | null,
+  membership: QueueMember | null,
+): string | null {
+  const fromSession = session?.evseLabel?.trim();
+  if (fromSession) {
+    return fromSession;
+  }
+
+  return formatReadyChargerBayNumber(membership?.allocation);
 }
 
 export function HomeActiveJourneyCard({
@@ -419,6 +571,9 @@ export function HomeActiveJourneyCard({
   isRefreshing = false,
   onPress,
 }: HomeActiveJourneyCardProps) {
+  const { theme, isDark: isThemeDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const hasActiveSession = session?.status === 'CHARGING';
   const variant = resolveHomeJourneyVisualVariant(membership, {
     hasActiveSession,
@@ -427,20 +582,26 @@ export function HomeActiveJourneyCard({
   const stepIndex = resolveHomeJourneyStepIndex(variant);
   const badgeLabel = homeJourneyStatusBadgeLabel(variant);
   const actionLabel = homeJourneyActionLabel(variant);
-  const isDark = variant === 'charging';
-  const badgeVariant =
-    variant === 'ready' || variant === 'charging' || variant === 'session-pending'
-      ? 'neutral'
-      : 'available';
+  const surface = resolveSurfaceMode(variant, isThemeDark);
+  const isDarkSurface = surface !== 'light';
+  const stationIdentifier = resolveStationIdentifier(session, membership);
+  const brand = theme.colors.brand;
+  const activeLabelColor = isDarkSurface ? theme.colors.brandLight : theme.colors.brandDark;
+  const mutedIconColor = isDarkSurface
+    ? surface === 'charging'
+      ? CHARGING_SURFACE.textMuted
+      : DARK_JOURNEY_SURFACE.textMuted
+    : '#64748B';
+  const filledBadge = variant === 'queued' || variant === 'charging';
 
   let body: ReactNode = null;
 
   if (variant === 'queued' && membership) {
-    body = <QueuedMetricsPanel membership={membership} />;
+    body = <QueuedMetricsPanel membership={membership} styles={styles} />;
   } else if (variant === 'at-station' && membership) {
-    body = <AtStationBody membership={membership} />;
+    body = <AtStationBody membership={membership} styles={styles} brand={brand} />;
   } else if (variant === 'ready' && membership) {
-    body = <ReadyBody membership={membership} />;
+    body = <ReadyBody membership={membership} styles={styles} brand={brand} />;
   } else if (variant === 'charging' && session) {
     body = (
       <ChargingBody
@@ -448,54 +609,76 @@ export function HomeActiveJourneyCard({
         membership={membership}
         connectorLabel={connectorLabel}
         vehicleLabel={vehicleLabel}
+        styles={styles}
       />
     );
   } else if (variant === 'session-pending') {
-    body = <SessionPendingBody membership={membership} />;
+    body = <SessionPendingBody membership={membership} styles={styles} brand={brand} />;
   }
 
   const content = (
     <View
       style={[
         styles.card,
-        isDark ? styles.cardDark : styles.cardLight,
+        surface === 'light' && styles.cardLight,
+        surface === 'dark-journey' && styles.cardDarkJourney,
+        surface === 'charging' && styles.cardCharging,
         isRefreshing && styles.cardRefreshing,
       ]}
     >
-      <View style={[styles.topAccent, isDark && styles.topAccentDark]} />
+      {surface === 'light' ? (
+        <>
+          <View style={styles.topWash} pointerEvents="none" />
+          <View style={styles.topAccentLight} />
+        </>
+      ) : (
+        <View style={styles.topAccentDark} />
+      )}
 
       {isRefreshing ? (
         <View
-          style={[styles.refreshOverlay, isDark && styles.refreshOverlayDark]}
+          style={[styles.refreshOverlay, isDarkSurface && styles.refreshOverlayDark]}
           accessibilityLiveRegion="polite"
           accessibilityLabel="Updating journey"
         >
-          <ActivityIndicator color={isDark ? theme.colors.brandLight : theme.colors.brand} />
+          <ActivityIndicator color={isDarkSurface ? theme.colors.brandLight : theme.colors.brand} />
         </View>
       ) : null}
 
-      <ActiveJourneyEyebrow
-        badgeLabel={badgeLabel}
-        dark={isDark}
-        badgeVariant={badgeVariant}
+      <View style={styles.eyebrowRow}>
+        <View style={styles.eyebrowLeft}>
+          <View style={[styles.eyebrowDot, isDarkSurface && styles.eyebrowDotDark]} />
+          <Text style={[styles.eyebrowLabel, isDarkSurface && styles.eyebrowLabelDark]}>
+            Active journey
+          </Text>
+        </View>
+        <StatusBadge
+          label={badgeLabel}
+          surface={surface}
+          filled={filledBadge}
+          styles={styles}
+        />
+      </View>
+
+      <StationHeaderBlock
+        stationName={stationName}
+        stationSubtitle={stationSubtitle}
+        stationIdentifier={stationIdentifier}
+        surface={surface}
+        styles={styles}
+        mutedIconColor={mutedIconColor}
       />
 
-      {stationName ? (
-        <Text style={[styles.stationName, isDark && styles.stationNameDark]}>
-          {stationName}
-        </Text>
-      ) : null}
-      {stationSubtitle ? (
-        <Text style={[styles.stationSubtitle, isDark && styles.stationSubtitleDark]}>
-          {stationSubtitle}
-        </Text>
-      ) : null}
-
-      <JourneyStepIndicator currentStepIndex={stepIndex} dark={isDark} />
+      <JourneyStepIndicator
+        currentStepIndex={stepIndex}
+        surface={surface}
+        styles={styles}
+        activeLabelColor={activeLabelColor}
+      />
 
       {body}
 
-      <JourneyCardFooter actionLabel={actionLabel} dark={isDark} />
+      <JourneyCardFooter actionLabel={actionLabel} surface={surface} styles={styles} />
     </View>
   );
 
@@ -524,507 +707,566 @@ export function HomeActiveQueueCard(
   return <HomeActiveJourneyCard {...props} session={null} />;
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.md,
-    gap: theme.spacing.md,
-  },
-  cardLight: {
-    backgroundColor: '#F2FCF8',
-    borderColor: theme.colors.selectionBorder,
-  },
-  cardRefreshing: {
-    opacity: 0.88,
-  },
-  refreshOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    zIndex: 2,
-  },
-  refreshOverlayDark: {
-    backgroundColor: 'rgba(11, 61, 52, 0.55)',
-  },
-  cardDark: {
-    backgroundColor: CHARGING_CARD.background,
-    borderColor: CHARGING_CARD.border,
-  },
-  topAccent: {
-    height: 3,
-    marginHorizontal: -theme.spacing.md,
-    marginBottom: theme.spacing.xs,
-    backgroundColor: theme.colors.brand,
-  },
-  topAccentDark: {
-    backgroundColor: CHARGING_CARD.topAccent,
-  },
-  pressed: {
-    opacity: 0.96,
-  },
-  eyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    paddingTop: theme.spacing.sm,
-  },
-  eyebrowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  eyebrowDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: theme.colors.brand,
-  },
-  eyebrowDotDark: {
-    backgroundColor: theme.colors.brandLight,
-  },
-  eyebrowLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  eyebrowLabelDark: {
-    color: CHARGING_CARD.textMuted,
-  },
-  stationName: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    lineHeight: 26,
-  },
-  stationNameDark: {
-    color: CHARGING_CARD.textPrimary,
-  },
-  stationSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    marginTop: -4,
-  },
-  stationSubtitleDark: {
-    color: CHARGING_CARD.textMuted,
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: theme.spacing.xs,
-  },
-  stepNode: {
-    width: 52,
-    alignItems: 'center',
-  },
-  stepConnector: {
-    flex: 1,
-    height: 2,
-    marginTop: 13,
-    minWidth: 6,
-    backgroundColor: theme.colors.borderLight,
-  },
-  stepConnectorDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  stepConnectorActive: {
-    backgroundColor: theme.colors.brandMuted,
-  },
-  stepConnectorActiveDark: {
-    backgroundColor: 'rgba(0, 217, 160, 0.45)',
-  },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.iconBackground,
-  },
-  stepCircleDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  stepCircleComplete: {
-    backgroundColor: theme.colors.statusAvailable,
-  },
-  stepCircleCurrent: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 2,
-    borderColor: theme.colors.brand,
-  },
-  stepCircleUpcoming: {
-    backgroundColor: theme.colors.iconBackground,
-  },
-  stepCircleUpcomingDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  stepNumber: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textMuted,
-  },
-  stepNumberCurrent: {
-    color: theme.colors.brandDark,
-  },
-  stepNumberCurrentDark: {
-    color: theme.colors.brandLight,
-  },
-  stepNumberUpcoming: {
-    color: theme.colors.textMuted,
-  },
-  stepNumberUpcomingDark: {
-    color: CHARGING_CARD.textMuted,
-  },
-  stepLabel: {
-    marginTop: 6,
-    fontSize: 10,
-    fontWeight: '500',
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  stepLabelDark: {
-    color: CHARGING_CARD.textMuted,
-  },
-  stepLabelActive: {
-    fontWeight: '700',
-    color: theme.colors.brandDark,
-  },
-  stepLabelActiveDark: {
-    color: theme.colors.brandLight,
-  },
-  insetPanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.iconBackground,
-    borderRadius: theme.radius.lg,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.sm,
-  },
-  insetColumn: {
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.xs,
-    minWidth: 72,
-  },
-  insetColumnFlex: {
-    flex: 1,
-    alignItems: 'flex-start',
-    paddingHorizontal: theme.spacing.sm,
-  },
-  insetDivider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: 'stretch',
-    backgroundColor: theme.colors.border,
-    marginVertical: 4,
-  },
-  insetEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-    marginBottom: 4,
-  },
-  insetValueLarge: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: theme.colors.statusAvailable,
-  },
-  insetValue: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  insetHeadline: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  insetSubtext: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    alignItems: 'flex-start',
-  },
-  messageIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.brandMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  messageCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  messageEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  messageTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  messageBody: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 20,
-    marginTop: 2,
-  },
-  happeningPanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.iconBackground,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-  },
-  happeningIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  happeningCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  happeningEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  happeningTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  readyPanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: READY_PANEL.background,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-  },
-  readyPanelLeft: {
-    alignItems: 'center',
-    minWidth: 56,
-  },
-  readyPanelEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: CHARGING_CARD.textMuted,
-  },
-  readyPanelNumber: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: CHARGING_CARD.textPrimary,
-    lineHeight: 36,
-  },
-  readyPanelCenter: {
-    flex: 1,
-    gap: 2,
-  },
-  readyPanelStatusEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    color: CHARGING_CARD.textMuted,
-  },
-  readyPanelStatusTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: '700',
-    color: CHARGING_CARD.textPrimary,
-  },
-  readyPanelHint: {
-    fontSize: theme.typography.fontSize.xs,
-    color: CHARGING_CARD.textMuted,
-    marginTop: 2,
-  },
-  readyConnectorBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: theme.radius.pill,
-    backgroundColor: READY_PANEL.badgeBg,
-  },
-  readyConnectorText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.brandLight,
-  },
-  guidanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.xs,
-  },
-  guidanceText: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 20,
-  },
-  chargingHeroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  chargingBoltWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chargingHeroCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  chargingHeroEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: CHARGING_CARD.textMuted,
-  },
-  chargingHeroPower: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: CHARGING_CARD.textPrimary,
-    lineHeight: 36,
-  },
-  chargingHeroVehicle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: '600',
-    color: CHARGING_CARD.textMuted,
-  },
-  chargingMetricsPanel: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: CHARGING_CARD.panelBg,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: CHARGING_CARD.panelBorder,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.xs,
-  },
-  chargingMetricDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: CHARGING_CARD.panelBorder,
-    marginVertical: 4,
-  },
-  chargingMetricColumn: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingHorizontal: 4,
-  },
-  chargingMetricLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: CHARGING_CARD.textMuted,
-    textAlign: 'center',
-  },
-  chargingMetricValue: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: '700',
-    color: CHARGING_CARD.textPrimary,
-    textAlign: 'center',
-  },
-  pendingText: {
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: 20,
-    color: theme.colors.textMuted,
-    marginTop: 4,
-  },
-  connectingHeroRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-  },
-  connectingIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.brandMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  connectingCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  connectingEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  connectingTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  footer: {
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.xs,
-  },
-  footerDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.borderLight,
-  },
-  footerDividerDark: {
-    backgroundColor: CHARGING_CARD.panelBorder,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-  },
-  footerAction: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: '700',
-    color: theme.colors.brandDark,
-  },
-  footerActionDark: {
-    color: theme.colors.brandLight,
-  },
-  footerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerButtonDark: {
-    backgroundColor: theme.colors.brandLight,
-  },
-});
+function createStyles(theme: AppTheme) {
+  const isDark = theme.isDark;
+  const panelBg = isDark ? DARK_JOURNEY_SURFACE.panelBg : '#EEF7F4';
+  const panelBorder = isDark ? DARK_JOURNEY_SURFACE.panelBorder : 'rgba(0, 217, 160, 0.14)';
+  const darkText = isDark ? DARK_JOURNEY_SURFACE.textPrimary : theme.colors.textPrimary;
+  const mutedText = isDark ? DARK_JOURNEY_SURFACE.textMuted : '#64748B';
+
+  return StyleSheet.create({
+    card: {
+      borderRadius: 26,
+      borderWidth: 1,
+      overflow: 'hidden',
+      paddingHorizontal: 18,
+      paddingTop: 0,
+      paddingBottom: 16,
+      gap: 16,
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.06,
+      shadowRadius: 18,
+      elevation: 3,
+    },
+    cardLight: {
+      backgroundColor: '#FFFFFF',
+      borderColor: '#E5EEEA',
+    },
+    cardDarkJourney: {
+      backgroundColor: DARK_JOURNEY_SURFACE.background,
+      borderColor: DARK_JOURNEY_SURFACE.border,
+    },
+    cardCharging: {
+      backgroundColor: CHARGING_SURFACE.background,
+      borderColor: CHARGING_SURFACE.border,
+    },
+    cardRefreshing: {
+      opacity: 0.9,
+    },
+    topWash: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 72,
+      backgroundColor: 'rgba(0, 217, 160, 0.07)',
+    },
+    topAccentLight: {
+      height: 2.5,
+      marginHorizontal: -18,
+      backgroundColor: theme.colors.brand,
+      opacity: 0.85,
+    },
+    topAccentDark: {
+      height: 2.5,
+      marginHorizontal: -18,
+      backgroundColor: theme.colors.brand,
+    },
+    refreshOverlay: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.45)',
+      zIndex: 2,
+    },
+    refreshOverlayDark: {
+      backgroundColor: 'rgba(10, 47, 42, 0.5)',
+    },
+    pressed: {
+      opacity: 0.97,
+    },
+    eyebrowRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingTop: 14,
+    },
+    eyebrowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+    },
+    eyebrowDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: theme.colors.brand,
+    },
+    eyebrowDotDark: {
+      backgroundColor: theme.colors.brandLight,
+    },
+    eyebrowLabel: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: '#64748B',
+    },
+    eyebrowLabelDark: {
+      color: 'rgba(244, 255, 251, 0.72)',
+    },
+    statusBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: theme.radius.pill,
+      backgroundColor: 'rgba(0, 217, 160, 0.14)',
+    },
+    statusBadgeFilled: {
+      backgroundColor: theme.colors.brand,
+    },
+    statusBadgeDarkSoft: {
+      backgroundColor: 'rgba(0, 217, 160, 0.16)',
+    },
+    statusBadgeDarkFilled: {
+      backgroundColor: theme.colors.brand,
+    },
+    statusBadgeText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.brandDark,
+    },
+    statusBadgeTextFilled: {
+      color: '#FFFFFF',
+    },
+    statusBadgeTextDarkSoft: {
+      color: theme.colors.brandLight,
+    },
+    statusBadgeTextDarkFilled: {
+      color: DARK_JOURNEY_SURFACE.background,
+    },
+    stationBlock: {
+      gap: 6,
+    },
+    stationTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    stationName: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 19,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+      lineHeight: 25,
+      letterSpacing: -0.25,
+    },
+    stationNameDark: {
+      color: '#F4FFFB',
+    },
+    stationNameSpacer: {
+      flex: 1,
+    },
+    stationIdentifier: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#94A3B8',
+      marginTop: 2,
+      maxWidth: 78,
+      textAlign: 'right',
+      lineHeight: 20,
+    },
+    stationIdentifierDark: {
+      color: 'rgba(244, 255, 251, 0.42)',
+    },
+    subtitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 1,
+    },
+    subtitleRowWithIdentifier: {
+      paddingRight: 78,
+    },
+    stationSubtitle: {
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 13,
+      fontWeight: '500',
+      color: '#64748B',
+      lineHeight: 18,
+    },
+    stationSubtitleDark: {
+      color: 'rgba(244, 255, 251, 0.62)',
+    },
+    stepperRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingTop: 2,
+      paddingBottom: 2,
+    },
+    stepSlot: {
+      flex: 1,
+      alignItems: 'center',
+      position: 'relative',
+    },
+    stepRailLeftTrack: {
+      position: 'absolute',
+      left: 0,
+      right: '50%',
+      top: STEP_RADIUS - 1,
+      height: 2,
+      paddingRight: STEP_RADIUS + 2,
+      justifyContent: 'center',
+    },
+    stepRailRightTrack: {
+      position: 'absolute',
+      left: '50%',
+      right: 0,
+      top: STEP_RADIUS - 1,
+      height: 2,
+      paddingLeft: STEP_RADIUS + 2,
+      justifyContent: 'center',
+    },
+    stepRailFill: {
+      flex: 1,
+      height: 2,
+      borderRadius: 1,
+      backgroundColor: '#DCE5E1',
+    },
+    stepRailFillDark: {
+      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    },
+    stepRailFillActive: {
+      backgroundColor: theme.colors.brand,
+    },
+    stepCircle: {
+      width: STEP_SIZE,
+      height: STEP_SIZE,
+      borderRadius: STEP_RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1,
+      backgroundColor: theme.colors.brand,
+    },
+    stepCircleFilled: {
+      backgroundColor: theme.colors.brand,
+    },
+    stepCircleUpcoming: {
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1.5,
+      borderColor: '#D5DEE7',
+    },
+    stepCircleUpcomingDark: {
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.16)',
+    },
+    stepNumber: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#94A3B8',
+    },
+    stepNumberOnBrand: {
+      color: '#FFFFFF',
+    },
+    stepNumberUpcoming: {
+      color: '#94A3B8',
+    },
+    stepNumberUpcomingDark: {
+      color: 'rgba(244, 255, 251, 0.45)',
+    },
+    stepLabel: {
+      marginTop: 8,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 11,
+      fontWeight: '500',
+      color: '#94A3B8',
+      textAlign: 'center',
+    },
+    stepLabelDark: {
+      color: 'rgba(244, 255, 251, 0.45)',
+    },
+    queuedPanel: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: panelBg,
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: panelBorder,
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+      minHeight: 88,
+    },
+    queuedSideColumn: {
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      minWidth: 64,
+    },
+    queuedCenterColumn: {
+      flex: 1,
+      alignItems: 'flex-start',
+      paddingHorizontal: 12,
+      gap: 3,
+    },
+    queuedDivider: {
+      width: StyleSheet.hairlineWidth,
+      alignSelf: 'stretch',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15, 23, 42, 0.1)',
+      marginVertical: 4,
+    },
+    queuedSideEyebrow: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.75,
+      textTransform: 'uppercase',
+      color: mutedText,
+      marginBottom: 4,
+    },
+    queuedPositionValue: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 28,
+      fontWeight: '700',
+      color: isDark ? theme.colors.brandLight : theme.colors.textPrimary,
+      lineHeight: 32,
+    },
+    queuedCenterEyebrow: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.75,
+      textTransform: 'uppercase',
+      color: isDark ? theme.colors.brandLight : theme.colors.brandDark,
+    },
+    queuedHeadline: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 16,
+      fontWeight: '700',
+      color: darkText,
+      lineHeight: 21,
+    },
+    queuedSubtext: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 12,
+      color: mutedText,
+      lineHeight: 16,
+      marginTop: 1,
+    },
+    queuedWaitValue: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 15,
+      fontWeight: '700',
+      color: darkText,
+    },
+    infoPanel: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      backgroundColor: isDark ? DARK_JOURNEY_SURFACE.panelBg : '#F2F5F7',
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: isDark ? DARK_JOURNEY_SURFACE.panelBorder : '#E6ECF0',
+      padding: 14,
+    },
+    infoIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(0, 217, 160, 0.4)' : 'rgba(0, 217, 160, 0.5)',
+      backgroundColor: isDark ? 'rgba(0, 217, 160, 0.08)' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    infoCopy: {
+      flex: 1,
+      gap: 3,
+      minWidth: 0,
+      paddingTop: 1,
+    },
+    infoEyebrow: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.75,
+      textTransform: 'uppercase',
+      color: isDark ? theme.colors.brandLight : theme.colors.brandDark,
+    },
+    infoTitle: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 16,
+      fontWeight: '700',
+      color: darkText,
+      lineHeight: 21,
+    },
+    infoBody: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: mutedText,
+      lineHeight: 18,
+      marginTop: 1,
+    },
+    prepPanel: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.18)' : theme.colors.brandMuted,
+      borderRadius: 16,
+      padding: 12,
+    },
+    prepIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    prepTitle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      fontWeight: '600',
+      color: darkText,
+    },
+    readyPanel: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      backgroundColor: isDark ? DARK_JOURNEY_SURFACE.panelBg : '#F2F5F7',
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: isDark ? DARK_JOURNEY_SURFACE.panelBorder : '#E6ECF0',
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+    },
+    readyIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 1.5,
+      borderColor: 'rgba(0, 217, 160, 0.5)',
+      backgroundColor: isDark ? 'rgba(0, 217, 160, 0.08)' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    readyCopy: {
+      flex: 1,
+      gap: 3,
+      minWidth: 0,
+      paddingTop: 1,
+      paddingRight: 4,
+    },
+    connectorBadge: {
+      alignSelf: 'flex-start',
+      marginTop: 2,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.brandDark,
+    },
+    connectorBadgeText: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    chargingHeroRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    chargingBoltWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: theme.colors.brand,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chargingHeroCopy: {
+      flex: 1,
+      gap: 2,
+      minWidth: 0,
+    },
+    chargingHeroEyebrow: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.75,
+      textTransform: 'uppercase',
+      color: theme.colors.brandLight,
+    },
+    chargingHeroPower: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 32,
+      fontWeight: '700',
+      color: CHARGING_SURFACE.textPrimary,
+      lineHeight: 36,
+    },
+    chargingHeroVehicle: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      fontWeight: '600',
+      color: CHARGING_SURFACE.textMuted,
+    },
+    chargingMetricsPanel: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      backgroundColor: CHARGING_SURFACE.panelBg,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: CHARGING_SURFACE.panelBorder,
+      paddingVertical: 14,
+      paddingHorizontal: 6,
+    },
+    chargingMetricDivider: {
+      width: StyleSheet.hairlineWidth,
+      backgroundColor: CHARGING_SURFACE.panelBorder,
+      marginVertical: 2,
+    },
+    chargingMetricColumn: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingHorizontal: 4,
+    },
+    chargingMetricLabel: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 11,
+      color: CHARGING_SURFACE.textMuted,
+      textAlign: 'center',
+    },
+    chargingMetricValue: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 14,
+      fontWeight: '700',
+      color: CHARGING_SURFACE.textPrimary,
+      textAlign: 'center',
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      marginTop: 2,
+      minHeight: 44,
+    },
+    footerAction: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.colors.brandDark,
+    },
+    footerActionDark: {
+      color: theme.colors.brandLight,
+    },
+    footerButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: theme.colors.brand,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

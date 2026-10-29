@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 
 import { listDriverQueueMembers } from '@/api/stationQueue';
 import { fetchPublicStation } from '@/api/publicStations';
 import { AuthApiError } from '@/api/auth';
 import type { QueueMember } from '@/types/queue';
+import type { Station } from '@/types/station';
 import { subscribeQueueMembershipRefresh } from '@/utils/queue-membership-refresh';
 import { selectPrimaryActiveQueueMembership } from '@/utils/select-primary-queue-membership';
 import {
@@ -15,18 +14,39 @@ import {
 } from '@/realtime/gridflow-realtime-provider';
 import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
 
+type JourneyStationMeta = Pick<
+  Station,
+  'id' | 'name' | 'city' | 'regionCity' | 'state' | 'formattedAddress' | 'distanceKm'
+>;
+
 type UseActiveDriverQueueMembershipOptions = {
   token: string | null;
-  refreshOnAppForeground?: boolean;
   seedMembership?: QueueMember | null;
   seedStationName?: string;
   journeyLookupFailed?: boolean;
   authJourneySeedKey?: string | null;
 };
 
+const REALTIME_DEBOUNCE_MS = 800;
+
+function toJourneyStationMeta(station: Station | null | undefined): JourneyStationMeta | null {
+  if (!station) {
+    return null;
+  }
+
+  return {
+    id: station.id,
+    name: station.name,
+    city: station.city,
+    regionCity: station.regionCity,
+    state: station.state,
+    formattedAddress: station.formattedAddress,
+    distanceKm: station.distanceKm,
+  };
+}
+
 export function useActiveDriverQueueMembership({
   token,
-  refreshOnAppForeground = true,
   seedMembership,
   seedStationName,
   journeyLookupFailed = false,
@@ -34,28 +54,42 @@ export function useActiveDriverQueueMembership({
 }: UseActiveDriverQueueMembershipOptions) {
   const [membership, setMembership] = useState<QueueMember | null>(seedMembership ?? null);
   const [stationName, setStationName] = useState<string | undefined>(seedStationName);
-  const [isLoading, setIsLoading] = useState(!seedMembership);
+  const [stationMeta, setStationMeta] = useState<JourneyStationMeta | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
+  const appliedSeedKeyRef = useRef<string | null>(null);
+  const stationMetaIdRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
+  const loadRef = useRef<(options?: { showLoading?: boolean }) => Promise<void>>(async () => undefined);
 
   useGridflowRealtimeStation(membership?.stationId);
+
+  useEffect(() => {
+    stationMetaIdRef.current = stationMeta?.id ?? null;
+  }, [stationMeta?.id]);
 
   useEffect(() => {
     if (journeyLookupFailed || authJourneySeedKey == null) {
       return;
     }
 
+    if (appliedSeedKeyRef.current === authJourneySeedKey) {
+      return;
+    }
+    appliedSeedKeyRef.current = authJourneySeedKey;
+
     if (seedMembership) {
       setMembership(seedMembership);
       setStationName(seedStationName);
-      setIsLoading(false);
       return;
     }
 
     setMembership(null);
     setStationName(undefined);
-    setIsLoading(false);
+    setStationMeta(null);
+    stationMetaIdRef.current = null;
   }, [
     authJourneySeedKey,
     journeyLookupFailed,
@@ -68,13 +102,21 @@ export function useActiveDriverQueueMembership({
       if (!token) {
         setMembership(null);
         setStationName(undefined);
+        setStationMeta(null);
+        stationMetaIdRef.current = null;
         setIsLoading(false);
         setIsRefreshing(false);
+        inFlightRef.current = false;
         return;
       }
 
-      const requestId = ++loadRequestRef.current;
+      if (inFlightRef.current) {
+        return;
+      }
+
       const showLoading = options?.showLoading ?? true;
+      inFlightRef.current = true;
+      const requestId = ++loadRequestRef.current;
 
       if (showLoading) {
         setIsLoading(true);
@@ -96,23 +138,42 @@ export function useActiveDriverQueueMembership({
 
         if (!primary) {
           setStationName(undefined);
+          setStationMeta(null);
+          stationMetaIdRef.current = null;
+          return;
+        }
+
+        const stationId = primary.stationId?.trim();
+        if (!stationId) {
+          setStationName(undefined);
+          setStationMeta(null);
+          stationMetaIdRef.current = null;
+          return;
+        }
+
+        if (stationMetaIdRef.current === stationId) {
           return;
         }
 
         try {
-          const station = await fetchPublicStation(primary.stationId);
+          const station = await fetchPublicStation(stationId);
 
           if (requestId !== loadRequestRef.current) {
             return;
           }
 
           setStationName(station?.name);
+          const meta = toJourneyStationMeta(station);
+          setStationMeta(meta);
+          stationMetaIdRef.current = meta?.id ?? null;
         } catch {
           if (requestId !== loadRequestRef.current) {
             return;
           }
 
           setStationName(undefined);
+          setStationMeta(null);
+          stationMetaIdRef.current = null;
         }
       } catch (loadError) {
         if (requestId !== loadRequestRef.current) {
@@ -128,16 +189,21 @@ export function useActiveDriverQueueMembership({
         if (!journeyLookupFailed) {
           setMembership(null);
           setStationName(undefined);
+          setStationMeta(null);
+          stationMetaIdRef.current = null;
         }
       } finally {
         if (requestId === loadRequestRef.current) {
           setIsLoading(false);
           setIsRefreshing(false);
+          inFlightRef.current = false;
         }
       }
     },
     [journeyLookupFailed, token],
   );
+
+  loadRef.current = load;
 
   useDebouncedGridflowRealtimeHandler(
     useCallback((event) => {
@@ -149,53 +215,43 @@ export function useActiveDriverQueueMembership({
         return;
       }
 
-      void load({ showLoading: false });
-    }, [load]),
+      void loadRef.current({ showLoading: false });
+    }, []),
+    REALTIME_DEBOUNCE_MS,
   );
 
   useGridflowRealtimeReconnectSnapshot(
     useCallback(() => {
-      void load({ showLoading: false });
-    }, [load]),
+      void loadRef.current({ showLoading: false });
+    }, []),
   );
 
   useEffect(() => {
-    void load({ showLoading: !seedMembership });
-  }, [load, seedMembership]);
+    if (!token) {
+      appliedSeedKeyRef.current = null;
+      setMembership(null);
+      setStationName(undefined);
+      setStationMeta(null);
+      stationMetaIdRef.current = null;
+      setIsLoading(false);
+      setIsRefreshing(false);
+      inFlightRef.current = false;
+      return;
+    }
 
-  useFocusEffect(
-    useCallback(() => {
-      void load({ showLoading: false });
-    }, [load]),
-  );
+    void load({ showLoading: true });
+  }, [authJourneySeedKey, load, token]);
 
   useEffect(() => {
     return subscribeQueueMembershipRefresh(() => {
-      void load({ showLoading: false });
+      void loadRef.current({ showLoading: false });
     });
-  }, [load]);
-
-  useEffect(() => {
-    if (!refreshOnAppForeground) {
-      return undefined;
-    }
-
-    const handleAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        void load({ showLoading: false });
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, [load, refreshOnAppForeground]);
+  }, []);
 
   return {
     membership,
     stationName,
+    stationMeta,
     isLoading,
     isRefreshing,
     error,

@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -24,7 +25,6 @@ import {
 import { useAuth } from '@/auth/auth-context';
 import { ActiveSessionCard } from '@/components/charging-session/active-session-card';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
-import { useGridflowRealtimeConnected } from '@/hooks/use-gridflow-realtime-connected';
 import {
   useDebouncedGridflowRealtimeHandler,
   useGridflowRealtimeReconnectSnapshot,
@@ -153,6 +153,7 @@ function StationDetailsContent({
     isChargersError,
     retryStation,
     retryChargers,
+    refresh: refreshStationDetails,
   } = useStationDetails(stationId);
 
   const [selectedCharger, setSelectedCharger] = useState<Charger | null>(null);
@@ -161,6 +162,7 @@ function StationDetailsContent({
   const [isOpeningQueue, setIsOpeningQueue] = useState(false);
   const [queueMembership, setQueueMembership] = useState<QueueMember | null>(null);
   const [isMembershipLoading, setIsMembershipLoading] = useState(false);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [isLeavingQueue, setIsLeavingQueue] = useState(false);
   const [queueConfirmationMember, setQueueConfirmationMember] =
     useState<QueueMember | null>(null);
@@ -210,25 +212,44 @@ function StationDetailsContent({
     setIsSheetVisible(false);
   }, []);
 
-  const loadQueueMembership = useCallback(async () => {
-    if (!token) {
-      setQueueMembership(null);
-      setIsMembershipLoading(false);
-      return;
-    }
+  const loadQueueMembership = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!token) {
+        setQueueMembership(null);
+        setIsMembershipLoading(false);
+        return;
+      }
 
-    setIsMembershipLoading(true);
+      if (!options?.silent) {
+        setIsMembershipLoading(true);
+      }
+      try {
+        const members = await listDriverQueueMembers(token);
+        setQueueMembership(findActiveMembershipForStation(members, stationId));
+      } catch {
+        // Keep prior membership if refresh fails; join UX still works from local state.
+      } finally {
+        if (!options?.silent) {
+          setIsMembershipLoading(false);
+        }
+      }
+    },
+    [token, stationId],
+  );
+
+  const handlePullRefresh = useCallback(async () => {
+    setIsPullRefreshing(true);
     try {
-      const members = await listDriverQueueMembers(token);
-      setQueueMembership(findActiveMembershipForStation(members, stationId));
-    } catch {
-      // Keep prior membership if refresh fails; join UX still works from local state.
+      await Promise.all([
+        refreshStationDetails(),
+        loadQueueMembership({ silent: true }),
+        refreshActiveChargingSession({ showLoading: false }),
+      ]);
     } finally {
-      setIsMembershipLoading(false);
+      setIsPullRefreshing(false);
     }
-  }, [token, stationId]);
+  }, [loadQueueMembership, refreshActiveChargingSession, refreshStationDetails]);
 
-  const realtimeConnected = useGridflowRealtimeConnected();
   useGridflowRealtimeStation(stationId);
 
   useDebouncedGridflowRealtimeHandler(
@@ -243,11 +264,11 @@ function StationDetailsContent({
           event.kind === GridflowRealtimeEventKind.STATION_QUEUE ||
           event.kind === GridflowRealtimeEventKind.STATION_ALLOCATION
         ) {
-          void loadQueueMembership();
+          void loadQueueMembership({ silent: true });
         }
 
         if (event.kind === GridflowRealtimeEventKind.ACTIVE_SESSION) {
-          void refreshActiveChargingSession();
+          void refreshActiveChargingSession({ showLoading: false });
         }
       },
       [loadQueueMembership, refreshActiveChargingSession, stationId],
@@ -256,21 +277,14 @@ function StationDetailsContent({
 
   useGridflowRealtimeReconnectSnapshot(
     useCallback(() => {
-      void loadQueueMembership();
-      void refreshActiveChargingSession();
+      void loadQueueMembership({ silent: true });
+      void refreshActiveChargingSession({ showLoading: false });
     }, [loadQueueMembership, refreshActiveChargingSession]),
   );
 
   useEffect(() => {
     void loadQueueMembership();
   }, [loadQueueMembership]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadQueueMembership();
-      void refreshActiveChargingSession();
-    }, [loadQueueMembership, refreshActiveChargingSession]),
-  );
 
   useEffect(() => {
     if (!stationActiveSession) {
@@ -299,18 +313,6 @@ function StationDetailsContent({
       }
     })();
   }, [stationActiveSession]);
-
-  useEffect(() => {
-    if (!token || !queueMembership || realtimeConnected) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      void loadQueueMembership();
-    }, 15_000);
-
-    return () => clearInterval(interval);
-  }, [token, queueMembership?.id, loadQueueMembership, realtimeConnected]);
 
   const handleJoinQueuePress = useCallback(async () => {
     if (isOpeningQueue || queueMembership || !station?.queue) {
@@ -364,10 +366,21 @@ function StationDetailsContent({
       setQueueMembership(member);
       retryStation();
       void loadQueueMembership();
+      // Keep Home journey hooks in sync so Queued Home appears after Done / tab switch.
+      requestQueueMembershipRefresh();
+      void refreshUser();
       setQueueConfirmationMember(member);
     },
-    [retryStation, loadQueueMembership],
+    [loadQueueMembership, refreshUser, retryStation],
   );
+
+  const handleQueueConfirmationDone = useCallback(() => {
+    setQueueConfirmationMember(null);
+    // One refresh path — Home soft-load cooldown collapses focus + subscription storms.
+    requestQueueMembershipRefresh();
+    void refreshUser();
+    router.replace('/' as Href);
+  }, [refreshUser]);
 
   const handleLeaveQueue = useCallback(async () => {
     if (!token || !queueMembership || isLeavingQueue) {
@@ -527,6 +540,16 @@ function StationDetailsContent({
           styles.scrollContent,
           isTablet && styles.scrollContentTablet,
         ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isPullRefreshing}
+            onRefresh={() => {
+              void handlePullRefresh();
+            }}
+            tintColor={theme.colors.brand}
+            colors={[theme.colors.brand]}
+          />
+        }
       >
         <View style={styles.heroContainer}>
           <Image
@@ -753,7 +776,7 @@ function StationDetailsContent({
         visible={queueConfirmationMember !== null}
         stationName={station.name}
         member={queueConfirmationMember}
-        onConfirm={() => setQueueConfirmationMember(null)}
+        onConfirm={handleQueueConfirmationDone}
       />
     </ScreenContainer>
   );

@@ -151,7 +151,7 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       gap: CHIP_GAP,
-      paddingHorizontal: 12,
+      paddingHorizontal: DISCOVERY_LAYOUT.edge,
     },
     chip: {
       flexDirection: 'row',

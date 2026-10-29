@@ -192,7 +192,13 @@ export async function fetchPublicStations(
 }
 
 export async function fetchPublicStation(id: string): Promise<Station | null> {
-  const url = `${env.apiBaseUrl}/api/public/stations/${encodeURIComponent(id)}`;
+  const stationId = id?.trim();
+  // Avoid GET /api/public/stations/ (no id) which 404s — not the paginated list.
+  if (!stationId) {
+    return null;
+  }
+
+  const url = `${env.apiBaseUrl}/api/public/stations/${encodeURIComponent(stationId)}`;
 
   let response: Response;
   try {

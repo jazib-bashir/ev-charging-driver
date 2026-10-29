@@ -57,7 +57,12 @@ export type FetchPublicChargersParams = {
 export async function fetchPublicChargers(
   params: FetchPublicChargersParams,
 ): Promise<ChargersResponse> {
-  const { stationId, limit = 50, offset = 0 } = params;
+  const { stationId: rawStationId, limit = 50, offset = 0 } = params;
+  const stationId = rawStationId?.trim();
+
+  if (!stationId) {
+    return { data: [], pagination: { total: 0, limit, offset, hasMore: false } };
+  }
 
   const query = new URLSearchParams({
     stationId,

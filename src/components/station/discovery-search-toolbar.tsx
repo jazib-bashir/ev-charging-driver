@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { SearchInput } from '@/components/ui/search-input';
 import { useTheme } from '@/theme';
 
+import { DISCOVERY_LAYOUT } from './discovery-layout';
+
 type DiscoverySearchToolbarProps = {
   value: string;
   onChangeText: (text: string) => void;
@@ -51,7 +53,7 @@ export function DiscoverySearchToolbar({
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: 0,
     backgroundColor: 'transparent',
   },
@@ -60,6 +62,6 @@ const styles = StyleSheet.create({
   },
   input: {
     marginTop: 0,
-    marginHorizontal: 12,
+    marginHorizontal: DISCOVERY_LAYOUT.edge,
   },
 });

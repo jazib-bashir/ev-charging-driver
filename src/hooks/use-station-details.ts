@@ -68,6 +68,30 @@ export function useStationDetails(stationId: string | undefined) {
     void loadChargers();
   }, [loadChargers]);
 
+  /** Soft reload — keeps current UI mounted (for pull-to-refresh). */
+  const refresh = useCallback(async () => {
+    if (!stationId) {
+      return;
+    }
+
+    try {
+      const [stationResult, chargersResult] = await Promise.all([
+        fetchPublicStation(stationId),
+        fetchPublicChargers({ stationId }),
+      ]);
+
+      if (stationResult) {
+        setStation(stationResult);
+        setStationState('success');
+      }
+
+      setChargers(chargersResult.data);
+      setChargersState('success');
+    } catch {
+      // Keep existing station/chargers on soft-refresh failure.
+    }
+  }, [stationId]);
+
   useEffect(() => {
     void loadStation();
   }, [loadStation]);
@@ -88,5 +112,6 @@ export function useStationDetails(stationId: string | undefined) {
     isChargersError: chargersState === 'error',
     retryStation,
     retryChargers,
+    refresh,
   };
 }

@@ -3,17 +3,25 @@ import { useEffect, useState } from 'react';
 import { fetchPublicChargers } from '@/api/publicChargers';
 import { fetchPublicStation } from '@/api/publicStations';
 import type { ChargingSession } from '@/types/charging-session';
+import type { Station } from '@/types/station';
 import { formatConnectorLabel, formatEvseLabel } from '@/utils/charging-session-labels';
 import { formatHomeJourneyConnectorLabel } from '@/utils/charging-session-format';
 
+type JourneyStationMeta = Pick<
+  Station,
+  'id' | 'name' | 'city' | 'regionCity' | 'state' | 'formattedAddress' | 'distanceKm'
+>;
+
 export function useChargingSessionDisplayLabels(session: ChargingSession | null) {
   const [stationName, setStationName] = useState<string>();
+  const [stationMeta, setStationMeta] = useState<JourneyStationMeta | null>(null);
   const [evseLabel, setEvseLabel] = useState<string>();
   const [connectorLabel, setConnectorLabel] = useState<string>();
 
   useEffect(() => {
     if (!session) {
       setStationName(undefined);
+      setStationMeta(null);
       setEvseLabel(undefined);
       setConnectorLabel(undefined);
       return;
@@ -24,13 +32,19 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
     const seededConnector = formatHomeJourneyConnectorLabel(session.connectorLabel);
     setConnectorLabel(seededConnector !== '—' ? seededConnector : undefined);
 
+    const stationId = session.stationId?.trim();
+    if (!stationId) {
+      setStationMeta(null);
+      return;
+    }
+
     let cancelled = false;
 
     void (async () => {
       try {
         const [station, chargers] = await Promise.all([
-          fetchPublicStation(session.stationId),
-          fetchPublicChargers({ stationId: session.stationId }),
+          fetchPublicStation(stationId),
+          fetchPublicChargers({ stationId }),
         ]);
 
         if (cancelled) {
@@ -43,6 +57,19 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
         );
 
         setStationName(station?.name ?? session.stationName ?? undefined);
+        setStationMeta(
+          station
+            ? {
+                id: station.id,
+                name: station.name,
+                city: station.city,
+                regionCity: station.regionCity,
+                state: station.state,
+                formattedAddress: station.formattedAddress,
+                distanceKm: station.distanceKm,
+              }
+            : null,
+        );
         setEvseLabel(
           formatEvseLabel(session.evseLabel, charger?.name, session.evseId),
         );
@@ -52,6 +79,7 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
       } catch {
         if (!cancelled) {
           setStationName(session.stationName ?? undefined);
+          setStationMeta(null);
           setEvseLabel(session.evseLabel ?? undefined);
           setConnectorLabel(session.connectorLabel ?? undefined);
         }
@@ -72,5 +100,5 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
     session?.stationName,
   ]);
 
-  return { stationName, evseLabel, connectorLabel };
+  return { stationName, stationMeta, evseLabel, connectorLabel };
 }

@@ -85,13 +85,22 @@ export function useChargingSessionDetail({
 }: UseChargingSessionDetailOptions) {
   const [detail, setDetail] = useState<ChargingSessionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { showLoading?: boolean }) => {
     if (!token || !sessionId) {
       setDetail(null);
       setIsLoading(false);
+      setIsRefreshing(false);
       return;
+    }
+
+    const showLoading = options?.showLoading ?? true;
+    if (showLoading) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
     }
 
     setError(null);
@@ -117,18 +126,23 @@ export function useChargingSessionDetail({
       setError(message);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [fallbackSession, sessionId, token]);
 
   useEffect(() => {
-    setIsLoading(true);
-    void load();
+    void load({ showLoading: true });
+  }, [load]);
+
+  const refresh = useCallback(async () => {
+    await load({ showLoading: false });
   }, [load]);
 
   return {
     detail,
     isLoading,
+    isRefreshing,
     error,
-    refresh: load,
+    refresh,
   };
 }

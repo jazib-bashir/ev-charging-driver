@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 
 import { getActiveDriverChargingSession } from '@/api/chargingSessions';
 import { AuthApiError } from '@/api/auth';
 import type { ChargingSession } from '@/types/charging-session';
 import { requestChargingSessionsRefresh } from '@/utils/charging-sessions-refresh';
 import { requestQueueMembershipRefresh } from '@/utils/queue-membership-refresh';
-import { useGridflowRealtimeConnected } from '@/hooks/use-gridflow-realtime-connected';
 import {
   useDebouncedGridflowRealtimeHandler,
   useGridflowRealtimeReconnectSnapshot,
@@ -16,12 +13,6 @@ import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
 
 type UseActiveChargingSessionOptions = {
   token: string | null;
-  /** Omit or set null to disable interval polling. */
-  pollIntervalMs?: number | null;
-  /** Poll on an interval even when no session is loaded yet (e.g. queue CHARGING pending session). */
-  pollWithoutActiveSession?: boolean;
-  /** Refresh when the app returns to the foreground. Default true. */
-  refreshOnAppForeground?: boolean;
   /** Initial session from whoAmI when journey lookup succeeded. */
   seedSession?: ChargingSession | null;
   /** When true, whoAmI could not resolve journey; do not clear state on fetch errors. */
@@ -30,38 +21,42 @@ type UseActiveChargingSessionOptions = {
   authJourneySeedKey?: string | null;
 };
 
+const REALTIME_DEBOUNCE_MS = 800;
+
 export function useActiveChargingSession({
   token,
-  pollIntervalMs = 15_000,
-  pollWithoutActiveSession = false,
-  refreshOnAppForeground = true,
   seedSession,
   journeyLookupFailed = false,
   authJourneySeedKey,
 }: UseActiveChargingSessionOptions) {
   const [session, setSession] = useState<ChargingSession | null>(seedSession ?? null);
-  const [isLoading, setIsLoading] = useState(!seedSession);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previousSessionIdRef = useRef<string | null>(seedSession?.id ?? null);
   const loadRequestRef = useRef(0);
-  const realtimeConnected = useGridflowRealtimeConnected();
+  const appliedSeedKeyRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
+  const loadRef = useRef<(options?: { showLoading?: boolean }) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     if (journeyLookupFailed || authJourneySeedKey == null) {
       return;
     }
 
+    if (appliedSeedKeyRef.current === authJourneySeedKey) {
+      return;
+    }
+    appliedSeedKeyRef.current = authJourneySeedKey;
+
     if (seedSession) {
       setSession(seedSession);
       previousSessionIdRef.current = seedSession.id;
-      setIsLoading(false);
       return;
     }
 
     setSession(null);
     previousSessionIdRef.current = null;
-    setIsLoading(false);
   }, [authJourneySeedKey, journeyLookupFailed, seedSession]);
 
   const load = useCallback(
@@ -71,11 +66,17 @@ export function useActiveChargingSession({
         setIsLoading(false);
         setIsRefreshing(false);
         previousSessionIdRef.current = null;
+        inFlightRef.current = false;
         return;
       }
 
-      const requestId = ++loadRequestRef.current;
+      if (inFlightRef.current) {
+        return;
+      }
+
       const showLoading = options?.showLoading ?? true;
+      inFlightRef.current = true;
+      const requestId = ++loadRequestRef.current;
 
       if (showLoading) {
         setIsLoading(true);
@@ -120,90 +121,48 @@ export function useActiveChargingSession({
         if (requestId === loadRequestRef.current) {
           setIsLoading(false);
           setIsRefreshing(false);
+          inFlightRef.current = false;
         }
       }
     },
     [journeyLookupFailed, token],
   );
 
-  useDebouncedGridflowRealtimeHandler(
-    useCallback(
-      (event) => {
-        if (
-          event.kind !== GridflowRealtimeEventKind.ACTIVE_SESSION &&
-          event.kind !== GridflowRealtimeEventKind.QUEUE_MEMBERSHIP
-        ) {
-          return;
-        }
+  loadRef.current = load;
 
-        void load({ showLoading: false });
-      },
-      [load],
-    ),
-    300,
+  useDebouncedGridflowRealtimeHandler(
+    useCallback((event) => {
+      if (event.kind !== GridflowRealtimeEventKind.ACTIVE_SESSION) {
+        return;
+      }
+
+      void loadRef.current({ showLoading: false });
+      // Session start/end also changes queue membership; do not wait for a separate
+      // queue.membership event (complete/stop historically only published active_session).
+      requestQueueMembershipRefresh();
+    }, []),
+    REALTIME_DEBOUNCE_MS,
   );
 
   useGridflowRealtimeReconnectSnapshot(
     useCallback(() => {
-      void load({ showLoading: false });
-    }, [load]),
-  );
-
-  useEffect(() => {
-    void load({ showLoading: !seedSession });
-  }, [load, seedSession]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load({ showLoading: false });
-    }, [load]),
+      void loadRef.current({ showLoading: false });
+    }, []),
   );
 
   useEffect(() => {
     if (!token) {
-      return undefined;
+      appliedSeedKeyRef.current = null;
+      setSession(null);
+      previousSessionIdRef.current = null;
+      setIsLoading(false);
+      setIsRefreshing(false);
+      inFlightRef.current = false;
+      return;
     }
 
-    const activeCharging = session?.status === 'CHARGING';
-    const intervalMs =
-      activeCharging && pollIntervalMs == null ? 15_000 : pollIntervalMs;
-
-    if (realtimeConnected) {
-      return undefined;
-    }
-
-    if (intervalMs == null) {
-      return undefined;
-    }
-
-    if (!activeCharging && !pollWithoutActiveSession) {
-      return undefined;
-    }
-
-    const interval = setInterval(() => {
-      void load({ showLoading: false });
-    }, intervalMs);
-
-    return () => clearInterval(interval);
-  }, [load, pollIntervalMs, pollWithoutActiveSession, realtimeConnected, session, token]);
-
-  useEffect(() => {
-    if (!refreshOnAppForeground) {
-      return undefined;
-    }
-
-    const handleAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        void load({ showLoading: false });
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, [load, refreshOnAppForeground]);
+    void load({ showLoading: true });
+  }, [authJourneySeedKey, load, token]);
 
   return {
     session,

@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -117,7 +118,7 @@ export function SessionDetailScreen() {
     }
   }, [params.sessionJson]);
 
-  const { detail, isLoading, error, refresh } = useChargingSessionDetail({
+  const { detail, isLoading, isRefreshing, error, refresh } = useChargingSessionDetail({
     token,
     sessionId: params.id,
     fallbackSession,
@@ -282,6 +283,16 @@ export function SessionDetailScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => {
+              void refresh();
+            }}
+            tintColor={theme.colors.brand}
+            colors={[theme.colors.brand]}
+          />
+        }
       >
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>TOTAL TRANSACTION COST</Text>
