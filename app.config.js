@@ -4,6 +4,13 @@ const DEFAULT_API_BASE_URL = 'https://ev-charging-backend-wwyk.onrender.com';
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const googleMapsMapId = process.env.EXPO_PUBLIC_GOOGLE_MAPS_MAP_ID;
 
+/**
+ * Production Android APK for Diawi: ship arm64-v8a only (Pixel 9, S24 Ultra, Tab SM-T227U).
+ * Scoped via EAS_BUILD_PROFILE so development/preview keep the default multi-ABI set.
+ * expo-build-properties writes reactNativeArchitectures during prebuild (CNG-safe).
+ */
+const isProductionEasBuild = process.env.EAS_BUILD_PROFILE === 'production';
+
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = {
   ...expo,
@@ -32,6 +39,18 @@ module.exports = {
         iosGoogleMapsApiKey: googleMapsApiKey,
       },
     ],
+    ...(isProductionEasBuild
+      ? [
+          [
+            'expo-build-properties',
+            {
+              android: {
+                buildArchs: ['arm64-v8a'],
+              },
+            },
+          ],
+        ]
+      : []),
   ],
   ios: {
     ...expo.ios,
