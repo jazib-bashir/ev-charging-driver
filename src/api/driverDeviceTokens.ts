@@ -23,12 +23,12 @@ export async function registerDriverDeviceToken(
   accessToken: string,
   expoPushToken: string,
 ): Promise<void> {
-  pushRegLog('registerDriverDeviceToken: POST /api/driver/device-tokens');
+  pushRegLog('registerDriverDeviceToken: POST /api/device-tokens');
 
   let response: Response;
 
   try {
-    response = await authFetch('/api/driver/device-tokens', accessToken, {
+    response = await authFetch('/api/device-tokens', accessToken, {
       method: 'POST',
       body: JSON.stringify({
         token: expoPushToken,
@@ -61,7 +61,7 @@ export async function deactivateDriverDeviceToken(
   accessToken: string,
   expoPushToken: string,
 ): Promise<void> {
-  const response = await authFetch('/api/driver/device-tokens', accessToken, {
+  const response = await authFetch('/api/device-tokens', accessToken, {
     method: 'DELETE',
     body: JSON.stringify({
       token: expoPushToken,

@@ -132,14 +132,14 @@ export function StationCard({ station }: StationCardProps) {
           <Text style={styles.name} numberOfLines={1}>
             {formatText(station.name)}
           </Text>
-          <Pressable
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Navigate to ${station.name}`}
+          {/* View (not Pressable): nested buttons break React Native Web DOM nesting. */}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
             style={styles.navigateButton}
           >
             <Icon name="navigate-outline" size={16} color={accent} />
-          </Pressable>
+          </View>
         </View>
 
         {locationLine ? (
