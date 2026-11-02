@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchPublicChargers } from '@/api/publicChargers';
-import { fetchPublicStation } from '@/api/publicStations';
+import { fetchPublicStationDetail } from '@/api/publicStations';
 import type { Charger } from '@/types/charger';
 import type { Station } from '@/types/station';
 
@@ -15,58 +14,48 @@ export function useStationDetails(stationId: string | undefined) {
   const [stationState, setStationState] = useState<StationLoadState>('idle');
   const [chargersState, setChargersState] = useState<ChargersLoadState>('idle');
 
-  const loadStation = useCallback(async () => {
+  const loadStationDetail = useCallback(async () => {
     if (!stationId) {
       setStation(null);
-      setStationState('not_found');
-      return;
-    }
-
-    setStationState('loading');
-
-    try {
-      const result = await fetchPublicStation(stationId);
-
-      if (!result) {
-        setStation(null);
-        setStationState('not_found');
-        return;
-      }
-
-      setStation(result);
-      setStationState('success');
-    } catch {
-      setStation(null);
-      setStationState('error');
-    }
-  }, [stationId]);
-
-  const loadChargers = useCallback(async () => {
-    if (!stationId) {
       setChargers([]);
+      setStationState('not_found');
       setChargersState('idle');
       return;
     }
 
+    setStationState('loading');
     setChargersState('loading');
 
     try {
-      const result = await fetchPublicChargers({ stationId });
-      setChargers(result.data);
+      const result = await fetchPublicStationDetail(stationId);
+
+      if (!result) {
+        setStation(null);
+        setChargers([]);
+        setStationState('not_found');
+        setChargersState('idle');
+        return;
+      }
+
+      setStation(result.station);
+      setChargers(result.chargers);
+      setStationState('success');
       setChargersState('success');
     } catch {
+      setStation(null);
       setChargers([]);
+      setStationState('error');
       setChargersState('error');
     }
   }, [stationId]);
 
   const retryStation = useCallback(() => {
-    void loadStation();
-  }, [loadStation]);
+    void loadStationDetail();
+  }, [loadStationDetail]);
 
   const retryChargers = useCallback(() => {
-    void loadChargers();
-  }, [loadChargers]);
+    void loadStationDetail();
+  }, [loadStationDetail]);
 
   /** Soft reload — keeps current UI mounted (for pull-to-refresh). */
   const refresh = useCallback(async () => {
@@ -75,32 +64,22 @@ export function useStationDetails(stationId: string | undefined) {
     }
 
     try {
-      const [stationResult, chargersResult] = await Promise.all([
-        fetchPublicStation(stationId),
-        fetchPublicChargers({ stationId }),
-      ]);
+      const result = await fetchPublicStationDetail(stationId);
 
-      if (stationResult) {
-        setStation(stationResult);
+      if (result) {
+        setStation(result.station);
+        setChargers(result.chargers);
         setStationState('success');
+        setChargersState('success');
       }
-
-      setChargers(chargersResult.data);
-      setChargersState('success');
     } catch {
       // Keep existing station/chargers on soft-refresh failure.
     }
   }, [stationId]);
 
   useEffect(() => {
-    void loadStation();
-  }, [loadStation]);
-
-  useEffect(() => {
-    if (stationState === 'success' && stationId) {
-      void loadChargers();
-    }
-  }, [stationState, stationId, loadChargers]);
+    void loadStationDetail();
+  }, [loadStationDetail]);
 
   return {
     station,

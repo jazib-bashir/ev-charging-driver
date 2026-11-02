@@ -1,6 +1,13 @@
 import { env } from '@/config/env';
+import { mapApiCharger } from '@/api/publicChargers';
+import type { Charger } from '@/types/charger';
 import type { StationQueueSummary } from '@/types/queue';
 import type { Station, StationsResponse } from '@/types/station';
+
+export type PublicStationDetail = {
+  station: Station;
+  chargers: Charger[];
+};
 
 function mapApiStationQueue(raw: unknown): StationQueueSummary | null {
   if (!raw || typeof raw !== 'object') {
@@ -191,7 +198,14 @@ export async function fetchPublicStations(
   };
 }
 
-export async function fetchPublicStation(id: string): Promise<Station | null> {
+export function mapApiStationChargers(raw: Record<string, unknown>): Charger[] {
+  const rawChargers = Array.isArray(raw.chargers) ? raw.chargers : [];
+  return rawChargers.map((item) => mapApiCharger(item as Record<string, unknown>));
+}
+
+async function fetchPublicStationRaw(
+  id: string,
+): Promise<Record<string, unknown> | null> {
   const stationId = id?.trim();
   // Avoid GET /api/public/stations/ (no id) which 404s — not the paginated list.
   if (!stationId) {
@@ -226,5 +240,25 @@ export async function fetchPublicStation(id: string): Promise<Station | null> {
     return null;
   }
 
-  return mapApiStation(json);
+  return json;
+}
+
+export async function fetchPublicStation(id: string): Promise<Station | null> {
+  const json = await fetchPublicStationRaw(id);
+  return json ? mapApiStation(json) : null;
+}
+
+/** Station detail including nested public charger summaries with connectors. */
+export async function fetchPublicStationDetail(
+  id: string,
+): Promise<PublicStationDetail | null> {
+  const json = await fetchPublicStationRaw(id);
+  if (!json) {
+    return null;
+  }
+
+  return {
+    station: mapApiStation(json),
+    chargers: mapApiStationChargers(json),
+  };
 }
