@@ -9,7 +9,6 @@ export type Station = {
   id: string;
   organizationId?: string;
   name: string;
-  isPrimarySite?: boolean;
   setupStatus?: string;
   chargerCount?: number;
   createdAt?: string;
@@ -61,7 +60,6 @@ export type StationSortOrder = 'asc' | 'desc';
 export type PublicStationFilterState = {
   radiusKm?: number | null;
   city?: string | null;
-  isPrimarySite?: boolean | null;
   lat?: number | null;
   lng?: number | null;
   connectorTypes?: string[] | null;

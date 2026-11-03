@@ -31,7 +31,6 @@ export type DiscoveryQuickChipId =
 const EMPTY_ADVANCED_FILTERS: PublicStationFilterState = {
   radiusKm: null,
   city: null,
-  isPrimarySite: null,
   lat: null,
   lng: null,
   connectorTypes: null,
@@ -392,7 +391,6 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
   const hasActiveAdvancedFilters = Boolean(
     advancedFilters.radiusKm ||
       advancedFilters.city ||
-      typeof advancedFilters.isPrimarySite === 'boolean' ||
       typeof advancedFilters.isFastCharger === 'boolean' ||
       advancedFilters.availableOnly ||
       (advancedFilters.connectorTypes && advancedFilters.connectorTypes.length > 0) ||
@@ -403,7 +401,6 @@ export function StationDiscoveryProvider({ children }: { children: ReactNode }) 
   const activeFilterCount =
     (advancedFilters.radiusKm ? 1 : 0) +
     (advancedFilters.city ? 1 : 0) +
-    (typeof advancedFilters.isPrimarySite === 'boolean' ? 1 : 0) +
     (typeof advancedFilters.isFastCharger === 'boolean' ? 1 : 0) +
     (advancedFilters.availableOnly ? 1 : 0) +
     (advancedFilters.connectorTypes?.length ? 1 : 0) +

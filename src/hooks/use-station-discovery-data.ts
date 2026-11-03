@@ -86,10 +86,6 @@ export function useStationDiscoveryData({
           all: false,
           search: search || undefined,
           city: currentAdvancedFilters.city || undefined,
-          isPrimarySite:
-            typeof currentAdvancedFilters.isPrimarySite === 'boolean'
-              ? currentAdvancedFilters.isPrimarySite
-              : undefined,
           vehicleId: currentAdvancedFilters.vehicleId || undefined,
           connectorType: connectorTypes.length > 0 ? connectorTypes.join(',') : undefined,
           isFastCharger:

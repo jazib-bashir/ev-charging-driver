@@ -225,13 +225,6 @@ export function FilterBottomSheet({
     }));
   };
 
-  const handleTogglePrimarySite = (value: boolean) => {
-    setDraftFilters((prev) => ({
-      ...prev,
-      isPrimarySite: value ? true : null,
-    }));
-  };
-
   const handleToggleFastCharger = (value: boolean) => {
     setDraftFilters((prev) => ({
       ...prev,
@@ -299,7 +292,6 @@ export function FilterBottomSheet({
     const emptyFilters: PublicStationFilterState = {
       radiusKm: null,
       city: null,
-      isPrimarySite: null,
       lat: null,
       lng: null,
       connectorTypes: null,
@@ -680,21 +672,6 @@ export function FilterBottomSheet({
               />
             </View>
 
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleTextContainer}>
-                <Text style={styles.toggleTitle}>Primary site only</Text>
-                <Text style={styles.toggleSubtitle}>
-                  Flagship and primary charging locations
-                </Text>
-              </View>
-              <Switch
-                value={Boolean(draftFilters.isPrimarySite)}
-                onValueChange={handleTogglePrimarySite}
-                trackColor={{ false: '#e2e8f0', true: '#006655' }}
-                thumbColor="#ffffff"
-                ios_backgroundColor="#e2e8f0"
-              />
-            </View>
           </ScrollView>
 
           <View style={styles.bottomBar}>

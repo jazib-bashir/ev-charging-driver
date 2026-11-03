@@ -31,7 +31,6 @@ export type FetchPublicStationsParams = {
   all?: boolean;
   search?: string;
   city?: string;
-  isPrimarySite?: boolean;
   vehicleId?: string;
   connectorType?: string;
   isFastCharger?: boolean;
@@ -54,7 +53,6 @@ export function mapApiStation(raw: Record<string, unknown>): Station {
     id: String(raw.id ?? ''),
     organizationId: raw.organizationId as string | undefined,
     name: String(raw.name ?? ''),
-    isPrimarySite: raw.isPrimarySite as boolean | undefined,
     setupStatus: raw.setupStatus as string | undefined,
     chargerCount: raw.chargerCount as number | undefined,
     createdAt: raw.createdAt as string | undefined,
@@ -96,7 +94,6 @@ export async function fetchPublicStations(
     all = false,
     search,
     city,
-    isPrimarySite,
     vehicleId,
     connectorType,
     isFastCharger,
@@ -121,10 +118,6 @@ export async function fetchPublicStations(
   const trimmedCity = city?.trim();
   if (trimmedCity) {
     query.set('city', trimmedCity);
-  }
-
-  if (typeof isPrimarySite === 'boolean') {
-    query.set('isPrimarySite', String(isPrimarySite));
   }
 
   const trimmedVehicleId = vehicleId?.trim();
