@@ -78,6 +78,8 @@ export function mapApiStation(raw: Record<string, unknown>): Station {
     distanceMi: raw.distanceMi as number | null | undefined,
     maxPowerKw: raw.maxPowerKw as number | null | undefined,
     availableChargers: raw.availableChargers as number | null | undefined,
+    totalEvses: raw.totalEvses as number | null | undefined,
+    availableEvses: raw.availableEvses as number | null | undefined,
     connectors: raw.connectors as Station['connectors'],
     statusLabel: raw.statusLabel as string | null | undefined,
     statusEstimate: raw.statusEstimate as string | null | undefined,

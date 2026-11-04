@@ -5,6 +5,14 @@ export type ChargerConnector = {
   displayName?: string | null;
 };
 
+export type ChargerEvse = {
+  id: string;
+  label: string;
+  status?: string | null;
+  statusLabel?: string | null;
+  connectors?: ChargerConnector[];
+};
+
 export type Charger = {
   id: string;
   organizationId?: string;
@@ -27,6 +35,8 @@ export type Charger = {
   statusLabel?: string | null;
   statusEstimate?: string | null;
   connectors?: ChargerConnector[];
+  /** Nested EVSE bays from public station-detail charger summaries. */
+  evses?: ChargerEvse[];
 };
 
 export type ChargersResponse = {

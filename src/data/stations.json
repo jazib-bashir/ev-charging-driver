@@ -28,6 +28,8 @@
       "distanceMi": null,
       "maxPowerKw": null,
       "availableChargers": null,
+      "totalEvses": 0,
+      "availableEvses": 0,
       "connectors": null,
       "statusLabel": null,
       "statusEstimate": null
@@ -60,6 +62,8 @@
       "distanceMi": null,
       "maxPowerKw": null,
       "availableChargers": null,
+      "totalEvses": 0,
+      "availableEvses": 0,
       "connectors": null,
       "statusLabel": null,
       "statusEstimate": null
@@ -92,6 +96,8 @@
       "distanceMi": null,
       "maxPowerKw": null,
       "availableChargers": null,
+      "totalEvses": 0,
+      "availableEvses": 0,
       "connectors": null,
       "statusLabel": null,
       "statusEstimate": null

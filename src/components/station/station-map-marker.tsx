@@ -4,7 +4,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 import type { Station } from '@/types/station';
-import { formatPower, getStationStatus, hasValue } from '@/utils/station';
+import { formatPower, getBayFillLevel, getStationStatus, hasValue } from '@/utils/station';
 
 export type MarkerAvailability = 'available' | 'limited' | 'unavailable';
 
@@ -19,17 +19,9 @@ export function getMarkerAvailability(station: Station): MarkerAvailability {
     return 'limited';
   }
 
-  const total = station.chargerCount;
-  const free = station.availableChargers;
-
-  if (hasValue(total) && hasValue(free) && Number(total) > 0) {
-    const freeCount = Number(free);
-    if (freeCount <= 0) {
-      return 'limited';
-    }
-    if (freeCount / Number(total) <= 0.25) {
-      return 'limited';
-    }
+  const fill = getBayFillLevel(station.totalEvses, station.availableEvses);
+  if (fill === 'empty' || fill === 'limited') {
+    return 'limited';
   }
 
   return 'available';

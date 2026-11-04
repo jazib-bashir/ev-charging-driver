@@ -1,5 +1,10 @@
 import { env } from '@/config/env';
-import type { Charger, ChargerConnector, ChargersResponse } from '@/types/charger';
+import type {
+  Charger,
+  ChargerConnector,
+  ChargerEvse,
+  ChargersResponse,
+} from '@/types/charger';
 
 export class PublicChargersApiError extends Error {
   constructor(message: string) {
@@ -18,8 +23,23 @@ function mapConnector(raw: Record<string, unknown>): ChargerConnector {
   };
 }
 
+function mapEvse(raw: Record<string, unknown>): ChargerEvse {
+  const rawConnectors = Array.isArray(raw.connectors) ? raw.connectors : [];
+
+  return {
+    id: String(raw.id ?? ''),
+    label: String(raw.label ?? ''),
+    status: raw.status as string | null | undefined,
+    statusLabel: raw.statusLabel as string | null | undefined,
+    connectors: rawConnectors.map((item) =>
+      mapConnector(item as Record<string, unknown>),
+    ),
+  };
+}
+
 export function mapApiCharger(raw: Record<string, unknown>): Charger {
   const rawConnectors = Array.isArray(raw.connectors) ? raw.connectors : [];
+  const rawEvses = Array.isArray(raw.evses) ? raw.evses : undefined;
 
   return {
     id: String(raw.id ?? ''),
@@ -45,6 +65,7 @@ export function mapApiCharger(raw: Record<string, unknown>): Charger {
     connectors: rawConnectors.map((item) =>
       mapConnector(item as Record<string, unknown>),
     ),
+    evses: rawEvses?.map((item) => mapEvse(item as Record<string, unknown>)),
   };
 }
 

@@ -5,13 +5,12 @@ import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import {
-  formatChargerEstimate,
+  flattenStationEvseBays,
   formatChargerIndex,
   formatChargerPower,
-  getChargerListMeta,
-  getChargerListTitle,
-  getChargerStatus,
-  groupChargersByType,
+  getEvseBayConnectorSummary,
+  getEvseBayStatus,
+  type StationEvseBay,
 } from '@/utils/charger';
 
 type StationChargersSectionProps = {
@@ -34,7 +33,7 @@ function StatusPill({
   theme: ReturnType<typeof useTheme>['theme'];
 }) {
   const isAvailable = variant === 'available';
-  const isCharging = label.toLowerCase().includes('charg');
+  const isCharging = label.toLowerCase().includes('charg') || label.toLowerCase().includes('use');
 
   return (
     <View
@@ -67,30 +66,30 @@ function StatusPill({
   );
 }
 
-function ChargerRow({
-  charger,
+function EvseBayRow({
+  bay,
   index,
   onViewCharger,
   styles,
   theme,
 }: {
-  charger: Charger;
+  bay: StationEvseBay;
   index: number;
   onViewCharger: (charger: Charger) => void;
   styles: ReturnType<typeof createStyles>;
   theme: ReturnType<typeof useTheme>['theme'];
 }) {
-  const status = getChargerStatus(charger);
-  const estimate = formatChargerEstimate(charger);
-  const meta = getChargerListMeta(charger);
-  const displayName = getChargerListTitle(charger);
+  const status = getEvseBayStatus(bay);
+  const connectors = getEvseBayConnectorSummary(bay);
+  const power = formatChargerPower(bay.maxPowerKw);
   const isAvailable = status.variant === 'available';
+  const meta = [connectors, power !== '-' ? power : null].filter(Boolean).join(' · ');
 
   return (
     <Pressable
-      onPress={() => onViewCharger(charger)}
+      onPress={() => onViewCharger(bay.charger)}
       accessibilityRole="button"
-      accessibilityLabel={`Charger details for ${displayName}`}
+      accessibilityLabel={`${bay.chargerName}${meta ? `, ${meta}` : ''}`}
       style={({ pressed }) => [
         styles.chargerRow,
         status.variant === 'unavailable' && styles.chargerRowUnavailable,
@@ -114,15 +113,14 @@ function ChargerRow({
       </View>
 
       <View style={styles.chargerCopy}>
-        <Text style={styles.chargerName} numberOfLines={2}>
-          {displayName}
+        <Text style={styles.chargerName} numberOfLines={1}>
+          {bay.chargerName}
         </Text>
         {meta ? (
           <Text style={styles.chargerMeta} numberOfLines={2}>
             {meta}
           </Text>
         ) : null}
-        {estimate ? <Text style={styles.estimateText}>{estimate}</Text> : null}
       </View>
 
       <View style={styles.chargerTrailing}>
@@ -147,12 +145,11 @@ export function StationChargersSection({
 }: StationChargersSectionProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const groups = groupChargersByType(chargers);
-  let globalIndex = 0;
+  const bays = useMemo(() => flattenStationEvseBays(chargers), [chargers]);
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>Chargers ({chargers.length})</Text>
+      <Text style={styles.heading}>Chargers ({bays.length})</Text>
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -173,45 +170,24 @@ export function StationChargersSection({
             <Text style={styles.retryButtonText}>Retry</Text>
           </Pressable>
         </View>
-      ) : chargers.length === 0 ? (
+      ) : bays.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No chargers available</Text>
         </View>
       ) : (
-        <View style={styles.groups}>
-          {groups.map((group) => {
-            const groupStartIndex = globalIndex;
-            globalIndex += group.chargers.length;
-
-            return (
-              <View key={group.key} style={styles.groupCard}>
-                <View style={styles.groupHeader}>
-                  <View style={styles.groupTitleRow}>
-                    <Icon name="bolt" size={16} color={theme.colors.accent} />
-                    <Text style={styles.groupTitle}>{group.label}</Text>
-                  </View>
-                  <View style={styles.powerBadge}>
-                    <Text style={styles.powerBadgeText}>
-                      {formatChargerPower(group.powerKw)}
-                    </Text>
-                  </View>
-                </View>
-
-                {group.chargers.map((charger, chargerIndex) => (
-                  <View key={charger.id}>
-                    {chargerIndex > 0 ? <View style={styles.rowDivider} /> : null}
-                    <ChargerRow
-                      charger={charger}
-                      index={groupStartIndex + chargerIndex}
-                      onViewCharger={onViewCharger}
-                      styles={styles}
-                      theme={theme}
-                    />
-                  </View>
-                ))}
-              </View>
-            );
-          })}
+        <View style={styles.groupCard}>
+          {bays.map((bay, index) => (
+            <View key={bay.evseId}>
+              {index > 0 ? <View style={styles.rowDivider} /> : null}
+              <EvseBayRow
+                bay={bay}
+                index={index}
+                onViewCharger={onViewCharger}
+                styles={styles}
+                theme={theme}
+              />
+            </View>
+          ))}
         </View>
       )}
     </View>
@@ -284,50 +260,12 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       color: theme.colors.textMuted,
       textAlign: 'center',
     },
-    groups: {
-      gap: 12,
-    },
     groupCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radius.lg,
       borderWidth: 1,
       borderColor: theme.colors.border,
       overflow: 'hidden',
-    },
-    groupHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      backgroundColor: theme.colors.iconBackground,
-      gap: theme.spacing.sm,
-    },
-    groupTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      flex: 1,
-    },
-    groupTitle: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 13,
-      lineHeight: 18,
-      color: theme.colors.textPrimary,
-    },
-    powerBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: theme.radius.pill,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    powerBadgeText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 11,
-      lineHeight: 16,
-      color: theme.colors.textSecondary,
     },
     chargerRow: {
       flexDirection: 'row',
@@ -385,12 +323,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: 13,
       lineHeight: 18,
-      color: theme.colors.textMuted,
-    },
-    estimateText: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 11,
-      lineHeight: 16,
       color: theme.colors.textMuted,
     },
     chargerTrailing: {

@@ -9,30 +9,12 @@ export type ChargerStatus = {
   isSelectable: boolean;
 };
 
-export type ChargerGroup = {
-  key: string;
-  label: string;
-  powerKw: number | null;
-  chargers: Charger[];
-};
-
 export function getChargerDisplayName(charger: Charger): string {
   if (hasValue(charger.name)) {
     return String(charger.name);
   }
 
   return formatText(charger.serialNumber);
-}
-
-export function getChargerListTitle(charger: Charger): string {
-  const name = getChargerDisplayName(charger);
-  const separatorIndex = name.lastIndexOf(' - ');
-
-  if (separatorIndex > 0) {
-    return name.slice(0, separatorIndex).trim();
-  }
-
-  return name;
 }
 
 export function getChargerEffectivePrice(
@@ -55,30 +37,6 @@ export function getChargerConnectorSummary(charger: Charger): string {
   ];
 
   return labels.join(' · ');
-}
-
-export function getChargerHardwareSummary(charger: Charger): string {
-  return [charger.manufacturer, charger.model].filter(hasValue).join(' · ');
-}
-
-export function getChargerListMeta(charger: Charger): string | null {
-  const parts: string[] = [];
-  const connectors = getChargerConnectorSummary(charger);
-
-  if (connectors) {
-    parts.push(connectors);
-  }
-
-  const hardware = getChargerHardwareSummary(charger);
-  if (hardware) {
-    parts.push(hardware);
-  }
-
-  if (hasValue(charger.maxPowerKw)) {
-    parts.push(formatChargerPower(charger.maxPowerKw));
-  }
-
-  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 function statusFromOperationalValue(
@@ -199,50 +157,6 @@ export function getChargerTypeLabel(charger: Charger): string {
   return 'N/A';
 }
 
-export function getChargerGroupKey(charger: Charger): string {
-  const type = charger.chargerType?.trim().toUpperCase() ?? 'unknown';
-  const fast = charger.isFastCharger ? 'fast' : 'standard';
-  return `${type}-${fast}`;
-}
-
-export function getGroupPowerKw(chargers: Charger[]): number | null {
-  const values = chargers
-    .map((charger) => charger.maxPowerKw)
-    .filter((value): value is number => hasValue(value));
-
-  if (values.length === 0) {
-    return null;
-  }
-
-  return Math.max(...values);
-}
-
-export function groupChargersByType(chargers: Charger[]): ChargerGroup[] {
-  const groups = new Map<string, ChargerGroup>();
-
-  chargers.forEach((charger) => {
-    const key = getChargerGroupKey(charger);
-    const existing = groups.get(key);
-
-    if (existing) {
-      existing.chargers.push(charger);
-      return;
-    }
-
-    groups.set(key, {
-      key,
-      label: getChargerTypeLabel(charger),
-      powerKw: null,
-      chargers: [charger],
-    });
-  });
-
-  return Array.from(groups.values()).map((group) => ({
-    ...group,
-    powerKw: getGroupPowerKw(group.chargers),
-  }));
-}
-
 export function formatChargerPower(maxPowerKw: number | null | undefined): string {
   if (!hasValue(maxPowerKw)) {
     return '-';
@@ -253,14 +167,6 @@ export function formatChargerPower(maxPowerKw: number | null | undefined): strin
 
 export function formatChargerIndex(index: number): string {
   return String(index + 1).padStart(2, '0');
-}
-
-export function formatChargerEstimate(charger: Charger): string | null {
-  if (!hasValue(charger.statusEstimate)) {
-    return null;
-  }
-
-  return `Est. ${charger.statusEstimate}`;
 }
 
 export function formatDetailDistance(distanceMi: number | null | undefined): string {
@@ -280,4 +186,88 @@ export function formatDetailPricePerKwh(
   }
 
   return formatCurrencyRate(price, currencyCode);
+}
+
+export type StationEvseBay = {
+  evseId: string;
+  label: string;
+  status?: string | null;
+  statusLabel?: string | null;
+  connectors: Charger['connectors'];
+  maxPowerKw: number | null;
+  chargerId: string;
+  chargerName: string;
+  charger: Charger;
+};
+
+/**
+ * Flatten nested charger.evses into bay cards.
+ * Preserves charger order; sorts EVSEs by label within each charger.
+ * Does not invent EVSEs from connectors or charger counts.
+ */
+export function flattenStationEvseBays(chargers: Charger[]): StationEvseBay[] {
+  const bays: StationEvseBay[] = [];
+
+  for (const charger of chargers) {
+    if (!Array.isArray(charger.evses)) {
+      continue;
+    }
+
+    const evses = [...charger.evses].sort((left, right) =>
+      String(left.label ?? '').localeCompare(String(right.label ?? ''), undefined, {
+        numeric: true,
+      }),
+    );
+
+    for (const evse of evses) {
+      const evseId = evse.id?.trim();
+      if (!evseId) {
+        continue;
+      }
+
+      bays.push({
+        evseId,
+        label: evse.label?.trim() || evseId.slice(-4),
+        status: evse.status,
+        statusLabel: evse.statusLabel,
+        connectors: evse.connectors ?? [],
+        maxPowerKw: charger.maxPowerKw ?? null,
+        chargerId: charger.id,
+        chargerName: getChargerDisplayName(charger),
+        charger,
+      });
+    }
+  }
+
+  return bays;
+}
+
+export function getEvseBayStatus(bay: StationEvseBay): ChargerStatus {
+  if (hasValue(bay.status)) {
+    const operationalStatus = statusFromOperationalValue(
+      String(bay.status),
+      bay.statusLabel,
+    );
+    if (operationalStatus) {
+      return operationalStatus;
+    }
+  }
+
+  if (hasValue(bay.statusLabel)) {
+    return getChargerStatus({
+      id: bay.chargerId,
+      name: bay.chargerName,
+      statusLabel: bay.statusLabel,
+    });
+  }
+
+  return { label: 'N/A', variant: 'neutral', isSelectable: false };
+}
+
+export function getEvseBayConnectorSummary(bay: StationEvseBay): string {
+  return getChargerConnectorSummary({
+    id: bay.chargerId,
+    name: bay.chargerName,
+    connectors: bay.connectors,
+  });
 }

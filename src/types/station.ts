@@ -35,7 +35,12 @@ export type Station = {
   distanceMi?: number | null;
   distanceKm?: number | null;
   maxPowerKw?: number | null;
+  /** @deprecated Prefer totalEvses/availableEvses for bay availability. */
   availableChargers?: number | null;
+  /** Total EVSE bay count from the public station API. */
+  totalEvses?: number | null;
+  /** Available EVSE bay count (status AVAILABLE) from the public station API. */
+  availableEvses?: number | null;
   connectors?: StationConnector[] | null;
   statusLabel?: string | null;
   statusEstimate?: string | null;

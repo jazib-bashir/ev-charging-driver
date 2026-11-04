@@ -8,7 +8,7 @@ import { useTheme } from '@/theme';
 import { openStationNavigation } from '@/utils/open-station-navigation';
 import type { Station } from '@/types/station';
 import {
-  formatChargerAvailability,
+  formatBayAvailability,
   formatConnectorTypeLabel,
   formatDistanceKm,
   formatPower,
@@ -34,7 +34,7 @@ export function StationMapPreview({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const status = getStationStatus(station);
   const address = getStationAddress(station);
-  const chargerLabel = formatChargerAvailability(station);
+  const chargerLabel = formatBayAvailability(station);
   const distanceLabel = hasValue(station.distanceKm)
     ? formatDistanceKm(station.distanceKm)
     : null;

@@ -118,20 +118,63 @@ export function hasChargerCount(chargerCount: number | null | undefined): boolea
   return chargerCount !== null && chargerCount !== undefined && chargerCount > 0;
 }
 
-export function formatChargerAvailability(station: Station): string | null {
-  const total = station.chargerCount;
-  const available = station.availableChargers;
+/** True when the value is a finite number, including zero. */
+export function hasEvseCount(value: number | null | undefined): boolean {
+  return value !== null && value !== undefined && Number.isFinite(value);
+}
 
-  if (!hasChargerCount(total)) {
+export function formatBayAvailability(station: Station): string | null {
+  const total = station.totalEvses;
+  const available = station.availableEvses;
+
+  if (!hasEvseCount(total) || !hasEvseCount(available)) {
     return null;
   }
 
-  if (hasValue(available)) {
-    return `${available}/${total} Available`;
+  return `${available}/${total} Available`;
+}
+
+/** Station card / compact bay free display. Never falls back to charger counts. */
+export function formatBaysFree(station: Station): string {
+  const total = station.totalEvses;
+  const available = station.availableEvses;
+
+  if (!hasEvseCount(total) || !hasEvseCount(available)) {
+    return '—';
   }
 
-  const count = Number(total);
-  return count === 1 ? '1 Charger' : `${count} Chargers`;
+  if (Number(total) === 0) {
+    return '0';
+  }
+
+  return `${available}/${total}`;
+}
+
+/**
+ * Bay fill level for map markers.
+ * - unknown: missing counts or total is 0
+ * - empty: no available EVSEs
+ * - limited: available/total <= 25%
+ * - plentiful: more than 25% available
+ */
+export function getBayFillLevel(
+  total: number | null | undefined,
+  available: number | null | undefined,
+): 'unknown' | 'empty' | 'limited' | 'plentiful' {
+  if (!hasEvseCount(total) || !hasEvseCount(available) || Number(total) <= 0) {
+    return 'unknown';
+  }
+
+  const freeCount = Number(available);
+  if (freeCount <= 0) {
+    return 'empty';
+  }
+
+  if (freeCount / Number(total) <= 0.25) {
+    return 'limited';
+  }
+
+  return 'plentiful';
 }
 
 export type StationFilters = {
@@ -152,11 +195,7 @@ export function stationMatchesAvailableFilter(station: Station): boolean {
     return true;
   }
 
-  return (
-    station.availableChargers != null &&
-    !Number.isNaN(station.availableChargers) &&
-    station.availableChargers > 0
-  );
+  return hasEvseCount(station.availableEvses) && Number(station.availableEvses) > 0;
 }
 
 export function stationMatchesQueueOpenFilter(station: Station): boolean {

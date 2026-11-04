@@ -15,7 +15,7 @@ import {
   formatText,
   getStationAddress,
   getStationStatus,
-  hasChargerCount,
+  formatBaysFree,
   hasValue,
 } from '@/utils/station';
 
@@ -54,14 +54,7 @@ export function StationCard({ station }: StationCardProps) {
 
   const powerValue = hasValue(station.maxPowerKw) ? `${station.maxPowerKw} kW` : '—';
 
-  const totalChargers = station.chargerCount;
-  const availableChargers = station.availableChargers;
-  const baysValue =
-    hasChargerCount(totalChargers) && hasValue(availableChargers)
-      ? `${availableChargers}/${totalChargers}`
-      : hasChargerCount(totalChargers)
-        ? `${totalChargers}`
-        : '—';
+  const baysValue = formatBaysFree(station);
 
   const handlePress = () => {
     router.push(`/stations/${station.id}` as Href);
