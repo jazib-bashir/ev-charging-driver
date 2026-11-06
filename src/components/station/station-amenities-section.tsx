@@ -5,26 +5,17 @@ import { Icon, type IconName } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 
 type AmenityItem = {
+  id?: string;
   icon: IconName;
   label: string;
 };
-
-/**
- * Static amenities shown until the station API exposes amenity data.
- * Labels match the station details design (Wifi / Coffee / WC).
- */
-const STATIC_AMENITIES: AmenityItem[] = [
-  { icon: 'wifi', label: 'Wifi' },
-  { icon: 'coffee', label: 'Coffee' },
-  { icon: 'restroom', label: 'WC' },
-];
 
 type StationAmenitiesSectionProps = {
   amenities?: AmenityItem[];
 };
 
 export function StationAmenitiesSection({
-  amenities = STATIC_AMENITIES,
+  amenities = [],
 }: StationAmenitiesSectionProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -39,11 +30,11 @@ export function StationAmenitiesSection({
 
       <View style={styles.row}>
         {amenities.map((amenity) => (
-          <View key={amenity.label} style={styles.item}>
+          <View key={amenity.id ?? amenity.label} style={styles.item}>
             <View style={styles.iconTile}>
               <Icon name={amenity.icon} size={22} color={theme.colors.accent} />
             </View>
-            <Text style={styles.label} numberOfLines={1}>
+            <Text style={styles.label} numberOfLines={2}>
               {amenity.label}
             </Text>
           </View>
@@ -69,6 +60,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     row: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'flex-start',
       gap: 14,
     },

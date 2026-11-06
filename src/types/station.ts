@@ -46,6 +46,8 @@ export type Station = {
   statusEstimate?: string | null;
   /** Active station queue when one exists; null when the station is not accepting joins. */
   queue?: StationQueueSummary | null;
+  /** Frontend-owned amenity IDs selected for this station. */
+  amenities?: string[];
 };
 
 export type StationsResponse = {

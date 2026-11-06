@@ -33,6 +33,7 @@ import {
 import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
 import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { resolveStationAmenities } from '@/constants/station-amenities';
 import { getStationImageSource } from '@/data/station-images';
 import { useStationDetails } from '@/hooks/use-station-details';
 import { useTheme } from '@/theme';
@@ -530,6 +531,7 @@ function StationDetailsContent({
     station.defaultPricePerKwh !== undefined;
   const canNavigate =
     typeof station.latitude === 'number' && typeof station.longitude === 'number';
+  const amenities = resolveStationAmenities(station.amenities);
   const heroTopPad = Math.max(insets.top, 12);
 
   return (
@@ -743,7 +745,7 @@ function StationDetailsContent({
           </View>
         </View>
 
-        <StationAmenitiesSection />
+        <StationAmenitiesSection amenities={amenities} />
 
         <StationChargersSection
           chargers={chargers}

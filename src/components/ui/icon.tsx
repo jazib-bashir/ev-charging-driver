@@ -36,6 +36,9 @@ export type IconName =
   | 'dining'
   | 'restroom'
   | 'car'
+  | 'waiting-area'
+  | 'store'
+  | 'shield'
   | 'close'
   | 'locate'
   | 'check'
@@ -96,6 +99,9 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   dining: { family: 'ionicons', name: 'restaurant-outline' },
   restroom: { family: 'ionicons', name: 'male-female-outline' },
   car: { family: 'ionicons', name: 'car-outline' },
+  'waiting-area': { family: 'material', name: 'sofa-outline' },
+  store: { family: 'ionicons', name: 'storefront-outline' },
+  shield: { family: 'ionicons', name: 'shield-checkmark-outline' },
   refresh: { family: 'ionicons', name: 'refresh' },
   'chevron-forward': { family: 'ionicons', name: 'chevron-forward' },
   'chevron-down': { family: 'ionicons', name: 'chevron-down' },

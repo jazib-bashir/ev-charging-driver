@@ -55,6 +55,13 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
         const connector = charger?.connectors?.find(
           (item) => item.id === session.connectorId,
         );
+        const evseFromCharger = charger?.evses?.find((item) => item.id === session.evseId);
+        const evseForLabel =
+          evseFromCharger != null
+            ? { label: evseFromCharger.label }
+            : session.evseLabel != null && String(session.evseLabel).trim() !== ''
+              ? { label: session.evseLabel }
+              : null;
 
         setStationName(station?.name ?? session.stationName ?? undefined);
         setStationMeta(
@@ -71,7 +78,7 @@ export function useChargingSessionDisplayLabels(session: ChargingSession | null)
             : null,
         );
         setEvseLabel(
-          formatEvseLabel(session.evseLabel, charger?.name, session.evseId),
+          formatEvseLabel(evseForLabel, charger?.name, session.evseId),
         );
         setConnectorLabel(
           formatConnectorLabel(connector, session.connectorLabel ?? session.connectorId),

@@ -84,6 +84,9 @@ export function mapApiStation(raw: Record<string, unknown>): Station {
     statusLabel: raw.statusLabel as string | null | undefined,
     statusEstimate: raw.statusEstimate as string | null | undefined,
     queue: mapApiStationQueue(raw.queue),
+    amenities: Array.isArray(raw.amenities)
+      ? raw.amenities.filter((item): item is string => typeof item === 'string')
+      : [],
   };
 }
 
