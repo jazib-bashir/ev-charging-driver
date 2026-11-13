@@ -1,23 +1,29 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { FeedbackIllustration } from '@/components/brand/illustrations';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
-import { theme } from '@/theme';
+import { Text } from '@/components/ui/text';
+import { useTheme } from '@/theme';
 
 type ComingSoonScreenProps = {
   title: string;
 };
 
 export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
-    <ScreenContainer edges={['top']} style={styles.screen}>
+    <ScreenContainer edges={['top']}>
       <View style={styles.header}>
         <IconButton
           onPress={() => router.back()}
           accessibilityLabel="Go back"
-          style={styles.backButton}
+          appearance="soft"
         >
           <Icon name="back" size={22} color={theme.colors.textPrimary} />
         </IconButton>
@@ -26,55 +32,67 @@ export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
       </View>
 
       <ScreenContent style={styles.content}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>Coming Soon</Text>
+        <View style={styles.art}>
+          <FeedbackIllustration kind="empty" size={96} />
+        </View>
+        <Text style={styles.title}>Coming soon</Text>
+        <Text style={styles.subtitle}>
+          {title} will be available in an upcoming konnectEV update.
+        </Text>
       </ScreenContent>
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: theme.colors.surface,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-  },
-  headerSide: {
-    width: 40,
-    height: 40,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  content: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.xxl,
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.xxl,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.gutter,
+      paddingVertical: theme.spacing.md,
+    },
+    headerSide: {
+      width: 40,
+      height: 40,
+    },
+    headerTitle: {
+      flex: 1,
+      textAlign: 'center',
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: theme.typography.fontSize.lg,
+      color: theme.colors.textPrimary,
+      letterSpacing: -0.3,
+    },
+    content: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: theme.spacing.xxl,
+      gap: theme.spacing.sm,
+    },
+    art: {
+      width: 136,
+      height: 136,
+      borderRadius: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      marginBottom: theme.spacing.md,
+    },
+    title: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: theme.typography.fontSize.xxl,
+      letterSpacing: -0.6,
+      color: theme.colors.textPrimary,
+    },
+    subtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.md,
+      lineHeight: 22,
+      textAlign: 'center',
+      color: theme.colors.textSecondary,
+    },
+  });
+}

@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
 import { type Href, router } from 'expo-router';
 import { useMemo, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { Badge } from '@/components/ui/badge';
+import { AvailabilityMeter } from '@/components/charging/availability-meter';
 import { Icon } from '@/components/ui/icon';
 import { getStationImageSource } from '@/data/station-images';
 import { useTheme } from '@/theme';
@@ -32,7 +34,7 @@ export function StationCard({ station }: StationCardProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isTablet = width >= TABLET_BREAKPOINT;
-  const accent = theme.colors.accent;
+  const accent = theme.colors.primary;
 
   const status = getStationStatus(station);
   const isUnavailable = status.variant === 'unavailable';
@@ -55,6 +57,12 @@ export function StationCard({ station }: StationCardProps) {
   const powerValue = hasValue(station.maxPowerKw) ? `${station.maxPowerKw} kW` : '—';
 
   const baysValue = formatBaysFree(station);
+  const meterCounts =
+    typeof station.totalEvses === 'number' &&
+    typeof station.availableEvses === 'number' &&
+    station.totalEvses > 0
+      ? { available: station.availableEvses, total: station.totalEvses }
+      : null;
 
   const handlePress = () => {
     router.push(`/stations/${station.id}` as Href);
@@ -81,28 +89,12 @@ export function StationCard({ station }: StationCardProps) {
           transition={200}
         />
 
-        {status.variant === 'available' ? (
-          <View
-            style={[
-              styles.statusBadge,
-              styles.availableBadge,
-              { backgroundColor: theme.colors.statusAvailableBg },
-            ]}
-          >
-            <View
-              style={[styles.availableDot, { backgroundColor: theme.colors.statusAvailable }]}
-            />
-            <Text style={[styles.availableLabel, { color: theme.colors.statusAvailable }]}>
-              {status.label}
-            </Text>
-          </View>
-        ) : (
-          <Badge
-            label={status.label}
-            variant={status.variant}
-            style={styles.statusBadge}
-          />
-        )}
+        <Badge
+          label={status.label}
+          variant={status.variant}
+          showDot={status.variant === 'available'}
+          style={styles.statusBadge}
+        />
 
         {station.isFastCharger ? (
           <View style={styles.fastBadge}>
@@ -141,6 +133,12 @@ export function StationCard({ station }: StationCardProps) {
             <Text style={styles.locationText} numberOfLines={1}>
               {locationLine}
             </Text>
+          </View>
+        ) : null}
+
+        {meterCounts ? (
+          <View style={styles.meter}>
+            <AvailabilityMeter available={meterCounts.available} total={meterCounts.total} />
           </View>
         ) : null}
 
@@ -206,11 +204,14 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      borderWidth: 1,
+      borderRadius: theme.radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.border,
       overflow: 'hidden',
-      ...theme.shadows.card,
+      ...(theme.isDark ? theme.shadows.none : theme.shadows.card),
+    },
+    meter: {
+      marginTop: 14,
     },
     cardTablet: {
       alignSelf: 'center',
@@ -239,25 +240,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       top: 12,
       left: 12,
     },
-    availableBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: theme.radius.pill,
-    },
-    availableDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    availableLabel: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 11,
-      letterSpacing: 0.2,
-      fontWeight: '600',
-    },
     fastBadge: {
       position: 'absolute',
       top: 12,
@@ -268,7 +250,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 20,
-      backgroundColor: 'rgba(6, 12, 24, 0.78)',
+      backgroundColor: 'rgba(13, 17, 23, 0.78)',
     },
     fastText: {
       fontFamily: theme.typography.fontFamily.semibold,
@@ -283,14 +265,14 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       right: 12,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 6,
-      backgroundColor: 'rgba(6, 12, 24, 0.78)',
+      borderRadius: 8,
+      backgroundColor: 'rgba(13, 17, 23, 0.78)',
     },
     connectorText: {
       fontFamily: theme.typography.fontFamily.semibold,
       fontSize: 11,
       lineHeight: 16,
-      color: '#ffffff',
+      color: theme.colors.heroText,
     },
     body: {
       paddingHorizontal: 14,
@@ -305,18 +287,16 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     name: {
       flex: 1,
       fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 16,
-      lineHeight: 20.8,
+      fontSize: 17,
+      lineHeight: 22,
       color: theme.colors.textPrimary,
-      letterSpacing: 0,
+      letterSpacing: -0.3,
     },
     navigateButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 9,
-      borderWidth: 1,
-      borderColor: 'rgba(0, 217, 160, 0.45)',
-      backgroundColor: 'rgba(0, 217, 160, 0.08)',
+      width: 38,
+      height: 38,
+      borderRadius: 14,
+      backgroundColor: theme.colors.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
@@ -365,9 +345,9 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       maxWidth: '100%',
     },
     statValue: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 13,
-      lineHeight: 19.5,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 15,
+      lineHeight: 20,
       color: theme.colors.textPrimary,
       flexShrink: 1,
     },

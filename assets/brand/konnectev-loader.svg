@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="konnectEV loading"><style>@keyframes flow{to{stroke-dashoffset:0}} .flow{stroke-dasharray:44 90;stroke-dashoffset:134;animation:flow 1.65s cubic-bezier(.65,0,.35,1) infinite} .lime{animation-delay:-.82s} @media(prefers-reduced-motion:reduce){.flow{animation:none;stroke-dasharray:none}}</style><defs>
+  <mask id="weave-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="96">
+    <rect width="96" height="96" fill="#fff"/>
+    <path d="M8 20h14c28 0 18 56 46 56h20" stroke="#000" stroke-width="20" stroke-linecap="round"/>
+  </mask>
+</defs><g id="Symbol"><g id="Lime-paths"><path class="flow lime" d="M8 76h20c28 0 18-56 46-56h14" fill="none" stroke="#D4FF00" stroke-width="10" stroke-linecap="round" mask="url(#weave-cut)"/></g><g id="Coral-paths"><path class="flow" d="M8 20h14c28 0 18 56 46 56h20" fill="none" stroke="#FF3E1D" stroke-width="10" stroke-linecap="round"/></g></g></svg>

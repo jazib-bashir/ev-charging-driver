@@ -1,15 +1,14 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { useAuth } from '@/auth/auth-context';
 import { JourneyDetailsHeader } from '@/components/journey/journey-details-header';
 import {
@@ -17,6 +16,7 @@ import {
   JOURNEY_DETAILS_GUTTER,
 } from '@/components/journey/journey-details-layout';
 import { JourneyProgressCard } from '@/components/journey/journey-progress-card';
+import { PageLoader } from '@/components/loaders/page-loader';
 import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
@@ -90,6 +90,7 @@ function TimelineCard({
   events: JourneyTimelineEvent[];
   styles: ReturnType<typeof createStyles>;
 }) {
+  const { theme } = useTheme();
   return (
     <SectionCard label="Journey timeline" styles={styles}>
       <View style={styles.timelineList}>
@@ -99,7 +100,7 @@ function TimelineCard({
             <View key={event.id} style={styles.timelineRow}>
               <View style={styles.timelineRailCol}>
                 <View style={styles.timelineDot}>
-                  <Icon name="check" size={11} color="#FFFFFF" />
+                  <Icon name="check" size={11} color={theme.colors.onPrimary} />
                 </View>
                 {!isLast ? <View style={styles.timelineLine} /> : null}
               </View>
@@ -160,7 +161,7 @@ function StationInfoCard({
           accessibilityLabel="Navigate to station"
           style={[styles.navButton, !canNavigate && styles.navButtonDisabled]}
         >
-          <Icon name="navigate" size={18} color={theme.colors.brandDark} />
+          <Icon name="navigate" size={18} color={theme.colors.textLink} />
         </Pressable>
       </View>
       <View style={styles.stationDivider} />
@@ -616,8 +617,8 @@ function ChargingBody({
 }
 
 export function JourneyDetailsScreen() {
-  const { theme, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const params = useLocalSearchParams<{
     stationId?: string;
     membershipId?: string;
@@ -718,7 +719,7 @@ export function JourneyDetailsScreen() {
     router.replace('/' as Href);
   };
 
-  const brand = theme.colors.brand;
+  const brand = theme.colors.primary;
 
   const hasJourneyBody =
     (variant === 'charging' && Boolean(session)) || Boolean(activeMembership);
@@ -730,9 +731,7 @@ export function JourneyDetailsScreen() {
   if (isResolvingJourney) {
     body = (
       <View style={styles.loadingState} accessibilityLabel="Loading journey details">
-        <ActivityIndicator size="large" color={theme.colors.brand} />
-        <Text style={styles.loadingTitle}>Loading journey</Text>
-        <Text style={styles.heroBody}>Fetching your latest charging status…</Text>
+        <PageLoader fill={false} message="Fetching your latest charging status…" />
       </View>
     );
   } else if (variant === 'charging' && session) {
@@ -812,8 +811,8 @@ export function JourneyDetailsScreen() {
             onRefresh={() => {
               void handlePullRefresh();
             }}
-            tintColor={theme.colors.brand}
-            colors={[theme.colors.brand]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
@@ -823,13 +822,13 @@ export function JourneyDetailsScreen() {
   );
 }
 
-function createStyles(theme: AppTheme, isDark: boolean) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: {
       backgroundColor: theme.colors.background,
     },
     chargingBoltColor: {
-      color: isDark ? '#0A2F2A' : theme.colors.textInverse,
+      color: theme.colors.onPrimary,
     },
     scrollContent: {
       paddingHorizontal: JOURNEY_DETAILS_GUTTER,
@@ -839,7 +838,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
     },
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 16,
@@ -869,9 +868,9 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       borderRadius: 36,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brandMuted,
+      backgroundColor: theme.colors.primaryMuted,
       borderWidth: 1.5,
-      borderColor: 'rgba(0, 217, 160, 0.35)',
+      borderColor: theme.colors.selectionBorder,
       marginBottom: 4,
     },
     heroEyebrow: {
@@ -880,12 +879,12 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       fontWeight: '700',
       letterSpacing: 0.8,
       textTransform: 'uppercase',
-      color: theme.colors.brandDark,
+      color: theme.colors.textLink,
       textAlign: 'center',
     },
     heroTitle: {
       fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 26,
+      fontSize: 20,
       fontWeight: '700',
       color: theme.colors.textPrimary,
       textAlign: 'center',
@@ -918,7 +917,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 36,
       fontWeight: '700',
-      color: theme.colors.brandDark,
+      color: theme.colors.textLink,
       lineHeight: 40,
     },
     queueStatusDivider: {
@@ -946,7 +945,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '700',
-      color: theme.colors.brandDark,
+      color: theme.colors.textLink,
     },
     actionItem: {
       flexDirection: 'row',
@@ -959,13 +958,13 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brandMuted,
+      backgroundColor: theme.colors.primaryMuted,
     },
     actionIndexText: {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '700',
-      color: theme.colors.brandDark,
+      color: theme.colors.textLink,
     },
     actionCopy: {
       flex: 1,
@@ -999,7 +998,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brandMuted,
+      backgroundColor: theme.colors.primaryMuted,
     },
     infoCopy: {
       flex: 1,
@@ -1027,14 +1026,14 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     timelineLine: {
       flex: 1,
       width: 2,
-      backgroundColor: theme.colors.brandMuted,
+      backgroundColor: theme.colors.primaryMuted,
       marginVertical: 2,
     },
     timelineCopy: {
@@ -1064,7 +1063,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: theme.radius.pill,
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
     },
     latestBadgeText: {
       fontFamily: theme.typography.fontFamily.bold,
@@ -1072,7 +1071,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       fontWeight: '700',
       letterSpacing: 0.5,
       textTransform: 'uppercase',
-      color: '#FFFFFF',
+      color: theme.colors.onPrimary,
     },
     stationHeaderRow: {
       flexDirection: 'row',
@@ -1106,7 +1105,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brandMuted,
+      backgroundColor: theme.colors.primaryMuted,
     },
     navButtonDisabled: {
       opacity: 0.4,
@@ -1130,7 +1129,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       width: 5,
       height: 5,
       borderRadius: 3,
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
     },
     updatesNote: {
       flexDirection: 'row',
@@ -1167,20 +1166,20 @@ function createStyles(theme: AppTheme, isDark: boolean) {
     },
     chargerValue: {
       fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: '700',
-      color: theme.colors.brandDark,
+      color: theme.colors.textLink,
       lineHeight: 32,
     },
     chargingHero: {
-      backgroundColor: isDark ? '#0A2F2A' : theme.colors.surface,
-      borderRadius: 20,
+      backgroundColor: theme.colors.heroBackground,
+      borderRadius: theme.radius.xxl,
       paddingHorizontal: 18,
       paddingTop: 20,
       paddingBottom: 22,
       gap: 16,
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(0, 217, 160, 0.28)' : theme.colors.border,
+      borderColor: theme.colors.heroBorder,
       alignSelf: 'stretch',
       alignItems: 'center',
     },
@@ -1196,16 +1195,16 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
     },
     chargingPowerCopy: {
       gap: 2,
     },
     chargingPowerValue: {
       fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: '700',
-      color: isDark ? theme.colors.brandLight : theme.colors.brandDark,
+      color: theme.colors.heroAccent,
       lineHeight: 32,
     },
     chargingPowerLabel: {
@@ -1214,7 +1213,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       fontWeight: '600',
       letterSpacing: 0.9,
       textTransform: 'uppercase',
-      color: isDark ? theme.colors.brandLight : theme.colors.brandDark,
+      color: theme.colors.heroAccent,
     },
     chargingHeroCopy: {
       alignItems: 'center',
@@ -1227,21 +1226,21 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       fontWeight: '700',
       letterSpacing: 0.8,
       textTransform: 'uppercase',
-      color: isDark ? theme.colors.brandLight : theme.colors.brandDark,
+      color: theme.colors.heroAccent,
       textAlign: 'center',
     },
     chargingHeroTitle: {
       fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 26,
+      fontSize: 20,
       fontWeight: '700',
-      color: isDark ? '#FFFFFF' : theme.colors.textPrimary,
+      color: theme.colors.heroText,
       letterSpacing: -0.3,
       textAlign: 'center',
     },
     chargingHeroMeta: {
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 14,
-      color: isDark ? 'rgba(255,255,255,0.78)' : theme.colors.textMuted,
+      color: theme.colors.heroTextMuted,
       marginTop: 2,
       textAlign: 'center',
     },
@@ -1289,12 +1288,12 @@ function createStyles(theme: AppTheme, isDark: boolean) {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
     },
     livePillText: {
       fontFamily: theme.typography.fontFamily.semibold,
       fontSize: 12,
-      color: theme.colors.brandDark,
+      color: theme.colors.textLink,
     },
     chartRow: {
       height: 120,
@@ -1314,7 +1313,7 @@ function createStyles(theme: AppTheme, isDark: boolean) {
     chartBar: {
       width: '100%',
       borderRadius: 6,
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
       minHeight: 8,
     },
     emptyState: {

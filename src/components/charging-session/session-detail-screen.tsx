@@ -1,19 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { stopDriverChargingSession } from '@/api/chargingSessions';
 import { useAuth } from '@/auth/auth-context';
+import { PageLoader } from '@/components/loaders/page-loader';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/empty-state';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { useChargingSessionDetail } from '@/hooks/use-charging-session-detail';
@@ -91,7 +92,7 @@ function StreamSection({
         style={[styles.streamHeader, !isFirst && styles.streamHeaderSpaced]}
       >
         <View style={styles.streamHeaderIcon}>
-          <Icon name={icon} size={16} color={theme.colors.accent} />
+          <Icon name={icon} size={16} color={theme.colors.primary} />
         </View>
         <Text style={styles.streamTitle}>{title}</Text>
       </View>
@@ -192,20 +193,18 @@ export function SessionDetailScreen() {
   const renderBody = () => {
     if (isLoading) {
       return (
-        <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.accent} size="large" />
-        </View>
+        <PageLoader message="Loading session…" />
       );
     }
 
     if (error && !detail) {
       return (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => void refresh()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Unable to load session"
+          message={error}
+          primaryActionLabel="Retry"
+          onPrimaryAction={() => void refresh()}
+        />
       );
     }
 
@@ -289,19 +288,14 @@ export function SessionDetailScreen() {
             onRefresh={() => {
               void refresh();
             }}
-            tintColor={theme.colors.brand}
-            colors={[theme.colors.brand]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>TOTAL TRANSACTION COST</Text>
-          <Text
-            style={[
-              styles.heroPrice,
-              !hasCost && styles.heroPriceMuted,
-            ]}
-          >
+          <Text style={[styles.heroPrice, !hasCost && styles.heroPriceMuted]}>
             {costValue}
           </Text>
 
@@ -320,12 +314,12 @@ export function SessionDetailScreen() {
 
           <View style={styles.heroStatsRow}>
             <View style={styles.heroStat}>
-              <Icon name="time" size={14} color={theme.colors.accent} />
+              <Icon name="time" size={15} color={theme.colors.heroAccent} />
               <Text style={styles.heroStatText}>{durationValue}</Text>
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStat}>
-              <Icon name="bolt" size={14} color={theme.colors.accent} />
+              <Icon name="bolt" size={15} color={theme.colors.heroAccent} />
               <Text style={styles.heroStatText}>{energyValue}</Text>
             </View>
           </View>
@@ -391,7 +385,7 @@ export function SessionDetailScreen() {
           <View style={styles.receiptCard}>
             <View style={styles.streamHeader}>
               <View style={styles.streamHeaderIcon}>
-                <Icon name="price" size={16} color={theme.colors.accent} />
+                <Icon name="price" size={16} color={theme.colors.textLink} />
               </View>
               <Text style={styles.streamTitle}>Billing & Invoice</Text>
             </View>
@@ -422,7 +416,7 @@ export function SessionDetailScreen() {
           <View style={styles.timelineCard}>
             <View style={styles.streamHeader}>
               <View style={styles.streamHeaderIcon}>
-                <Icon name="time" size={16} color={theme.colors.accent} />
+                <Icon name="time" size={16} color={theme.colors.primary} />
               </View>
               <Text style={styles.streamTitle}>Timeline</Text>
             </View>
@@ -463,9 +457,14 @@ export function SessionDetailScreen() {
         </Text>
 
         {isCharging ? (
-          <Pressable style={styles.stopButton} onPress={handleStop}>
-            <Text style={styles.stopButtonText}>Stop charging</Text>
-          </Pressable>
+          <View style={styles.stopWrap}>
+            <Button
+              label="Stop charging"
+              variant="destructive"
+              leadingIcon="stop"
+              onPress={handleStop}
+            />
+          </View>
         ) : null}
       </ScrollView>
     );
@@ -493,34 +492,32 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.background,
     },
     heroCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      backgroundColor: theme.colors.heroBackground,
+      borderRadius: theme.radius.xxl,
       borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: 18,
-      marginHorizontal: 16,
-      marginTop: 16,
+      borderColor: theme.colors.heroBorder,
+      padding: 24,
+      marginHorizontal: theme.spacing.gutter,
+      marginTop: theme.spacing.md,
       alignItems: 'center',
-      shadowColor: theme.colors.accent,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.05,
-      shadowRadius: 15,
-      elevation: 3,
+      ...theme.shadows.raised,
     },
     heroEyebrow: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 10,
-      color: theme.colors.textMuted,
-      letterSpacing: 0.8,
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 11,
+      color: theme.colors.heroTextMuted,
+      letterSpacing: 1.2,
     },
     heroPrice: {
       fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 32,
-      color: theme.colors.statusAvailable,
-      marginVertical: 6,
+      fontSize: 44,
+      lineHeight: 52,
+      letterSpacing: -1,
+      color: theme.colors.heroText,
+      marginVertical: 8,
     },
     heroPriceMuted: {
-      color: theme.colors.textMuted,
+      color: theme.colors.heroTextMuted,
     },
     statusRow: {
       flexDirection: 'row',
@@ -533,14 +530,14 @@ function createStyles(theme: Theme) {
     startedAt: {
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: 12,
-      color: theme.colors.textMuted,
+      color: theme.colors.heroTextMuted,
     },
     heroDivider: {
       alignSelf: 'stretch',
       height: StyleSheet.hairlineWidth,
-      backgroundColor: theme.colors.border,
-      marginTop: 14,
-      marginBottom: 14,
+      backgroundColor: theme.colors.heroBorder,
+      marginTop: 18,
+      marginBottom: 18,
     },
     heroStatsRow: {
       flexDirection: 'row',
@@ -555,20 +552,20 @@ function createStyles(theme: Theme) {
     },
     heroStatDivider: {
       width: StyleSheet.hairlineWidth,
-      height: 16,
-      backgroundColor: theme.colors.border,
+      height: 18,
+      backgroundColor: theme.colors.heroBorder,
     },
     heroStatText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 13,
-      color: theme.colors.textPrimary,
+      fontFamily: theme.typography.fontFamily.brandSemiBold,
+      fontSize: 15,
+      color: theme.colors.heroText,
     },
     streamCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginHorizontal: 16,
+      marginHorizontal: theme.spacing.gutter,
       marginTop: 14,
       padding: 16,
       ...theme.shadows.card,
@@ -631,10 +628,10 @@ function createStyles(theme: Theme) {
     },
     receiptCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginHorizontal: 16,
+      marginHorizontal: theme.spacing.gutter,
       marginTop: 14,
       padding: 16,
       ...theme.shadows.card,
@@ -671,10 +668,10 @@ function createStyles(theme: Theme) {
     },
     timelineCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginHorizontal: 16,
+      marginHorizontal: theme.spacing.gutter,
       marginTop: 14,
       padding: 16,
       ...theme.shadows.card,
@@ -693,13 +690,13 @@ function createStyles(theme: Theme) {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: theme.colors.statusDot,
+      backgroundColor: theme.colors.primary,
       marginTop: 5,
     },
     timelineLine: {
       flex: 1,
       width: 1.5,
-      backgroundColor: theme.colors.statusDot,
+      backgroundColor: theme.colors.primary,
       opacity: 0.35,
       marginTop: 4,
       marginBottom: -4,
@@ -731,48 +728,10 @@ function createStyles(theme: Theme) {
       marginBottom: 8,
       paddingHorizontal: 16,
     },
-    stopButton: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      marginHorizontal: 16,
+    stopWrap: {
+      marginHorizontal: theme.spacing.gutter,
       marginTop: 4,
       marginBottom: 8,
-    },
-    stopButtonText: {
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 15,
-      color: '#FFFFFF',
-    },
-    centered: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 24,
-      backgroundColor: theme.colors.background,
-    },
-    errorBox: {
-      marginHorizontal: 16,
-      marginTop: 16,
-      padding: 16,
-      borderRadius: 16,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      gap: 8,
-      ...theme.shadows.card,
-      shadowColor: theme.colors.shadow,
-    },
-    errorText: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 13,
-      color: theme.colors.textPrimary,
-    },
-    retryText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 13,
-      color: theme.colors.accent,
     },
   });
 }

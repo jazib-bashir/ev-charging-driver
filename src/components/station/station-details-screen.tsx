@@ -2,19 +2,18 @@ import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Text } from '@/components/ui/text';
 import { AuthApiError, resolveHasDefaultVehicle, resolveIsOnboarded } from '@/api/auth';
 import { fetchPublicChargers } from '@/api/publicChargers';
 import {
@@ -31,7 +30,13 @@ import {
   useGridflowRealtimeStation,
 } from '@/realtime/gridflow-realtime-provider';
 import { GridflowRealtimeEventKind } from '@/realtime/gridflow-realtime-types';
+import { AvailabilityMeter } from '@/components/charging/availability-meter';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { Icon } from '@/components/ui/icon';
+import { IconBadge } from '@/components/ui/icon-badge';
+import { Surface } from '@/components/ui/surface';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { resolveStationAmenities } from '@/constants/station-amenities';
 import { getStationImageSource } from '@/data/station-images';
@@ -61,8 +66,6 @@ import { StationDetailsLoadingState } from './station-details-loading-state';
 const TABLET_BREAKPOINT = 768;
 const MAX_CONTENT_WIDTH = 720;
 const HERO_HEIGHT = 260;
-/** Dark text on mint CTAs — matches selected chip / design system. */
-const ON_ACCENT = '#0F172A';
 const LAYOUT_EDGE = 20;
 const SECTION_GAP = 16;
 
@@ -72,50 +75,26 @@ type StationDetailsScreenProps = {
   resumeBooking?: boolean;
 };
 
-function StationNotFoundState({
-  onBack,
-  styles,
-}: {
-  onBack: () => void;
-  styles: ReturnType<typeof createStyles>;
-}) {
+function StationNotFoundState({ onBack }: { onBack: () => void }) {
   return (
-    <View style={styles.centeredState}>
-      <Text style={styles.stateTitle}>Station not found</Text>
-      <Pressable
-        style={styles.stateButton}
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Text style={styles.stateButtonText}>Go Back</Text>
-      </Pressable>
-    </View>
+    <EmptyState
+      title="Station not found"
+      message="This station may have been removed or is no longer available."
+      iconName="search-off"
+      primaryActionLabel="Go back"
+      onPrimaryAction={onBack}
+    />
   );
 }
 
-function StationErrorState({
-  onRetry,
-  styles,
-}: {
-  onRetry: () => void;
-  styles: ReturnType<typeof createStyles>;
-}) {
+function StationErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <View style={styles.centeredState}>
-      <Text style={styles.stateTitle}>Unable to load station</Text>
-      <Text style={styles.stateMessage}>
-        Please check your connection and try again.
-      </Text>
-      <Pressable
-        style={styles.stateButton}
-        onPress={onRetry}
-        accessibilityRole="button"
-        accessibilityLabel="Retry loading station"
-      >
-        <Text style={styles.stateButtonText}>Retry</Text>
-      </Pressable>
-    </View>
+    <ErrorState
+      title="Unable to load station"
+      message="Please check your connection and try again."
+      primaryActionLabel="Retry"
+      onPrimaryAction={onRetry}
+    />
   );
 }
 
@@ -505,7 +484,7 @@ function StationDetailsContent({
     return (
       <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
         <StationDetailsHeader onBack={handleBack} />
-        <StationErrorState onRetry={retryStation} styles={styles} />
+        <StationErrorState onRetry={retryStation} />
       </ScreenContainer>
     );
   }
@@ -514,7 +493,7 @@ function StationDetailsContent({
     return (
       <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
         <StationDetailsHeader onBack={handleBack} />
-        <StationNotFoundState onBack={handleBack} styles={styles} />
+        <StationNotFoundState onBack={handleBack} />
       </ScreenContainer>
     );
   }
@@ -548,8 +527,8 @@ function StationDetailsContent({
             onRefresh={() => {
               void handlePullRefresh();
             }}
-            tintColor={theme.colors.brand}
-            colors={[theme.colors.brand]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
@@ -573,7 +552,7 @@ function StationDetailsContent({
               accessibilityLabel="Go back"
               hitSlop={6}
             >
-              <Icon name="back" size={22} color="#FFFFFF" />
+              <Icon name="back" size={22} color={theme.colors.heroText} />
             </Pressable>
 
             <Pressable
@@ -588,13 +567,13 @@ function StationDetailsContent({
               accessibilityLabel="Share station"
               hitSlop={6}
             >
-              <Icon name="share" size={20} color="#FFFFFF" />
+              <Icon name="share" size={20} color={theme.colors.heroText} />
             </Pressable>
           </View>
 
           <View style={styles.verifiedBadge}>
-            <Icon name="star" size={12} color={theme.colors.statusAvailable} />
-            <Text style={styles.verifiedText}>GridFlow Verified</Text>
+            <Icon name="shield" size={12} color={theme.colors.secondary} />
+            <Text style={styles.verifiedText}>konnectEV Verified</Text>
           </View>
         </View>
 
@@ -615,54 +594,42 @@ function StationDetailsContent({
           <View style={styles.infoTileRow}>
             <View style={styles.infoTile}>
               <Text style={styles.infoTileLabel}>STATUS</Text>
-              <View
-                style={[
-                  styles.statusPill,
-                  status.variant === 'available' && styles.statusPillAvailable,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.statusDot,
-                    status.variant === 'available' && styles.statusDotAvailable,
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.statusPillText,
-                    status.variant === 'available' && styles.statusPillTextAvailable,
-                  ]}
-                >
-                  {status.label}
-                </Text>
-              </View>
+              <Badge
+                label={status.label}
+                variant={status.variant}
+                showDot={status.variant === 'available'}
+                style={styles.statusBadge}
+              />
             </View>
 
             <View style={styles.infoTile}>
               <Text style={styles.infoTileLabel}>PRICING</Text>
               <View style={styles.priceRow}>
                 <Text style={styles.priceValue}>{priceAmount}</Text>
-                {hasPrice ? (
-                  <Text style={styles.priceUnit}>/kWh</Text>
-                ) : null}
+                {hasPrice ? <Text style={styles.priceUnit}>/kWh</Text> : null}
               </View>
             </View>
           </View>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.navigateButton,
-              !canNavigate && styles.navigateButtonDisabled,
-              pressed && canNavigate && styles.navigateButtonPressed,
-            ]}
-            onPress={() => openStationNavigation(station)}
+          {typeof station.totalEvses === 'number' &&
+          typeof station.availableEvses === 'number' &&
+          station.totalEvses > 0 ? (
+            <Surface variant="card" padding={16}>
+              <AvailabilityMeter
+                available={station.availableEvses}
+                total={station.totalEvses}
+              />
+            </Surface>
+          ) : null}
+
+          <Button
+            label="Navigate to Station"
+            variant="secondary"
+            leadingIcon="navigate"
             disabled={!canNavigate}
-            accessibilityRole="button"
+            onPress={() => openStationNavigation(station)}
             accessibilityLabel={`Navigate to ${station.name}`}
-          >
-            <Icon name="navigate" size={18} color={ON_ACCENT} />
-            <Text style={styles.navigateButtonText}>Navigate to Station</Text>
-          </Pressable>
+          />
 
           <View style={styles.queueSection}>
             {stationActiveSession ? (
@@ -688,59 +655,37 @@ function StationDetailsContent({
                 }}
               />
             ) : !stationActiveSession && station.queue ? (
-              <View style={styles.bookQueueCard}>
+              <Surface variant="tinted" padding={18} style={styles.bookQueueCard}>
                 <View style={styles.bookQueueHeader}>
-                  <View style={styles.bookQueueTitleRow}>
-                    <Icon name="list" size={18} color={theme.colors.accent} />
-                    <Text style={styles.bookQueueTitle}>Queue Available</Text>
+                  <IconBadge name="list" tone="primary" size={40} />
+                  <View style={styles.bookQueueCopy}>
+                    <Text style={styles.bookQueueTitle}>Queue available</Text>
+                    <Text style={styles.bookQueueSubtitle}>
+                      Reserve your spot and get notified when a charger is ready.
+                    </Text>
                   </View>
-                  <View style={styles.availablePill}>
-                    <View style={styles.availablePillDot} />
-                    <Text style={styles.availablePillText}>Open</Text>
-                  </View>
+                  <Badge label="Open" variant="available" showDot />
                 </View>
-                <Text style={styles.bookQueueSubtitle}>
-                  Reserve your spot and get notified when a charger is ready.
-                </Text>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.bookQueueButton,
-                    (pressed || isOpeningQueue || isMembershipLoading) &&
-                      styles.bookQueueButtonPressed,
-                    (isOpeningQueue || isMembershipLoading) &&
-                      styles.bookQueueButtonDisabled,
-                  ]}
+                <Button
+                  label="Book Queue Position"
+                  leadingIcon="list"
+                  loading={isOpeningQueue || isMembershipLoading}
                   onPress={() => {
                     void handleJoinQueuePress();
                   }}
-                  disabled={isOpeningQueue || isMembershipLoading}
-                  accessibilityRole="button"
                   accessibilityLabel="Book queue position"
-                >
-                  {isOpeningQueue || isMembershipLoading ? (
-                    <ActivityIndicator color={ON_ACCENT} />
-                  ) : (
-                    <>
-                      <Icon name="list" size={16} color={ON_ACCENT} />
-                      <Text style={styles.bookQueueButtonText}>
-                        Book Queue Position
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              </View>
+                />
+              </Surface>
             ) : !stationActiveSession ? (
-              <View style={styles.queueUnavailableCard}>
+              <Surface variant="sunken" padding={16} style={styles.queueUnavailableCard}>
                 <Icon name="list" size={18} color={theme.colors.textMuted} />
                 <View style={styles.queueUnavailableCopy}>
-                  <Text style={styles.queueUnavailableTitle}>
-                    Queue not available
-                  </Text>
+                  <Text style={styles.queueUnavailableTitle}>Queue not available</Text>
                   <Text style={styles.queueUnavailableSubtitle}>
                     This station is not accepting queue bookings right now.
                   </Text>
                 </View>
-              </View>
+              </Surface>
             ) : null}
           </View>
         </View>
@@ -812,7 +757,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     heroScrim: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(6, 12, 24, 0.18)',
+      backgroundColor: 'rgba(13, 17, 23, 0.22)',
     },
     heroChrome: {
       position: 'absolute',
@@ -826,14 +771,14 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       paddingBottom: 8,
     },
     heroIconButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 42,
+      height: 42,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(6, 12, 24, 0.45)',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.18)',
+      backgroundColor: 'rgba(13, 17, 23, 0.55)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255, 255, 255, 0.22)',
     },
     heroIconButtonPressed: {
       opacity: 0.85,
@@ -846,17 +791,17 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       alignItems: 'center',
       gap: 6,
       paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 10,
-      backgroundColor: 'rgba(6, 12, 24, 0.72)',
-      borderWidth: 1,
-      borderColor: 'rgba(0, 217, 160, 0.35)',
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      backgroundColor: 'rgba(13, 17, 23, 0.72)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(16, 185, 129, 0.45)',
     },
     verifiedText: {
       fontFamily: theme.typography.fontFamily.semibold,
       fontSize: 11,
       lineHeight: 16,
-      color: theme.colors.statusAvailable,
+      color: theme.colors.heroText,
     },
     summarySection: {
       paddingHorizontal: LAYOUT_EDGE,
@@ -868,10 +813,10 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     stationName: {
       fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 22,
-      lineHeight: 26.4,
+      fontSize: 20,
+      lineHeight: 32,
       color: theme.colors.textPrimary,
-      letterSpacing: -0.2,
+      letterSpacing: -0.8,
     },
     addressRow: {
       flexDirection: 'row',
@@ -892,12 +837,20 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     infoTile: {
       flex: 1,
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.md,
-      borderWidth: 1,
+      borderRadius: theme.radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.border,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
       gap: 8,
+      ...(theme.isDark ? theme.shadows.none : theme.shadows.card),
+    },
+    statusBadge: {
+      alignSelf: 'flex-start',
+    },
+    bookQueueCopy: {
+      flex: 1,
+      gap: 4,
     },
     infoTileLabel: {
       fontFamily: theme.typography.fontFamily.regular,
@@ -905,40 +858,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       lineHeight: 16.5,
       letterSpacing: 0.6,
       color: theme.colors.textMuted,
-    },
-    statusPill: {
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: theme.radius.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.iconBackground,
-    },
-    statusPillAvailable: {
-      borderColor: theme.colors.statusAvailable,
-      backgroundColor: theme.colors.statusAvailableBg,
-    },
-    statusDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.colors.statusUnavailable,
-    },
-    statusDotAvailable: {
-      backgroundColor: theme.colors.statusAvailable,
-    },
-    statusPillText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 13,
-      lineHeight: 18,
-      color: theme.colors.textSecondary,
-    },
-    statusPillTextAvailable: {
-      color: theme.colors.statusAvailable,
     },
     priceRow: {
       flexDirection: 'row',
@@ -958,117 +877,33 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       lineHeight: 18,
       color: theme.colors.textMuted,
     },
-    navigateButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      height: 48,
-      backgroundColor: theme.colors.accent,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-    },
-    navigateButtonPressed: {
-      opacity: 0.9,
-    },
-    navigateButtonDisabled: {
-      opacity: 0.55,
-    },
-    navigateButtonText: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 15,
-      lineHeight: 22,
-      color: ON_ACCENT,
-      includeFontPadding: false,
-    },
     queueSection: {
       gap: SECTION_GAP,
     },
     bookQueueCard: {
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.selectionBorder,
-      backgroundColor: theme.colors.surface,
-      padding: 16,
-      gap: 12,
+      gap: 16,
     },
     bookQueueHeader: {
       flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      alignItems: 'flex-start',
       gap: 12,
     },
-    bookQueueTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      flexShrink: 1,
-    },
     bookQueueTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 15,
-      lineHeight: 22.5,
-      color: theme.colors.accent,
-    },
-    availablePill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: theme.radius.pill,
-      backgroundColor: theme.colors.statusAvailableBg,
-    },
-    availablePillDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.colors.statusAvailable,
-    },
-    availablePillText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 11,
-      lineHeight: 16,
-      color: theme.colors.statusAvailable,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 16,
+      letterSpacing: -0.3,
+      color: theme.colors.textPrimary,
     },
     bookQueueSubtitle: {
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: 13,
-      lineHeight: 19.5,
-      color: theme.colors.textMuted,
-    },
-    bookQueueButton: {
-      height: 45,
-      borderRadius: 10,
-      backgroundColor: theme.colors.accent,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-      gap: 7,
-      paddingHorizontal: 12,
-    },
-    bookQueueButtonPressed: {
-      opacity: 0.9,
-    },
-    bookQueueButtonDisabled: {
-      opacity: 0.7,
-    },
-    bookQueueButtonText: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 14,
-      lineHeight: 21,
-      color: ON_ACCENT,
-      includeFontPadding: false,
+      lineHeight: 19,
+      color: theme.colors.textSecondary,
     },
     queueUnavailableCard: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: 12,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      padding: 16,
     },
     queueUnavailableCopy: {
       flex: 1,
@@ -1085,37 +920,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       fontSize: 13,
       lineHeight: 19.5,
       color: theme.colors.textMuted,
-    },
-    centeredState: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: theme.spacing.xxl,
-      gap: theme.spacing.sm,
-    },
-    stateTitle: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: theme.typography.fontSize.lg,
-      color: theme.colors.textPrimary,
-      textAlign: 'center',
-    },
-    stateMessage: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: theme.typography.fontSize.md,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-    },
-    stateButton: {
-      marginTop: theme.spacing.md,
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.accent,
-    },
-    stateButtonText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: theme.typography.fontSize.md,
-      color: ON_ACCENT,
     },
   });
 }

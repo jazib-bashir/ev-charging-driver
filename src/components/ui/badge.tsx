@@ -1,9 +1,18 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
 
-type BadgeVariant = 'available' | 'unavailable' | 'neutral' | 'distance';
+export type BadgeVariant =
+  | 'available'
+  | 'unavailable'
+  | 'neutral'
+  | 'distance'
+  | 'warning'
+  | 'error'
+  | 'info'
+  | 'solid';
 
 type BadgeProps = {
   label: string;
@@ -12,28 +21,21 @@ type BadgeProps = {
   style?: ViewStyle;
 };
 
+/** Status pill: Available / In use / Offline / Fast / Info. Semantic colors only – never Coral/Lime. */
 export function Badge({ label, variant = 'neutral', showDot = false, style }: BadgeProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const c = theme.colors;
 
   const colors = {
-    available: {
-      bg: theme.colors.statusAvailableBg,
-      text: theme.colors.statusAvailable,
-      dot: theme.colors.statusAvailable,
-    },
-    unavailable: {
-      bg: theme.colors.statusUnavailableBg,
-      text: theme.colors.textInverse,
-    },
-    neutral: {
-      bg: theme.colors.statusUnavailable,
-      text: theme.colors.textInverse,
-    },
-    distance: {
-      bg: theme.colors.distanceBadgeBg,
-      text: theme.colors.distanceBadgeText,
-    },
+    available: { bg: c.statusAvailableBg, text: c.statusAvailable, dot: c.statusDot },
+    unavailable: { bg: c.statusUnavailableBg, text: c.textSecondary, dot: c.statusUnavailable },
+    neutral: { bg: c.surfaceSunken, text: c.textSecondary, dot: c.textMuted },
+    distance: { bg: c.distanceBadgeBg, text: c.distanceBadgeText, dot: c.statusDot },
+    warning: { bg: c.warningBg, text: c.warningText, dot: c.warning },
+    error: { bg: c.errorBg, text: c.errorText, dot: c.error },
+    info: { bg: c.infoBg, text: c.infoText, dot: c.info },
+    solid: { bg: c.primary, text: c.onPrimary, dot: c.onPrimary },
   }[variant];
 
   return (
@@ -45,9 +47,7 @@ export function Badge({ label, variant = 'neutral', showDot = false, style }: Ba
         style,
       ]}
     >
-      {showDot ? (
-        <View style={[styles.dot, { backgroundColor: colors.dot ?? theme.colors.statusAvailable }]} />
-      ) : null}
+      {showDot ? <View style={[styles.dot, { backgroundColor: colors.dot }]} /> : null}
       <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
     </View>
   );
@@ -58,10 +58,11 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     badge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
+      gap: 6,
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: theme.radius.pill,
+      alignSelf: 'flex-start',
     },
     distanceBadge: {
       ...theme.shadows.badge,
@@ -72,10 +73,9 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderRadius: 3,
     },
     label: {
-      fontFamily: theme.typography.fontFamily.semibold,
+      fontFamily: theme.typography.fontFamily.bold,
       fontSize: 11,
-      letterSpacing: 0.1,
-      fontWeight: '600',
+      letterSpacing: 0.2,
     },
   });
 }

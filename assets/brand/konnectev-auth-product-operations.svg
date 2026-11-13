@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="konnectEV operator product composition">
+  <style>:root{--coral:#FF3E1D;--lime:#D4FF00;--obsidian:#0D1117;--warm:#F3F0E8}</style>
+  <rect width="1200" height="760" fill="var(--obsidian)"/>
+  <g transform="translate(110 90)">
+    <rect width="980" height="580" rx="28" fill="var(--warm)"/>
+    <rect width="205" height="580" rx="28" fill="#171D23"/>
+    <path d="M34 115h137M34 176h137M34 237h137M34 298h137" stroke="#fff" opacity=".17" stroke-width="18" stroke-linecap="round"/>
+    <rect x="238" y="42" width="204" height="128" rx="15" fill="#fff"/>
+    <rect x="462" y="42" width="204" height="128" rx="15" fill="#fff"/>
+    <rect x="686" y="42" width="252" height="128" rx="15" fill="#fff"/>
+    <path d="M274 130V90M318 130V72M362 130v-25M406 130V58" stroke="var(--coral)" stroke-width="22"/>
+    <circle cx="515" cy="105" r="39" fill="none" stroke="var(--lime)" stroke-width="18" stroke-dasharray="170 80"/>
+    <rect x="238" y="205" width="700" height="315" rx="18" fill="#fff"/>
+    <path d="M280 452 370 365l76 34 110-132 86 67 104-93 146 125" fill="none" stroke="var(--coral)" stroke-width="11" stroke-linejoin="round"/>
+    <path d="M280 470h612" stroke="var(--obsidian)" opacity=".1"/>
+    <g fill="var(--lime)"><circle cx="370" cy="365" r="10"/><circle cx="556" cy="267" r="10"/><circle cx="746" cy="241" r="10"/></g>
+  </g>
+</svg>

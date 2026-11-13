@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" role="img" aria-label="konnectEV feedback symbols"><defs>
+  <mask id="weave-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="96">
+    <rect width="96" height="96" fill="#fff"/>
+    <path d="M8 20h14c28 0 18 56 46 56h20" stroke="#000" stroke-width="20" stroke-linecap="round"/>
+  </mask>
+</defs><g id="Empty-state" transform="translate(12 12)"><g opacity=".14"><g id="Symbol">
+  <g id="Lime-paths"><path d="M8 76h20c28 0 18-56 46-56h14" fill="none" stroke="#D4FF00" stroke-width="10" stroke-linecap="round" mask="url(#weave-cut)"/></g>
+  <g id="Coral-paths"><path d="M8 20h14c28 0 18 56 46 56h20" fill="none" stroke="#FF3E1D" stroke-width="10" stroke-linecap="round"/></g>
+</g></g><path d="M28 58h40M35 41h26M42 25h12" fill="none" stroke="#0D1117" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g><g id="Offline-state" transform="translate(132 12)"><g opacity=".14"><g id="Symbol">
+  <g id="Lime-paths"><path d="M8 76h20c28 0 18-56 46-56h14" fill="none" stroke="#D4FF00" stroke-width="10" stroke-linecap="round" mask="url(#weave-cut)"/></g>
+  <g id="Coral-paths"><path d="M8 20h14c28 0 18 56 46 56h20" fill="none" stroke="#FF3E1D" stroke-width="10" stroke-linecap="round"/></g>
+</g></g><path d="M27 63c12-13 30-13 42 0M38 50c6-6 14-6 20 0M48 70h.1" fill="none" stroke="#66717C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g><g id="Success-state" transform="translate(252 12)"><g opacity=".14"><g id="Symbol">
+  <g id="Lime-paths"><path d="M8 76h20c28 0 18-56 46-56h14" fill="none" stroke="#D4FF00" stroke-width="10" stroke-linecap="round" mask="url(#weave-cut)"/></g>
+  <g id="Coral-paths"><path d="M8 20h14c28 0 18 56 46 56h20" fill="none" stroke="#FF3E1D" stroke-width="10" stroke-linecap="round"/></g>
+</g></g><path d="M25 48l14 14 32-35" fill="none" stroke="#3C6900" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g><g id="Error-state" transform="translate(372 12)"><g opacity=".14"><g id="Symbol">
+  <g id="Lime-paths"><path d="M8 76h20c28 0 18-56 46-56h14" fill="none" stroke="#D4FF00" stroke-width="10" stroke-linecap="round" mask="url(#weave-cut)"/></g>
+  <g id="Coral-paths"><path d="M8 20h14c28 0 18 56 46 56h20" fill="none" stroke="#FF3E1D" stroke-width="10" stroke-linecap="round"/></g>
+</g></g><path d="M31 31l34 34M65 31 31 65" fill="none" stroke="#FF3E1D" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g></svg>

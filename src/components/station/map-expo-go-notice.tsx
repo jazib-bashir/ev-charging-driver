@@ -1,12 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { IconBadge } from '@/components/ui/icon-badge';
+import { Text } from '@/components/ui/text';
+import { useTheme } from '@/theme';
 
 export function MapExpoGoNotice() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.container}>
-      <Icon name="map" size={18} color={theme.colors.selectionForeground} />
+      <IconBadge name="map" tone="info" size={36} />
       <View style={styles.copy}>
         <Text style={styles.title}>Map tiles unavailable in Expo Go</Text>
         <Text style={styles.message}>
@@ -18,34 +23,37 @@ export function MapExpoGoNotice() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: theme.spacing.md,
-    left: theme.spacing.lg,
-    right: theme.spacing.lg,
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.selectionBorder,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    ...theme.shadows.card,
-  },
-  copy: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.textPrimary,
-  },
-  message: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-    lineHeight: 16,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    container: {
+      position: 'absolute',
+      top: theme.spacing.md,
+      left: theme.spacing.lg,
+      right: theme.spacing.lg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      padding: theme.spacing.md,
+      ...theme.shadows.card,
+    },
+    copy: {
+      flex: 1,
+      gap: 2,
+    },
+    title: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textPrimary,
+    },
+    message: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.textMuted,
+      lineHeight: 16,
+    },
+  });
+}

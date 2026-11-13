@@ -3,7 +3,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { ComponentProps } from 'react';
 import { Platform, type StyleProp, type TextStyle } from 'react-native';
 
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 export type IconName =
   | 'bolt'
@@ -23,6 +23,20 @@ export type IconName =
   | 'user'
   | 'person-outline'
   | 'document'
+  | 'document-filled'
+  | 'bolt-outline'
+  | 'speedometer'
+  | 'cash'
+  | 'moon'
+  | 'sun'
+  | 'help'
+  | 'lock'
+  | 'notifications'
+  | 'battery'
+  | 'pause'
+  | 'stop'
+  | 'info'
+  | 'chevron-up'
   | 'image'
   | 'back'
   | 'share'
@@ -82,6 +96,20 @@ const ICON_MAP: Record<IconName, IconConfig> = {
   user: { family: 'ionicons', name: 'person' },
   'person-outline': { family: 'ionicons', name: 'person-outline' },
   document: { family: 'ionicons', name: 'document-text-outline' },
+  'document-filled': { family: 'ionicons', name: 'document-text' },
+  'bolt-outline': { family: 'ionicons', name: 'flash-outline' },
+  speedometer: { family: 'ionicons', name: 'speedometer-outline' },
+  cash: { family: 'ionicons', name: 'cash-outline' },
+  moon: { family: 'ionicons', name: 'moon-outline' },
+  sun: { family: 'ionicons', name: 'sunny-outline' },
+  help: { family: 'ionicons', name: 'help-circle-outline' },
+  lock: { family: 'ionicons', name: 'lock-closed-outline' },
+  notifications: { family: 'ionicons', name: 'notifications' },
+  battery: { family: 'ionicons', name: 'battery-charging-outline' },
+  pause: { family: 'ionicons', name: 'pause' },
+  stop: { family: 'ionicons', name: 'stop-circle-outline' },
+  info: { family: 'ionicons', name: 'information-circle-outline' },
+  'chevron-up': { family: 'ionicons', name: 'chevron-up' },
   image: { family: 'ionicons', name: 'image-outline' },
   back: { family: 'ionicons', name: 'chevron-back' },
   share: { family: 'ionicons', name: 'share-social-outline' },
@@ -132,7 +160,9 @@ const OPTICAL_OFFSET: Partial<Record<IconName, { x: number; y: number }>> = {
   location: { x: 0, y: 1 },
 };
 
-export function Icon({ name, size = 20, color = theme.colors.textPrimary, style }: IconProps) {
+export function Icon({ name, size = 20, color, style }: IconProps) {
+  const { theme } = useTheme();
+  const resolvedColor = color ?? theme.colors.textPrimary;
   const config = ICON_MAP[name];
   const offset = OPTICAL_OFFSET[name];
   const iconStyle: StyleProp<TextStyle> = [
@@ -153,7 +183,7 @@ export function Icon({ name, size = 20, color = theme.colors.textPrimary, style 
       <MaterialCommunityIcons
         name={config.name}
         size={size}
-        color={color}
+        color={resolvedColor}
         style={iconStyle}
       />
     );
@@ -163,7 +193,7 @@ export function Icon({ name, size = 20, color = theme.colors.textPrimary, style 
     <Ionicons
       name={config.name}
       size={size}
-      color={color}
+      color={resolvedColor}
       style={iconStyle}
     />
   );

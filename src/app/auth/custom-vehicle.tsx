@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { AuthApiError } from '@/api/auth';
 import { createDriverVehicle } from '@/api/driverVehicles';
 import { useAuth } from '@/auth/auth-context';
@@ -12,10 +13,12 @@ import {
   RequestStatusBanner,
   useRequestStatus,
 } from '@/components/ui/request-status';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { CONNECTOR_TYPES, type ConnectorType } from '@/types/vehicle';
 
 export default function CustomVehicleScreen() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { token, refreshUser } = useAuth();
   const { status, showError, showSuccess, clearStatus } = useRequestStatus(1800);
@@ -258,6 +261,8 @@ function ConnectorChip({
   disabled,
   onPress,
 }: ConnectorChipProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Pressable
       onPress={onPress}
@@ -277,7 +282,8 @@ function ConnectorChip({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
   section: {
     gap: theme.spacing.sm,
   },
@@ -295,16 +301,16 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   chip: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 8,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: 10,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1.5,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
   chipSelected: {
-    borderColor: theme.colors.selectionBorder,
-    backgroundColor: theme.colors.selectionBackground,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryMuted,
   },
   chipDisabled: {
     opacity: 0.7,
@@ -319,6 +325,7 @@ const styles = StyleSheet.create({
   },
   fieldError: {
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.notification,
+    color: theme.colors.errorText,
   },
 });
+}

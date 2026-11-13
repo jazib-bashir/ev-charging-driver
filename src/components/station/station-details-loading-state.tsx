@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
+import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { useTheme } from '@/theme';
 
 const TABLET_BREAKPOINT = 768;
@@ -10,14 +11,13 @@ function SkeletonBlock({
   width,
   height,
   style,
-  blockStyle,
 }: {
   width: number | `${number}%`;
   height: number;
   style?: object;
-  blockStyle: object;
+  blockStyle?: object;
 }) {
-  return <View style={[blockStyle, { width, height }, style]} />;
+  return <SkeletonLoader width={width} height={height} radius={height > 40 ? 20 : 9} style={style} />;
 }
 
 export function StationDetailsLoadingState() {

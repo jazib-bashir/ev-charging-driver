@@ -35,8 +35,8 @@ module.exports = {
     [
       'expo-notifications',
       {
-        icon: './assets/images/gridflow-logo.png',
-        color: '#f5f7f9',
+        icon: './assets/icons/notification-icon.png',
+        color: '#08785E',
         defaultChannel: 'default',
       },
     ],
@@ -45,7 +45,7 @@ module.exports = {
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Allow GridFlow to use your location to find nearby chargers.',
+          'Allow konnectEV to use your location to find nearby chargers.',
       },
     ],
     [
@@ -73,7 +73,7 @@ module.exports = {
     infoPlist: {
       ...expo.ios?.infoPlist,
       NSLocationWhenInUseUsageDescription:
-        'Allow GridFlow to use your location to find nearby chargers.',
+        'Allow konnectEV to use your location to find nearby chargers.',
     },
     config: {
       ...expo.ios?.config,

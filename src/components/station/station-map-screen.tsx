@@ -1,4 +1,3 @@
-import { router, type Href } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -6,6 +5,8 @@ import { useAuth } from '@/auth/auth-context';
 import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { Text } from '@/components/ui/text';
+import { TitleBand } from '@/components/ui/title-band';
 import { getStationsWithCoordinates } from '@/utils/map-region';
 import { useTheme } from '@/theme';
 import { isExpoGoAndroid } from '@/utils/runtime';
@@ -19,6 +20,7 @@ import { MapLoadingState } from './map-loading-state';
 import { StationErrorState } from './station-error-state';
 import { StationHeader } from './station-header';
 import { StationMap } from './station-map';
+
 export function StationMapScreen() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -62,13 +64,14 @@ export function StationMapScreen() {
   const showExpoGoNotice = isExpoGoAndroid();
   const hasActiveDiscovery = hasActiveSearch || hasActiveFilters;
 
-  const handleBackToList = () => {
-    router.navigate('/' as Href);
-  };
-
   return (
     <ScreenContainer edges={['top']} style={styles.screen}>
-      <StationHeader variant="map" onBack={handleBackToList} />
+      <StationHeader />
+
+      <TitleBand contentStyle={styles.titleContent}>
+        <Text style={styles.title}>Station Map</Text>
+        <Text style={styles.subtitle}>Live chargers near you</Text>
+      </TitleBand>
 
       <View style={styles.mapStage}>
         {isInitialLoading ? <MapLoadingState /> : null}
@@ -166,9 +169,25 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     screen: {
       backgroundColor: theme.colors.background,
     },
+    titleContent: {
+      gap: 4,
+    },
+    title: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: theme.textStyles.h1.fontSize,
+      lineHeight: theme.textStyles.h1.lineHeight,
+      letterSpacing: theme.textStyles.h1.letterSpacing,
+      color: theme.colors.titleBandText,
+    },
+    subtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.md,
+      lineHeight: 20,
+      color: theme.colors.titleBandTextMuted,
+    },
     mapStage: {
       flex: 1,
-      backgroundColor: theme.colors.placeholder,
+      backgroundColor: theme.colors.background,
     },
     floatingChrome: {
       position: 'absolute',

@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 export type ViewMode = 'list' | 'map';
 
@@ -10,15 +11,18 @@ type ViewToggleProps = {
   onChange: (mode: ViewMode) => void;
 };
 
-const OPTIONS: { mode: ViewMode; icon: IconName }[] = [
-  { mode: 'list', icon: 'list' },
-  { mode: 'map', icon: 'map' },
+const OPTIONS: { mode: ViewMode; icon: IconName; label: string }[] = [
+  { mode: 'list', icon: 'list', label: 'List view' },
+  { mode: 'map', icon: 'map', label: 'Map view' },
 ];
 
 export function ViewToggle({ value, onChange }: ViewToggleProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.container}>
-      {OPTIONS.map(({ mode, icon }) => {
+      {OPTIONS.map(({ mode, icon, label }) => {
         const active = value === mode;
         return (
           <Pressable
@@ -26,13 +30,10 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
             onPress={() => onChange(mode)}
             style={[styles.button, active && styles.buttonActive]}
             accessibilityRole="button"
+            accessibilityLabel={label}
             accessibilityState={{ selected: active }}
           >
-            <Icon
-              name={icon}
-              size={16}
-              color={active ? theme.colors.selectionForeground : theme.colors.textMuted}
-            />
+            <Icon name={icon} size={18} color={active ? theme.colors.onPrimary : theme.colors.textMuted} />
           </Pressable>
         );
       })}
@@ -40,25 +41,25 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: theme.radius.sm + 2,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 2,
-    gap: 2,
-  },
-  button: {
-    width: 32,
-    height: 28,
-    borderRadius: theme.radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonActive: {
-    backgroundColor: theme.colors.selectionBackground,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: theme.radius.control,
+      backgroundColor: theme.colors.surfaceSunken,
+      padding: 3,
+      gap: 2,
+    },
+    button: {
+      width: 38,
+      height: 34,
+      borderRadius: theme.radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    buttonActive: {
+      backgroundColor: theme.colors.primary,
+    },
+  });
+}

@@ -39,11 +39,9 @@ const NOTICE_MESSAGES: Record<string, string> = {
     'Complete your profile to book a charger. You can finish it anytime from Profile.',
 };
 
-const CHARGING_DARK_BG = '#0A2F2A';
-
 export function StationDiscoveryScreen() {
   const { token, user, isLoading: isAuthLoading, refreshUser } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, theme } = useTheme();
   const journeyLookupFailed = user?.activeJourneyLookup === 'failed';
   const whoAmIConfirmedNoJourney =
     user?.activeJourneyLookup === 'ok' && user.activeJourney == null;
@@ -408,7 +406,7 @@ export function StationDiscoveryScreen() {
         edges={['top']}
         style={
           hasActiveCharging && isDark
-            ? { backgroundColor: CHARGING_DARK_BG }
+            ? { backgroundColor: theme.colors.heroBackground }
             : undefined
         }
       >

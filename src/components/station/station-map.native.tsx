@@ -21,7 +21,7 @@ import {
   type StationMapCluster,
 } from '@/utils/station-map-clustering';
 
-import { CustomMapStyle } from './custom-map-style';
+import { CustomDarkMapStyle, CustomMapStyle } from './custom-map-style';
 import { StationClusterMarker, StationMapMarker } from './station-map-marker';
 import { StationMapPreview } from './station-map-preview';
 import type { StationMapProps } from './station-map';
@@ -98,7 +98,7 @@ export function StationMap({
   );
 
   const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined;
-  const useCustomStyle = Boolean(mapProvider) && !isDark;
+  const useCustomStyle = Boolean(mapProvider);
 
   const bumpMarkerRedraw = useCallback(() => {
     setTracksViewChanges(true);
@@ -271,7 +271,9 @@ export function StationMap({
         provider={mapProvider}
         style={styles.map}
         initialRegion={LAHORE_DEFAULT_REGION}
-        customMapStyle={useCustomStyle ? CustomMapStyle : undefined}
+        customMapStyle={
+          useCustomStyle ? (isDark ? CustomDarkMapStyle : CustomMapStyle) : undefined
+        }
         userInterfaceStyle={isDark ? 'dark' : 'light'}
         showsUserLocation
         showsMyLocationButton={false}
@@ -361,7 +363,7 @@ export function StationMap({
         accessibilityLabel="Go to my location"
         hitSlop={6}
       >
-        <Icon name="locate" size={22} color={theme.colors.textPrimary} />
+        <Icon name="locate" size={22} color={theme.colors.primary} />
       </Pressable>
     </View>
   );

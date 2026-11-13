@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ConnectorTag } from '@/components/ui/connector-tag';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
@@ -53,7 +55,7 @@ export function StationMapPreview({
     >
       <View style={styles.header}>
         <View style={styles.iconWrap}>
-          <Icon name="charger" size={18} color={theme.colors.textInverse} />
+          <Icon name="charger" size={18} color={theme.colors.onPrimary} />
         </View>
         <View style={styles.headerCopy}>
           <View style={styles.titleRow}>
@@ -61,26 +63,11 @@ export function StationMapPreview({
               {formatText(station.name)}
             </Text>
             <View style={styles.headerTrailing}>
-              {status.variant === 'available' ? (
-                <View
-                  style={[
-                    styles.availableBadge,
-                    { backgroundColor: theme.colors.statusAvailableBg },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.availableDot,
-                      { backgroundColor: theme.colors.statusAvailable },
-                    ]}
-                  />
-                  <Text style={[styles.availableLabel, { color: theme.colors.statusAvailable }]}>
-                    {status.label}
-                  </Text>
-                </View>
-              ) : (
-                <Badge label={status.label} variant={status.variant} />
-              )}
+              <Badge
+                label={status.label}
+                variant={status.variant}
+                showDot={status.variant === 'available'}
+              />
             </View>
           </View>
           <Text style={styles.address} numberOfLines={2}>
@@ -92,7 +79,7 @@ export function StationMapPreview({
       <View style={styles.statsRow}>
         {distanceLabel ? (
           <View style={styles.metaItem}>
-            <Icon name="map-pin" size={14} color={theme.colors.accent} />
+            <Icon name="map-pin" size={14} color={theme.colors.primary} />
             <Text style={styles.metaEmphasis} numberOfLines={1}>
               {distanceLabel}
             </Text>
@@ -101,7 +88,7 @@ export function StationMapPreview({
 
         {showPrice ? (
           <View style={styles.metaItem}>
-            <Icon name="price" size={14} color={theme.colors.accent} />
+            <Icon name="price" size={14} color={theme.colors.primary} />
             <Text style={styles.metaText} numberOfLines={1}>
               {formatPricePerKwh(station.defaultPricePerKwh, station.currency)}
             </Text>
@@ -119,7 +106,7 @@ export function StationMapPreview({
 
         {chargerLabel ? (
           <View style={styles.metaItem}>
-            <Icon name="charger" size={14} color={theme.colors.accent} />
+            <Icon name="charger" size={14} color={theme.colors.primary} />
             <Text style={styles.metaEmphasis} numberOfLines={1}>
               {chargerLabel}
             </Text>
@@ -139,32 +126,22 @@ export function StationMapPreview({
       ) : null}
 
       <View style={styles.actionsRow}>
-        <Pressable
-          onPress={() => openStationNavigation(station)}
-          disabled={!canNavigate}
-          accessibilityRole="button"
-          accessibilityLabel={`Navigate to station ${station.name}`}
-          style={({ pressed }) => [
-            styles.navigateButton,
-            !canNavigate && styles.actionDisabled,
-            pressed && styles.actionPressed,
-          ]}
-        >
-          <Icon name="navigate" size={18} color="#FFFFFF" />
-          <Text style={styles.navigateLabel}>Navigate to Station</Text>
-        </Pressable>
-
-        <Pressable
+        <View style={styles.navigateWrap}>
+          <Button
+            label="Navigate"
+            leadingIcon="navigate"
+            disabled={!canNavigate}
+            onPress={() => openStationNavigation(station)}
+            accessibilityLabel={`Navigate to station ${station.name}`}
+          />
+        </View>
+        <Button
+          label="Details"
+          variant="secondary"
+          fullWidth={false}
           onPress={onViewDetails}
-          accessibilityRole="button"
           accessibilityLabel={`View details for ${station.name}`}
-          style={({ pressed }) => [
-            styles.detailsButton,
-            pressed && styles.actionPressed,
-          ]}
-        >
-          <Text style={styles.detailsLabel}>Details</Text>
-        </Pressable>
+        />
       </View>
     </View>
   );
@@ -180,13 +157,12 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       marginHorizontal: 0,
       marginBottom: 0,
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.xxl,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      padding: theme.spacing.md,
+      padding: theme.spacing.lg,
       gap: theme.spacing.sm,
-      ...theme.shadows.card,
-      shadowColor: theme.colors.shadow,
+      ...theme.shadows.floating,
       zIndex: 25,
     },
     cardFullscreen: {
@@ -198,10 +174,10 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       gap: theme.spacing.sm,
     },
     iconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: theme.colors.accent,
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: theme.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -232,26 +208,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       color: theme.colors.textSecondary,
       lineHeight: 18,
     },
-    availableBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: theme.radius.pill,
-      flexShrink: 0,
-    },
-    availableDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    availableLabel: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 11,
-      letterSpacing: 0.2,
-      fontWeight: '600',
-    },
     statsRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -281,50 +237,15 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       flexWrap: 'wrap',
       gap: theme.spacing.xs,
     },
+    navigateWrap: {
+      flex: 1,
+    },
     actionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
       width: '100%',
       gap: 10,
       marginTop: 12,
-    },
-    navigateButton: {
-      flex: 7,
-      height: 46,
-      backgroundColor: theme.colors.accent,
-      borderRadius: 12,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 10,
-    },
-    navigateLabel: {
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 14,
-      color: '#FFFFFF',
-      includeFontPadding: false,
-    },
-    detailsButton: {
-      flex: 3,
-      height: 46,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    detailsLabel: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 14,
-      color: theme.colors.textPrimary,
-    },
-    actionPressed: {
-      opacity: 0.9,
-    },
-    actionDisabled: {
-      opacity: 0.55,
     },
   });
 }

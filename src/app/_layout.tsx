@@ -1,24 +1,32 @@
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
-import { Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/auth-context';
+import { SplashOverlay } from '@/components/brand/splash-overlay';
 import { GridflowRealtimeProvider } from '@/realtime/gridflow-realtime-provider';
 import { PushNotificationsManager } from '@/notifications/push-notifications-manager';
 import { ThemeProvider, useTheme } from '@/theme';
+import { BRAND } from '@/theme/brand';
 
-SplashScreen.preventAutoHideAsync();
+// Hold the native launch screen (static first frame of the approved splash, on both platforms) until
+// the React Native splash overlay has laid out; the overlay releases it (see SplashOverlay).
+void SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { theme, isDark } = useTheme();
@@ -26,7 +34,7 @@ function RootNavigator() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="stations/[id]" />
         <Stack.Screen name="sessions/[id]" />
@@ -44,34 +52,36 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Outfit_600SemiBold,
-    Outfit_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  const appReady = fontsLoaded || Boolean(fontError);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
+  // The splash overlay lives at a fixed position at the very top of the tree so it paints as soon
+  // as JS starts (before fonts / providers) and is never remounted when the app tree appears behind
+  // it. The Obsidian wrapper guarantees no white frame at any point.
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <GridflowRealtimeProvider>
-            <PushNotificationsManager />
-            <RootNavigator />
-          </GridflowRealtimeProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <View style={{ flex: 1, backgroundColor: BRAND.obsidian }}>
+      {appReady ? (
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <GridflowRealtimeProvider>
+                <PushNotificationsManager />
+                <RootNavigator />
+              </GridflowRealtimeProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      ) : null}
+      <SplashOverlay appReady={appReady} />
+    </View>
   );
 }

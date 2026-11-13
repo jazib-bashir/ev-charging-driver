@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 import type { LocationPermissionState } from '@/utils/geolocation';
@@ -33,7 +34,7 @@ export function LocationPermissionBanner({
   return (
     <View style={styles.banner}>
       <View style={styles.iconWrap}>
-        <Icon name="map-pin" size={14} color={theme.colors.accent} />
+        <Icon name="map-pin" size={14} color={theme.colors.primary} />
       </View>
 
       <View style={styles.copy}>
@@ -73,22 +74,22 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       alignItems: 'center',
       gap: 12,
       marginHorizontal: DISCOVERY_LAYOUT.edge,
-      marginTop: DISCOVERY_LAYOUT.sectionGap,
+      marginTop: DISCOVERY_LAYOUT.sectionGap + 8,
       marginBottom: 0,
       paddingVertical: 12,
       paddingHorizontal: 12,
-      borderRadius: 14,
-      borderWidth: 1,
+      borderRadius: theme.radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
     },
     iconWrap: {
-      width: 32,
-      height: 32,
-      borderRadius: 9,
+      width: 36,
+      height: 36,
+      borderRadius: 13,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(0, 217, 160, 0.12)',
+      backgroundColor: theme.colors.primarySoft,
       flexShrink: 0,
       overflow: 'hidden',
     },
@@ -110,11 +111,11 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       color: theme.colors.textMuted,
     },
     actionButton: {
-      height: 30,
-      minWidth: 63,
-      paddingHorizontal: 12,
-      borderRadius: 9,
-      backgroundColor: theme.colors.accent,
+      height: 34,
+      minWidth: 66,
+      paddingHorizontal: 14,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
@@ -129,7 +130,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 12,
       lineHeight: 18,
-      color: theme.colors.textPrimary,
+      color: theme.colors.onPrimary,
     },
   });
 }

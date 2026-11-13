@@ -1,29 +1,25 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useState, useMemo } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { fetchPublicChargers } from '@/api/publicChargers';
 import { fetchPublicStation } from '@/api/publicStations';
 import { stopDriverChargingSession } from '@/api/chargingSessions';
-import { Icon } from '@/components/ui/icon';
+import { Button } from '@/components/ui/button';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PageLoader } from '@/components/loaders';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { formatConnectorLabel, formatEvseLabel } from '@/utils/charging-session-labels';
 
 import { ActiveSessionCard } from './active-session-card';
 
 export function ActiveSessionScreen() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { token } = useAuth();
   const { session, isLoading, isRefreshing, error, refresh } = useActiveChargingSession({
     token,
@@ -86,39 +82,26 @@ export function ActiveSessionScreen() {
   return (
     <ScreenContainer>
       <ScreenContent>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-        >
-          <Icon name="back" size={20} color={theme.colors.textPrimary} />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+        <ScreenHeader title="Active session" />
 
-        <Text style={styles.title}>Active Session</Text>
+        {isLoading ? <PageLoader message="Loading your session…" /> : null}
 
-        {isLoading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={theme.colors.brand} size="large" />
-          </View>
+        {error && !isLoading ? (
+          <ErrorState
+            title="Couldn't load your session"
+            message={error}
+            primaryActionLabel="Try again"
+            onPrimaryAction={() => void refresh()}
+          />
         ) : null}
 
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable onPress={() => void refresh()}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {!isLoading && !session ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>No active session</Text>
-            <Text style={styles.emptyMessage}>
-              You do not have a charging session in progress right now.
-            </Text>
-          </View>
+        {!isLoading && !error && !session ? (
+          <EmptyState
+            title="No active session"
+            message="You do not have a charging session in progress right now."
+            primaryActionLabel="Find a charger"
+            onPrimaryAction={() => router.replace('/(tabs)')}
+          />
         ) : null}
 
         {session ? (
@@ -131,8 +114,8 @@ export function ActiveSessionScreen() {
                 onRefresh={() => {
                   void refresh({ showLoading: false });
                 }}
-                tintColor={theme.colors.brand}
-                colors={[theme.colors.brand]}
+                tintColor={theme.colors.primary}
+                colors={[theme.colors.primary]}
               />
             }
           >
@@ -143,9 +126,14 @@ export function ActiveSessionScreen() {
               connectorLabel={connectorLabel}
             />
 
-            <Pressable style={styles.stopButton} onPress={handleStop}>
-              <Text style={styles.stopButtonText}>Stop charging</Text>
-            </Pressable>
+            <Button
+              label="Stop charging"
+              variant="destructive"
+              size="lg"
+              leadingIcon="stop"
+              fullWidth
+              onPress={handleStop}
+            />
           </ScrollView>
         ) : null}
       </ScreenContent>
@@ -153,68 +141,12 @@ export function ActiveSessionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    marginBottom: theme.spacing.lg,
-  },
-  backLabel: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textPrimary,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.lg,
-  },
-  centered: {
-    paddingVertical: theme.spacing.xl,
-    alignItems: 'center',
-  },
-  errorBox: {
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surface,
-    gap: theme.spacing.sm,
-  },
-  errorText: {
-    color: theme.colors.textPrimary,
-  },
-  retryText: {
-    color: theme.colors.brand,
-    fontWeight: '600',
-  },
-  emptyBox: {
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surface,
-    gap: theme.spacing.sm,
-  },
-  emptyTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  emptyMessage: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-  },
-  content: {
-    gap: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
-  },
-  stopButton: {
-    backgroundColor: theme.colors.brand,
-    borderRadius: theme.radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  stopButtonText: {
-    color: theme.colors.textInverse,
-    fontWeight: '700',
-    fontSize: theme.typography.fontSize.md,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    content: {
+      gap: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.gutter,
+      paddingBottom: theme.spacing.huge,
+    },
+  });
+}

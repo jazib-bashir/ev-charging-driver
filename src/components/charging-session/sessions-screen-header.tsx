@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import { Text } from '@/components/ui/text';
+import { TitleBand } from '@/components/ui/title-band';
 import { useTheme } from '@/theme';
 
 type SessionsScreenHeaderProps = {
@@ -8,36 +10,36 @@ type SessionsScreenHeaderProps = {
   isRefreshing?: boolean;
 };
 
+/** Page title band under the shared StationHeader on the Sessions tab. */
 export function SessionsScreenHeader(_props: SessionsScreenHeaderProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <View style={styles.container}>
+    <TitleBand contentStyle={styles.content}>
       <Text style={styles.title}>My Sessions</Text>
-      <Text style={styles.subtitle}>Charging history & live status</Text>
-    </View>
+      <Text style={styles.subtitle}>Charging history and live status</Text>
+    </TitleBand>
   );
 }
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
-    container: {
-      paddingHorizontal: 20,
-      marginTop: 8,
-      gap: 2,
+    content: {
+      gap: 4,
     },
     title: {
       fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 22,
-      lineHeight: 33,
-      color: theme.colors.textPrimary,
+      fontSize: theme.textStyles.h1.fontSize,
+      lineHeight: theme.textStyles.h1.lineHeight,
+      letterSpacing: theme.textStyles.h1.letterSpacing,
+      color: theme.colors.titleBandText,
     },
     subtitle: {
       fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 13,
+      fontSize: theme.typography.fontSize.md,
       lineHeight: 20,
-      color: theme.colors.textMuted,
+      color: theme.colors.titleBandTextMuted,
     },
   });
 }

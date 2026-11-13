@@ -1,15 +1,14 @@
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
   View,
 } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { AuthApiError } from '@/api/auth';
 import { listDriverChargingSessions } from '@/api/chargingSessions';
 import {
@@ -24,7 +23,14 @@ import { ProfileHero } from '@/components/profile/profile-hero';
 import { ProfilePlateSheet } from '@/components/profile/profile-plate-sheet';
 import { ProfileSessionPreview } from '@/components/profile/profile-session-preview';
 import { ProfileVehicleCard } from '@/components/profile/profile-vehicle-card';
+import { PageLoader } from '@/components/loaders/page-loader';
+import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { StationHeader } from '@/components/station/station-header';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Icon } from '@/components/ui/icon';
+import { SectionHeader } from '@/components/ui/section-header';
+import { Surface } from '@/components/ui/surface';
 import {
   RequestStatusBanner,
   useRequestStatus,
@@ -302,10 +308,7 @@ export function ProfileScreen() {
   if (isLoading) {
     return (
       <ScreenContainer edges={['top']} style={styles.screen}>
-        <View style={styles.centered}>
-          <View style={styles.skeletonCard} />
-          <Text style={styles.muted}>Loading profile…</Text>
-        </View>
+        <PageLoader message="Loading profile…" />
       </ScreenContainer>
     );
   }
@@ -329,8 +332,8 @@ export function ProfileScreen() {
             onRefresh={() => {
               void refreshProfile();
             }}
-            tintColor={theme.colors.accent}
-            colors={[theme.colors.accent]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
@@ -349,32 +352,27 @@ export function ProfileScreen() {
         ) : null}
 
         <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>My Vehicles</Text>
-            <Pressable
-              onPress={handleAddVehicle}
-              disabled={actionsDisabled}
-              hitSlop={8}
-              style={actionsDisabled ? styles.actionDisabled : undefined}
-              accessibilityRole="button"
-              accessibilityLabel="Add vehicle"
-            >
-              <Text style={styles.addLabel}>+ Add</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="My vehicles"
+            actionLabel="+ Add"
+            onActionPress={actionsDisabled ? undefined : handleAddVehicle}
+          />
 
           {isLoadingExtras && vehicles.length === 0 ? (
             <View style={styles.skeletonStack}>
-              <View style={styles.skeletonCard} />
-              <View style={styles.skeletonCard} />
+              <SkeletonLoader height={104} radius={20} />
+              <SkeletonLoader height={104} radius={20} />
             </View>
           ) : vehicles.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No vehicles yet</Text>
-              <Text style={styles.emptyMessage}>
-                Add a vehicle to personalize your charging experience.
-              </Text>
-            </View>
+            <Surface variant="outlined">
+              <EmptyState
+                compact
+                title="No vehicles yet"
+                message="Add a vehicle to personalize your charging experience."
+                primaryActionLabel="Add vehicle"
+                onPrimaryAction={handleAddVehicle}
+              />
+            </Surface>
           ) : (
             <View style={styles.vehicleList}>
               {vehicles.map((vehicle, index) => (
@@ -396,30 +394,25 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Recent Sessions</Text>
-            <Pressable
-              onPress={handleViewAllSessions}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="View all charging sessions"
-            >
-              <Text style={styles.viewAllLabel}>View All</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="Recent sessions"
+            actionLabel="View all"
+            onActionPress={handleViewAllSessions}
+          />
 
           {isLoadingExtras && recentSessions.length === 0 ? (
             <View style={styles.skeletonStack}>
-              <View style={styles.skeletonRow} />
-              <View style={styles.skeletonRow} />
+              <SkeletonLoader height={116} radius={20} />
+              <SkeletonLoader height={116} radius={20} />
             </View>
           ) : recentSessions.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No sessions yet</Text>
-              <Text style={styles.emptyMessage}>
-                Your charging history will appear here after your first session.
-              </Text>
-            </View>
+            <Surface variant="outlined">
+              <EmptyState
+                compact
+                title="No sessions yet"
+                message="Your charging history will appear here after your first session."
+              />
+            </Surface>
           ) : (
             <View>
               {recentSessions.map((session, index) => (
@@ -438,8 +431,11 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          <View style={styles.preferenceCard}>
+          <SectionHeader title="Preferences" />
+          <Surface style={styles.preferenceCard}>
+            <View style={styles.preferenceIcon}>
+              <Icon name={isDark ? 'moon' : 'sun'} size={20} color={theme.colors.primary} />
+            </View>
             <View style={styles.preferenceCopy}>
               <Text style={styles.preferenceTitle}>Dark mode</Text>
               <Text style={styles.preferenceSubtitle}>
@@ -451,36 +447,28 @@ export function ProfileScreen() {
               onValueChange={(value) => setMode(value ? 'dark' : 'light')}
               trackColor={{
                 false: theme.colors.border,
-                true: theme.colors.accent,
+                true: theme.colors.primary,
               }}
-              thumbColor={theme.colors.surface}
+              thumbColor={theme.colors.onPrimary}
               ios_backgroundColor={theme.colors.border}
               accessibilityLabel="Toggle dark mode"
             />
-          </View>
+          </Surface>
         </View>
 
         <RequestStatusBanner status={status} />
 
-        <Pressable
+        <Button
+          label={isLoggingOut ? 'Signing out…' : 'Sign out'}
+          variant="outline"
+          leadingIcon="log-out"
+          loading={isLoggingOut}
+          disabled={actionsDisabled}
           onPress={() => {
             void handleLogout();
           }}
-          disabled={actionsDisabled}
-          style={[
-            styles.logoutButton,
-            actionsDisabled && styles.actionDisabled,
-          ]}
-          accessibilityRole="button"
           accessibilityLabel="Sign out"
-          accessibilityState={{ busy: isLoggingOut }}
-        >
-          {isLoggingOut ? (
-            <Text style={styles.logoutBusy}>Signing out…</Text>
-          ) : (
-            <Text style={styles.logoutLabel}>Sign Out</Text>
-          )}
-        </Pressable>
+        />
       </ScrollView>
 
       <ProfilePlateSheet
@@ -502,66 +490,37 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       backgroundColor: theme.colors.background,
     },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 32,
-      gap: 20,
-    },
-    centered: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.spacing.md,
-      backgroundColor: theme.colors.background,
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: theme.spacing.sm,
+      paddingBottom: theme.spacing.xl,
+      gap: 24,
     },
     profileHint: {
       marginTop: -8,
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 13,
       lineHeight: 19.5,
-      color: theme.colors.accent,
+      color: theme.colors.textLink,
       textAlign: 'center',
     },
     section: {
-      gap: 12,
-    },
-    sectionTitle: {
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 16,
-      lineHeight: 24,
-      color: theme.colors.textPrimary,
-    },
-    sectionHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    addLabel: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 12,
-      lineHeight: 18,
-      color: theme.colors.accent,
-    },
-    viewAllLabel: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 12,
-      lineHeight: 18,
-      color: theme.colors.accent,
+      gap: 14,
     },
     vehicleList: {
       gap: 0,
     },
     preferenceCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      ...theme.shadows.card,
-      shadowColor: theme.colors.shadow,
+      gap: 14,
+    },
+    preferenceIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primaryMuted,
     },
     preferenceCopy: {
       flex: 1,
@@ -579,72 +538,13 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       lineHeight: 18,
       color: theme.colors.textMuted,
     },
-    emptyCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: 12,
-      gap: 4,
-      ...theme.shadows.card,
-      shadowColor: theme.colors.shadow,
-    },
-    emptyTitle: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 14,
-      lineHeight: 21,
-      color: theme.colors.textPrimary,
-    },
-    emptyMessage: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 13,
-      lineHeight: 19.5,
-      color: theme.colors.textMuted,
-    },
     skeletonStack: {
-      gap: 10,
-    },
-    skeletonCard: {
-      height: 96,
-      borderRadius: 14,
-      backgroundColor: theme.colors.iconBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    skeletonRow: {
-      height: 68,
-      borderRadius: 14,
-      marginBottom: 10,
-      backgroundColor: theme.colors.iconBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    logoutButton: {
-      alignSelf: 'flex-start',
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 8,
-    },
-    logoutLabel: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 14,
-      lineHeight: 21,
-      color: theme.colors.notification,
-    },
-    logoutBusy: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 14,
-      lineHeight: 21,
-      color: theme.colors.textMuted,
-    },
-    muted: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 15,
-      color: theme.colors.textMuted,
+      gap: 12,
     },
     actionDisabled: {
       opacity: 0.55,
     },
   });
 }
+
+

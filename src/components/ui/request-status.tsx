@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { theme } from '@/theme';
+import { Icon } from '@/components/ui/icon';
+import { Text } from '@/components/ui/text';
+import { useTheme } from '@/theme';
 
 export type RequestStatusTone = 'success' | 'error';
 
@@ -15,6 +17,9 @@ type RequestStatusBannerProps = {
 };
 
 export function RequestStatusBanner({ status }: RequestStatusBannerProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (!status) {
     return null;
   }
@@ -27,6 +32,11 @@ export function RequestStatusBanner({ status }: RequestStatusBannerProps) {
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
     >
+      <Icon
+        name={isError ? 'warning' : 'checkmark'}
+        size={16}
+        color={isError ? theme.colors.errorText : theme.colors.successText}
+      />
       <Text style={[styles.text, isError ? styles.textError : styles.textSuccess]}>
         {status.message}
       </Text>
@@ -92,30 +102,36 @@ export function useRequestStatus(successClearMs = 2500) {
   };
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm + 2,
-  },
-  bannerError: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
-  },
-  bannerSuccess: {
-    backgroundColor: theme.colors.brandMuted,
-    borderColor: theme.colors.selectionBorder,
-  },
-  text: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    lineHeight: 18,
-  },
-  textError: {
-    color: theme.colors.notification,
-  },
-  textSuccess: {
-    color: theme.colors.brandDark,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
+    },
+    bannerError: {
+      backgroundColor: theme.colors.errorBg,
+      borderColor: theme.colors.errorBorder,
+    },
+    bannerSuccess: {
+      backgroundColor: theme.colors.successBg,
+      borderColor: theme.colors.selectionBorder,
+    },
+    text: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.fontSize.sm,
+      lineHeight: 18,
+    },
+    textError: {
+      color: theme.colors.errorText,
+    },
+    textSuccess: {
+      color: theme.colors.successText,
+    },
+  });
+}

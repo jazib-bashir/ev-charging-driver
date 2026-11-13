@@ -40,7 +40,7 @@ async function ensureAndroidNotificationChannel(): Promise<void> {
     name: 'General',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#f5f7f9',
+    lightColor: '#08785E',
   });
 }
 

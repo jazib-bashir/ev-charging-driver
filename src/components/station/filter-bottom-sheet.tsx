@@ -1,26 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  Easing,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableWithoutFeedback,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import {
   getDriverVehicleDisplayName,
   listDriverVehicles,
 } from '@/api/driverVehicles';
 import { fetchPublicVehicleModels } from '@/api/publicVehicleModels';
+import { ButtonLoader } from '@/components/loaders/button-loader';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type {
   PublicStationFilterState,
   StationSortBy,
@@ -37,8 +28,6 @@ import {
   DISTANCE_OPTIONS,
   getCitiesForUser,
 } from '@/utils/location-helpers';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const SORT_BY_OPTIONS: { label: string; value: StationSortBy }[] = [
   { label: 'Power', value: 'power' },
@@ -98,6 +87,8 @@ export function FilterBottomSheet({
   onEnableLocation,
   onOpenLocationSettings,
 }: FilterBottomSheetProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [draftFilters, setDraftFilters] = useState<PublicStationFilterState>(appliedFilters);
   const [availableCities, setAvailableCities] = useState<string[]>(DEFAULT_FALLBACK_CITIES);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
@@ -107,9 +98,6 @@ export function FilterBottomSheet({
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let isMounted = true;
@@ -148,42 +136,12 @@ export function FilterBottomSheet({
             setIsLoadingVehicles(false);
           }
         });
-
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 250,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
     }
 
     return () => {
       isMounted = false;
     };
-  }, [visible, appliedFilters, authToken, fadeAnim, slideAnim]);
+  }, [visible, appliedFilters, authToken]);
 
   const isDistanceFilterLocked = locationPermissionStatus !== 'granted';
 
@@ -358,52 +316,23 @@ export function FilterBottomSheet({
   const selectedConnectors = draftFilters.connectorTypes ?? [];
 
   return (
-    <Modal
-      transparent
+    <BottomSheet
       visible={visible}
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalRoot}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
-        </TouchableWithoutFeedback>
-
-        <Animated.View
-          style={[
-            styles.sheetContainer,
-            {
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+      onClose={onClose}
+      title="Filters"
+      maxHeightRatio={0.9}
+      contentStyle={styles.sheetContent}
+      headerRight={
+        <Pressable
+          onPress={handleClearAll}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Clear all filters"
         >
-          <View style={styles.handleContainer}>
-            <View style={styles.handlePill} />
-          </View>
-
-          <View style={styles.headerRow}>
-            <Pressable
-              onPress={handleClearAll}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Clear all filters"
-            >
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </Pressable>
-
-            <Text style={styles.headerTitle}>Filters</Text>
-
-            <Pressable
-              onPress={onClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close filters"
-              style={styles.closeButton}
-            >
-              <Icon name="close" size={16} color="#64748b" />
-            </Pressable>
-          </View>
-
+          <Text style={styles.clearAllText}>Clear all</Text>
+        </Pressable>
+      }
+    >
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -416,7 +345,7 @@ export function FilterBottomSheet({
 
               {locationPermissionStatus !== 'granted' ? (
                 <View style={styles.locationNotice}>
-                  <Icon name="location" size={16} color={theme.colors.brand} />
+                  <Icon name="location" size={16} color={theme.colors.primary} />
                   <View style={styles.locationNoticeCopy}>
                     <Text style={styles.locationNoticeTitle}>
                       Location access required
@@ -486,7 +415,7 @@ export function FilterBottomSheet({
               <Text style={styles.sectionTitle}>City</Text>
               {isLoadingCities ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#006655" />
+                  <ButtonLoader size={26} />
                   <Text style={styles.loadingText}>Loading cities...</Text>
                 </View>
               ) : (
@@ -501,7 +430,7 @@ export function FilterBottomSheet({
                         accessibilityRole="button"
                       >
                         {isSelected && (
-                          <Icon name="check" size={14} color="#ffffff" />
+                          <Icon name="check" size={14} color={theme.colors.onPrimary} />
                         )}
                         <Text
                           style={[
@@ -527,7 +456,7 @@ export function FilterBottomSheet({
               </Text>
               {isLoadingVehicles ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#006655" />
+                  <ButtonLoader size={26} />
                   <Text style={styles.loadingText}>
                     {authToken ? 'Loading your vehicles...' : 'Loading vehicles...'}
                   </Text>
@@ -550,7 +479,7 @@ export function FilterBottomSheet({
                         accessibilityRole="button"
                       >
                         {isSelected ? (
-                          <Icon name="check" size={14} color="#ffffff" />
+                          <Icon name="check" size={14} color={theme.colors.onPrimary} />
                         ) : null}
                         <Text
                           style={[
@@ -580,7 +509,7 @@ export function FilterBottomSheet({
                       accessibilityRole="button"
                     >
                       {isSelected && (
-                        <Icon name="check" size={14} color="#ffffff" />
+                        <Icon name="check" size={14} color={theme.colors.onPrimary} />
                       )}
                       <Text
                         style={[
@@ -666,110 +595,49 @@ export function FilterBottomSheet({
               <Switch
                 value={Boolean(draftFilters.isFastCharger)}
                 onValueChange={handleToggleFastCharger}
-                trackColor={{ false: '#e2e8f0', true: '#006655' }}
-                thumbColor="#ffffff"
-                ios_backgroundColor="#e2e8f0"
+                trackColor={{ false: theme.colors.borderStrong, true: theme.colors.primary }}
+                thumbColor={theme.colors.onPrimary}
+                ios_backgroundColor={theme.colors.borderStrong}
               />
             </View>
 
           </ScrollView>
 
-          <View style={styles.bottomBar}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.applyButton,
-                pressed && styles.applyButtonPressed,
-                isResolvingLocation && styles.applyButtonDisabled,
-              ]}
-              onPress={handleApply}
-              disabled={isResolvingLocation}
-              accessibilityRole="button"
-            >
-              {isResolvingLocation ? (
-                <View style={styles.applyLoadingRow}>
-                  <ActivityIndicator size="small" color="#ffffff" />
-                  <Text style={styles.applyButtonText}>Locating...</Text>
-                </View>
-              ) : (
-                <Text style={styles.applyButtonText}>Search</Text>
-              )}
-            </Pressable>
-          </View>
-        </Animated.View>
+      <View style={styles.bottomBar}>
+        <Button
+          label={isResolvingLocation ? 'Locating…' : 'Search'}
+          onPress={() => {
+            void handleApply();
+          }}
+          loading={isResolvingLocation}
+          leadingIcon="search"
+        />
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
-const styles = StyleSheet.create({
-  modalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  sheetContainer: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.82,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 16,
-  },
-  handleContainer: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
-  },
-  handlePill: {
-    width: 44,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#cbd5e1',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f1f5f9',
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+  sheetContent: {
+    flexShrink: 1,
   },
   clearAllText: {
-    color: '#006655',
-    fontSize: 15,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-  },
-  closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: theme.colors.textLink,
+    fontSize: 14,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   scrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.xs,
     paddingBottom: theme.spacing.xl,
   },
   section: {
     marginBottom: theme.spacing.lg,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontFamily: theme.typography.fontFamily.brand,
+    fontSize: 16,
+    letterSpacing: -0.3,
     color: theme.colors.textPrimary,
     marginBottom: 10,
   },
@@ -786,10 +654,10 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
     padding: theme.spacing.md,
-    borderRadius: theme.radius.lg,
+    borderRadius: theme.radius.xl,
     borderWidth: 1,
     borderColor: theme.colors.selectionBorder,
-    backgroundColor: theme.colors.brandMuted,
+    backgroundColor: theme.colors.primaryMuted,
   },
   locationNoticeCopy: {
     flex: 1,
@@ -809,13 +677,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 8,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.brand,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary,
   },
   locationNoticeButtonText: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textInverse,
+    color: theme.colors.onPrimary,
   },
   helperText: {
     fontSize: 13,
@@ -831,16 +699,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 9,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: theme.colors.border,
   },
   chipActive: {
-    backgroundColor: '#006655',
-    borderColor: '#006655',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   chipDisabled: {
     opacity: 0.45,
@@ -848,14 +716,14 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.medium,
-    color: '#334155',
+    color: theme.colors.textSecondary,
   },
   chipTextActive: {
-    color: theme.colors.textInverse,
+    color: theme.colors.onPrimary,
     fontWeight: theme.typography.fontWeight.semibold,
   },
   chipTextDisabled: {
-    color: '#94a3b8',
+    color: theme.colors.disabledText,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -870,12 +738,12 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 10,
     fontSize: 13,
-    color: '#b91c1c',
+    color: theme.colors.errorText,
     lineHeight: 18,
   },
   divider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.border,
     marginVertical: theme.spacing.sm,
   },
   toggleRow: {
@@ -900,34 +768,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   bottomBar: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xl,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#f1f5f9',
-    backgroundColor: theme.colors.surface,
-  },
-  applyButton: {
-    backgroundColor: '#006655',
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  applyButtonPressed: {
-    opacity: 0.9,
-  },
-  applyButtonDisabled: {
-    opacity: 0.85,
-  },
-  applyLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  applyButtonText: {
-    color: theme.colors.textInverse,
-    fontSize: 16,
-    fontWeight: theme.typography.fontWeight.bold,
+    paddingTop: theme.spacing.md,
   },
 });
+}

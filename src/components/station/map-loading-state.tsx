@@ -1,26 +1,14 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { theme } from '@/theme';
+import { PageLoader } from '@/components/loaders';
+import { useTheme } from '@/theme';
 
 export function MapLoadingState() {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={theme.colors.selectionForeground} />
-      <Text style={styles.label}>Loading stations on map...</Text>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.background }]}>
+      <PageLoader message="Loading stations on map…" />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.background,
-    gap: theme.spacing.md,
-  },
-  label: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textMuted,
-  },
-});

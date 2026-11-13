@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 
@@ -32,7 +33,7 @@ export function StationAmenitiesSection({
         {amenities.map((amenity) => (
           <View key={amenity.id ?? amenity.label} style={styles.item}>
             <View style={styles.iconTile}>
-              <Icon name={amenity.icon} size={22} color={theme.colors.accent} />
+              <Icon name={amenity.icon} size={22} color={theme.colors.primary} />
             </View>
             <Text style={styles.label} numberOfLines={2}>
               {amenity.label}
@@ -48,15 +49,15 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     section: {
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 24,
       gap: 12,
     },
     heading: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 17,
-      lineHeight: 22,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 16,
+      lineHeight: 24,
       color: theme.colors.textPrimary,
-      letterSpacing: -0.2,
+      letterSpacing: -0.5,
     },
     row: {
       flexDirection: 'row',
@@ -72,10 +73,8 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     iconTile: {
       width: 56,
       height: 56,
-      borderRadius: 12,
-      backgroundColor: theme.colors.iconBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },

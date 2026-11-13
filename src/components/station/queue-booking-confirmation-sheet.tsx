@@ -1,23 +1,14 @@
-import { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableWithoutFeedback,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Icon } from '@/components/ui/icon';
-import { theme } from '@/theme';
+import { FeedbackIllustration } from '@/components/brand/illustrations';
+import { QueueRings } from '@/components/charging/queue-rings';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { useTheme } from '@/theme';
 import type { QueueMember } from '@/types/queue';
 import { getQueueRank } from '@/utils/queue-display';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const ON_ACCENT = '#0F172A';
 
 type QueueBookingConfirmationSheetProps = {
   visible: boolean;
@@ -32,31 +23,8 @@ export function QueueBookingConfirmationSheet({
   member,
   onConfirm,
 }: QueueBookingConfirmationSheetProps) {
-  const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!visible) {
-      slideAnim.setValue(SCREEN_HEIGHT);
-      fadeAnim.setValue(0);
-      return;
-    }
-
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        damping: 24,
-        stiffness: 220,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim, visible]);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!member) {
     return null;
@@ -65,143 +33,55 @@ export function QueueBookingConfirmationSheet({
   const rank = getQueueRank(member);
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onConfirm}>
-      <View style={styles.modalRoot}>
-        <TouchableWithoutFeedback onPress={onConfirm}>
-          <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
-        </TouchableWithoutFeedback>
+    <BottomSheet visible={visible} onClose={onConfirm} contentStyle={styles.content}>
+      <FeedbackIllustration kind="success" size={84} />
 
-        <Animated.View
-          style={[
-            styles.sheetContainer,
-            {
-              paddingBottom: Math.max(insets.bottom, theme.spacing.md),
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.handleContainer}>
-            <View style={styles.handlePill} />
-          </View>
+      <Text style={styles.title}>You&apos;re in the queue</Text>
+      <Text style={styles.subtitle}>
+        {stationName
+          ? `Your spot at ${stationName} is reserved.`
+          : 'Your queue spot is reserved.'}
+      </Text>
 
-          <View style={styles.iconWrap}>
-            <Icon name="checkmark" size={32} color={theme.colors.brand} />
-          </View>
-
-          <Text style={styles.title}>You&apos;re in the queue</Text>
-          <Text style={styles.subtitle}>
-            {stationName
-              ? `Your spot at ${stationName} is reserved.`
-              : 'Your queue spot is reserved.'}
-          </Text>
-
-          <View style={styles.rankCard}>
-            <Text style={styles.rankLabel}>Your position</Text>
-            <Text style={styles.rankValue}>#{rank}</Text>
-            <Text style={styles.rankHint}>We&apos;ll notify you as your turn approaches.</Text>
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-            onPress={onConfirm}
-            accessibilityRole="button"
-            accessibilityLabel="Done"
-          >
-            <Text style={styles.primaryButtonText}>Done</Text>
-          </Pressable>
-        </Animated.View>
+      <View style={styles.rankPanel}>
+        <QueueRings rank={rank} size={148} caption="Your position" />
+        <Text style={styles.rankHint}>We&apos;ll notify you as your turn approaches.</Text>
       </View>
-    </Modal>
+
+      <Button label="Done" onPress={onConfirm} accessibilityLabel="Done" />
+    </BottomSheet>
   );
 }
 
-const styles = StyleSheet.create({
-  modalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
-  sheetContainer: {
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    gap: theme.spacing.md,
-  },
-  handleContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xs,
-  },
-  handlePill: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-  },
-  iconWrap: {
-    alignSelf: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.brandMuted,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  rankCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.selectionBorder,
-    backgroundColor: theme.colors.brandMuted,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-  },
-  rankLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.colors.textMuted,
-  },
-  rankValue: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  rankHint: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  primaryButton: {
-    marginTop: theme.spacing.xs,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.accent,
-    paddingVertical: theme.spacing.md,
-    alignItems: 'center',
-  },
-  primaryButtonPressed: {
-    opacity: 0.92,
-  },
-  primaryButtonText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: '700',
-    color: ON_ACCENT,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    content: { alignItems: 'stretch', gap: theme.spacing.md, paddingTop: theme.spacing.sm },
+    title: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 20,
+      letterSpacing: -0.8,
+      color: theme.colors.textPrimary,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    rankPanel: {
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      paddingVertical: theme.spacing.xl,
+      borderRadius: theme.radius.xxl,
+      backgroundColor: theme.colors.heroBackground,
+    },
+    rankHint: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.heroTextMuted,
+      textAlign: 'center',
+    },
+  });
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="konnectEV live network signal">
+  <style>:root{--coral:#FF3E1D;--lime:#D4FF00;--obsidian:#0D1117;--warm:#F3F0E8}</style>
+  <rect width="1200" height="760" fill="var(--warm)"/>
+  <path d="M-40 570C170 140 360 690 590 285S970 530 1250 90" fill="none" stroke="var(--coral)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M-20 200C250 620 390 30 655 440s380-190 600 115" fill="none" stroke="var(--lime)" stroke-width="20" stroke-linecap="round"/>
+  <g fill="var(--obsidian)">
+    <circle cx="205" cy="370" r="20"/><circle cx="586" cy="292" r="20"/><circle cx="955" cy="342" r="20"/>
+  </g>
+  <g fill="none" stroke="var(--obsidian)" opacity=".15">
+    <circle cx="205" cy="370" r="70"/><circle cx="205" cy="370" r="120"/>
+    <circle cx="586" cy="292" r="70"/><circle cx="586" cy="292" r="120"/>
+    <circle cx="955" cy="342" r="70"/><circle cx="955" cy="342" r="120"/>
+  </g>
+  <g transform="translate(496 246)">
+    <rect width="180" height="92" rx="46" fill="var(--obsidian)"/>
+    <text x="90" y="58" text-anchor="middle" fill="var(--warm)" font-family="Arial,sans-serif" font-weight="700" font-size="25">LIVE · 99.9%</text>
+  </g>
+  <text x="70" y="690" fill="var(--obsidian)" font-family="Arial,sans-serif" font-size="25" letter-spacing="7">EVERY SIDE · MOVING AS ONE</text>
+</svg>
