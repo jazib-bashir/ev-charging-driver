@@ -573,7 +573,7 @@ function StationDetailsContent({
 
           <View style={styles.verifiedBadge}>
             <Icon name="shield" size={12} color={theme.colors.secondary} />
-            <Text style={styles.verifiedText}>konnectEV Verified</Text>
+            <Text style={styles.verifiedText}>konnectEVS Verified</Text>
           </View>
         </View>
 

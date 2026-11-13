@@ -92,7 +92,7 @@ export function SplashOverlay({ appReady }: SplashOverlayProps) {
       exiting={FadeOut.duration(FADE_OUT_MS)}
       style={[StyleSheet.absoluteFill, styles.root]}
       onLayout={reveal}
-      accessibilityLabel="konnectEV"
+      accessibilityLabel="konnectEVS"
     >
       <View style={styles.canvas}>
         <View
@@ -105,7 +105,7 @@ export function SplashOverlay({ appReady }: SplashOverlayProps) {
           <WeaveLoader
             size={SPLASH_LAYOUT.symbolSize * S}
             playing={revealed}
-            accessibilityLabel="Loading konnectEV"
+            accessibilityLabel="Loading konnectEVS"
           />
         </View>
         <View

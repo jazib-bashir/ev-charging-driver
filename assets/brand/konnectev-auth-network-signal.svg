@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="konnectEV live network signal">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="konnectEVS live network signal">
   <style>:root{--coral:#FF3E1D;--lime:#D4FF00;--obsidian:#0D1117;--warm:#F3F0E8}</style>
   <rect width="1200" height="760" fill="var(--warm)"/>
   <path d="M-40 570C170 140 360 690 590 285S970 530 1250 90" fill="none" stroke="var(--coral)" stroke-width="20" stroke-linecap="round"/>

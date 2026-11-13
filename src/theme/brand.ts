@@ -17,7 +17,7 @@ export const BRAND = {
   white: '#FFFFFF',
 } as const;
 
-export const BRAND_NAME = 'konnectEV';
+export const BRAND_NAME = 'konnectEVS';
 export const BRAND_TAGLINE = 'EVERY SIDE MOVING AS ONE';
 export const DRIVER_SPLASH_TAGLINE = `DRIVER · ${BRAND_TAGLINE}`;
 
@@ -42,8 +42,8 @@ export const SPLASH_LAYOUT = {
   symbolSize: 290,
   symbolX: 431,
   symbolY: 344.5589,
-  wordmarkWidth: 580,
+  wordmarkWidth: 617.4905,
   wordmarkHeight: 116.8821,
-  wordmarkX: 286,
+  wordmarkX: 267.2548,
   wordmarkY: 690.5589,
 } as const;

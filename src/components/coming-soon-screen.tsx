@@ -37,7 +37,7 @@ export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
         </View>
         <Text style={styles.title}>Coming soon</Text>
         <Text style={styles.subtitle}>
-          {title} will be available in an upcoming konnectEV update.
+          {title} will be available in an upcoming konnectEVS update.
         </Text>
       </ScreenContent>
     </ScreenContainer>

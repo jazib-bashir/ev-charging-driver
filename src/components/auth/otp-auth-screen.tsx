@@ -305,7 +305,7 @@ export function OtpAuthScreen() {
               </View>
 
               <Text style={styles.legalText}>
-                By continuing, you agree to konnectEV's{' '}
+                By continuing, you agree to konnectEVS{' '}
                 <Text style={styles.legalLink}>Terms of Service</Text> and{' '}
                 <Text style={styles.legalLink}>Privacy Policy</Text>.
               </Text>
@@ -417,7 +417,7 @@ export function OtpAuthScreen() {
               />
 
               <Text style={styles.legalText}>
-                By continuing, you agree to konnectEV's{' '}
+                By continuing, you agree to konnectEVS's{' '}
                 <Text style={styles.legalLink}>Terms of Service</Text> and{' '}
                 <Text style={styles.legalLink}>Privacy Policy</Text>.
               </Text>

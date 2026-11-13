@@ -19,7 +19,7 @@ type WeaveMarkProps = {
  * Approved konnectEV Mobility Weave symbol (96×96 geometry from `konnectev-symbol-coral.svg`).
  * Geometry, stroke widths and colors are never altered.
  */
-export function WeaveMark({ size = 48, opacity = 1, label = 'konnectEV', monochrome }: WeaveMarkProps) {
+export function WeaveMark({ size = 48, opacity = 1, label = 'konnectEVS', monochrome }: WeaveMarkProps) {
   const lime = monochrome ?? BRAND.lime;
   const coral = monochrome ?? BRAND.coral;
 

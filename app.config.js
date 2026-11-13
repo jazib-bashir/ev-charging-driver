@@ -45,7 +45,7 @@ module.exports = {
       'expo-location',
       {
         locationWhenInUsePermission:
-          'Allow konnectEV to use your location to find nearby chargers.',
+          'Allow konnectEVS to use your location to find nearby chargers.',
       },
     ],
     [
@@ -73,7 +73,7 @@ module.exports = {
     infoPlist: {
       ...expo.ios?.infoPlist,
       NSLocationWhenInUseUsageDescription:
-        'Allow konnectEV to use your location to find nearby chargers.',
+        'Allow konnectEVS to use your location to find nearby chargers.',
     },
     config: {
       ...expo.ios?.config,

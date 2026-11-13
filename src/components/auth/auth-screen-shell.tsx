@@ -110,7 +110,7 @@ export function AuthScreenShell({
               </Text>
             </View>
 
-            <View style={styles.markTile} accessibilityRole="image" accessibilityLabel="konnectEV">
+            <View style={styles.markTile} accessibilityRole="image" accessibilityLabel="konnectEVS">
               <WeaveMark size={22} />
             </View>
           </View>

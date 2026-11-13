@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 480 108"
      role="img"
-     aria-label="konnectEV primary horizontal logo">
+     aria-label="konnectEVS primary horizontal logo">
 
   <defs>
     <mask id="weave-cut"
@@ -52,6 +52,14 @@
           font-size="28"
           letter-spacing="-1">
       EV
+    </text>
+
+    <text x="381"
+          y="48"
+          fill="#FF3E1D"
+          font-size="22"
+          letter-spacing="-1">
+      S
     </text>
 
   </g>
