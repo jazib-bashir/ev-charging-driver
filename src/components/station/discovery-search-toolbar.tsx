@@ -28,7 +28,7 @@ export function DiscoverySearchToolbar({
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        wrap: { paddingTop: 18, backgroundColor: 'transparent' },
+        wrap: { paddingTop: 8, backgroundColor: 'transparent' },
         wrapFloating: { paddingTop: 8 },
         input: { marginTop: 0, marginHorizontal: DISCOVERY_LAYOUT.edge },
         floatingInput: { ...theme.shadows.raised, borderColor: theme.colors.border },

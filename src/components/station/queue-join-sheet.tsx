@@ -5,7 +5,6 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { AuthApiError } from '@/api/auth';
 import {
-  getDriverVehicleConnectors,
   getDriverVehicleDisplayName,
   listDriverVehicles,
 } from '@/api/driverVehicles';
@@ -22,6 +21,7 @@ import { useTheme } from '@/theme';
 import type { ChargingPreference, QueueMember } from '@/types/queue';
 import { CHARGING_PREFERENCES } from '@/types/queue';
 import type { ConnectorType, DriverVehicle } from '@/types/vehicle';
+import { getDriverVehicleConnectors } from '@/utils/vehicle-connectors';
 
 const CHARGING_PREF_COPY: Record<
   ChargingPreference,

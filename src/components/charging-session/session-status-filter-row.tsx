@@ -55,7 +55,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     scroller: {
       flexGrow: 0,
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.sm,
     },
     row: {
       paddingHorizontal: theme.spacing.gutter,

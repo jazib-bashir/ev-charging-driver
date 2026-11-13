@@ -15,6 +15,7 @@ import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { ScreenHero } from '@/components/layout/screen-hero';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
+import { Text } from '@/components/ui/text';
 import { useChargingSessions } from '@/hooks/use-charging-sessions';
 import { useTheme } from '@/theme';
 import type { ChargingSession, ChargingSessionStatus } from '@/types/charging-session';
@@ -197,10 +198,15 @@ export function SessionsScreen() {
 
   return (
     <ScreenContainer edges={[]} style={styles.screen}>
-      <ScreenHero
-        title="My Sessions"
-        subtitle="Charging history and live status"
-      />
+      <ScreenHero />
+      <View style={styles.pageHeading}>
+        <Text style={styles.pageTitle} accessibilityRole="header">
+          My Sessions
+        </Text>
+        <Text style={styles.pageSubtitle}>
+          Charging history and live status
+        </Text>
+      </View>
       <SessionStatusFilterRow
         activeStatus={statusFilter}
         onChange={setStatusFilter}
@@ -214,6 +220,22 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     screen: {
       backgroundColor: theme.colors.background,
+    },
+    pageHeading: {
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.xs,
+      gap: theme.spacing.xs,
+    },
+    pageTitle: {
+      ...theme.textStyles.h1,
+      color: theme.colors.textPrimary,
+    },
+    pageSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      lineHeight: theme.typography.lineHeight.normal,
+      color: theme.colors.textSecondary,
     },
     contentArea: {
       marginTop: 0,

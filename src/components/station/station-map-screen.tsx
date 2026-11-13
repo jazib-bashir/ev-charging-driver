@@ -6,10 +6,12 @@ import { useStationDiscoveryContext } from '@/contexts/station-discovery-context
 import { ScreenHero } from '@/components/layout/screen-hero';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { Text } from '@/components/ui/text';
 import { getStationsWithCoordinates } from '@/utils/map-region';
 import { useTheme } from '@/theme';
 import { isExpoGoAndroid } from '@/utils/runtime';
 
+import { DISCOVERY_LAYOUT } from './discovery-layout';
 import { DiscoveryFilterChips } from './discovery-filter-chips';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
@@ -64,7 +66,13 @@ export function StationMapScreen() {
 
   return (
     <ScreenContainer edges={[]} style={styles.screen}>
-      <ScreenHero title="Station Map" subtitle="Live chargers near you" />
+      <ScreenHero />
+      <View style={styles.pageHeading}>
+        <Text style={styles.pageTitle} accessibilityRole="header">
+          Station Map
+        </Text>
+        <Text style={styles.pageSubtitle}>Live chargers near you</Text>
+      </View>
 
       <View style={styles.mapStage}>
         {isInitialLoading ? <MapLoadingState /> : null}
@@ -161,6 +169,22 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     screen: {
       backgroundColor: theme.colors.background,
+    },
+    pageHeading: {
+      paddingHorizontal: DISCOVERY_LAYOUT.edge,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.sm,
+      gap: theme.spacing.xs,
+    },
+    pageTitle: {
+      ...theme.textStyles.h1,
+      color: theme.colors.textPrimary,
+    },
+    pageSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      lineHeight: theme.typography.lineHeight.normal,
+      color: theme.colors.textSecondary,
     },
     mapStage: {
       flex: 1,

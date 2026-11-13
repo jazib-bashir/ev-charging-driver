@@ -21,3 +21,4 @@ export { Text, TextInput } from './text';
 export { ViewToggle, type ViewMode } from './view-toggle';
 export { ScreenHeader } from './screen-header';
 export { BottomSheet } from './bottom-sheet';
+export { ConfirmDialog } from './confirm-dialog';

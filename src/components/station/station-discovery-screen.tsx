@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { router, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AuthApiError } from '@/api/auth';
 import { leaveQueueMember } from '@/api/stationQueue';
@@ -23,9 +23,11 @@ import { formatHomeJourneyStationSubtitle } from '@/utils/station-discovery-form
 import { confirmAsync, showUserAlert } from '@/utils/user-prompt';
 import { NoticeToast } from '@/components/ui/notice-toast';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
+import { Text } from '@/components/ui/text';
 
 import { ScreenHero } from '@/components/layout/screen-hero';
 
+import { DISCOVERY_LAYOUT } from './discovery-layout';
 import { DiscoveryFilterChips } from './discovery-filter-chips';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
@@ -42,6 +44,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
 export function StationDiscoveryScreen() {
   const { token, user, isLoading: isAuthLoading, refreshUser } = useAuth();
   const { isDark, theme } = useTheme();
+  const styles = useMemo(() => createDiscoveryStyles(theme), [theme]);
   const journeyLookupFailed = user?.activeJourneyLookup === 'failed';
   const whoAmIConfirmedNoJourney =
     user?.activeJourneyLookup === 'ok' && user.activeJourney == null;
@@ -461,11 +464,16 @@ export function StationDiscoveryScreen() {
 
   return (
     <ScreenContainer edges={[]}>
-      <ScreenHero
-        eyebrow="FIND YOUR NEXT CHARGE"
-        title="Where are you headed?"
-        subtitle="See live charger and queue availability nearby."
-      />
+      <ScreenHero />
+      <View style={styles.pageHeading}>
+        <Text style={styles.pageEyebrow}>FIND YOUR NEXT CHARGE</Text>
+        <Text style={styles.pageTitle} accessibilityRole="header">
+          Where are you headed?
+        </Text>
+        <Text style={styles.pageSubtitle}>
+          See live charger and queue availability nearby.
+        </Text>
+      </View>
       {noticeMessage ? (
         <NoticeToast message={noticeMessage} onDismiss={dismissNotice} />
       ) : null}
@@ -493,4 +501,31 @@ export function StationDiscoveryScreen() {
       />
     </ScreenContainer>
   );
+}
+
+function createDiscoveryStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    pageHeading: {
+      paddingHorizontal: DISCOVERY_LAYOUT.edge,
+      paddingTop: theme.spacing.md,
+      paddingBottom: 0,
+      gap: theme.spacing.xs,
+    },
+    pageEyebrow: {
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.textLink,
+      letterSpacing: 0.6,
+    },
+    pageTitle: {
+      ...theme.textStyles.h1,
+      color: theme.colors.textPrimary,
+    },
+    pageSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      lineHeight: theme.typography.lineHeight.normal,
+      color: theme.colors.textSecondary,
+    },
+  });
 }

@@ -6,6 +6,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -406,13 +407,12 @@ export default function VehicleSelectionScreen() {
       {savedVehicles.length > 0 ? (
         <View style={styles.garageSection}>
           <Text style={styles.sectionLabel}>YOUR GARAGE</Text>
-          <FlatList
+          <ScrollView
             horizontal
-            data={savedVehicles}
-            keyExtractor={(vehicle) => vehicle.id}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.garageListContent}
-            renderItem={({ item: vehicle }) => {
+          >
+            {savedVehicles.map((vehicle) => {
               const plugs = connectorsLine(
                 driverVehicleConnectorsLabel(vehicle).split(' · '),
               );
@@ -422,6 +422,7 @@ export default function VehicleSelectionScreen() {
 
               return (
                 <View
+                  key={vehicle.id}
                   style={[
                     styles.garageCard,
                     vehicle.isDefault && styles.garageCardSelected,
@@ -491,8 +492,9 @@ export default function VehicleSelectionScreen() {
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={`Make ${driverVehicleTitle(vehicle)} default`}
+                        style={styles.garageActionPressable}
                       >
-                        <Text style={styles.garageActionLink}>
+                        <Text style={styles.garageActionLink} numberOfLines={1}>
                           Make default
                         </Text>
                       </Pressable>
@@ -509,8 +511,9 @@ export default function VehicleSelectionScreen() {
                           ? `Edit plate for ${driverVehicleTitle(vehicle)}`
                           : `Add number plate for ${driverVehicleTitle(vehicle)}`
                       }
+                      style={styles.garageActionPressable}
                     >
-                      <Text style={styles.garageActionLink}>
+                      <Text style={styles.garageActionLink} numberOfLines={1}>
                         {vehicle.licensePlate
                           ? `Plate ${vehicle.licensePlate}`
                           : '✏️ Add number plate'}
@@ -525,8 +528,8 @@ export default function VehicleSelectionScreen() {
                   ) : null}
                 </View>
               );
-            }}
-          />
+            })}
+          </ScrollView>
         </View>
       ) : null}
 
@@ -837,6 +840,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderColor: theme.colors.border,
       padding: 16,
       marginRight: 12,
+      overflow: 'hidden',
       ...card,
     },
     garageCardSelected: {
@@ -851,6 +855,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.surfaceSunken,
+      flexShrink: 0,
     },
     garageIconSelected: { backgroundColor: theme.colors.primarySoft },
     garageCopy: { flex: 1, minWidth: 0 },
@@ -858,7 +863,9 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       fontFamily: theme.typography.fontFamily.brand,
       fontSize: 15,
       letterSpacing: -0.2,
+      lineHeight: 20,
       color: theme.colors.textPrimary,
+      flexShrink: 1,
     },
     garagePlugs: {
       fontFamily: theme.typography.fontFamily.regular,
@@ -873,10 +880,12 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.surfaceSunken,
+      flexShrink: 0,
     },
     garageActions: {
       flexDirection: 'row',
-      alignItems: 'center',
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: 8,
       marginTop: 14,
@@ -889,16 +898,23 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       paddingVertical: 3,
       borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.primarySoft,
+      flexShrink: 0,
     },
     defaultTagLabel: {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 11,
       color: theme.colors.primary,
     },
+    garageActionPressable: {
+      flexShrink: 1,
+      minWidth: 0,
+      maxWidth: '100%',
+    },
     garageActionLink: {
       fontFamily: theme.typography.fontFamily.semibold,
       fontSize: 12,
       color: theme.colors.textLink,
+      flexShrink: 1,
     },
     garageBusy: {
       ...StyleSheet.absoluteFill,

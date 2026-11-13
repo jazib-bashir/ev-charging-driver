@@ -4,7 +4,6 @@ import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg'
 
 import { WeaveMark } from '@/components/brand/weave-mark';
 import { Wordmark } from '@/components/brand/wordmark';
-import { WORDMARK_KONNECT_CENTER_RATIO } from '@/components/brand/wordmark-paths';
 import { Icon } from '@/components/ui/icon';
 import { BRAND } from '@/theme/brand';
 import { useTheme } from '@/theme';
@@ -13,8 +12,6 @@ const WAVE_HEIGHT = 272;
 const WAVE_VIEWBOX = '0 0 500 272';
 const WAVE_PATH = 'M 0 0 L 500 0 L 500 190 Q 210 280, 0 214 Z';
 const WORDMARK_WIDTH = 138;
-/** Shift the Weave tile so its center sits over "konnect", not the full wordmark. */
-const WEAVE_SHIFT_X = (WORDMARK_KONNECT_CENTER_RATIO - 0.5) * WORDMARK_WIDTH;
 
 type AuthWaveHeaderProps = {
   onBack: () => void;
@@ -24,7 +21,7 @@ type AuthWaveHeaderProps = {
 /**
  * Emerald brand header shared by phone login and OTP verification.
  * Explicit SVG sizing (not percentage height) keeps the wave silhouette correct on native.
- * The Weave is aligned to the "konnect" portion of the wordmark.
+ * The Weave tile and wordmark are centered as a stacked lockup.
  */
 export function AuthWaveHeader({ onBack, showBack = true }: AuthWaveHeaderProps) {
   const { theme } = useTheme();
@@ -89,7 +86,7 @@ export function AuthWaveHeader({ onBack, showBack = true }: AuthWaveHeaderProps)
       ) : null}
 
       <View style={styles.brand} pointerEvents="none">
-        <View style={[styles.tile, { transform: [{ translateX: WEAVE_SHIFT_X }] }]}>
+        <View style={styles.tile}>
           <WeaveMark size={52} />
         </View>
         <Wordmark width={WORDMARK_WIDTH} tone="onDark" />

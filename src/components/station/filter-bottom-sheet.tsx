@@ -17,7 +17,12 @@ import type {
   StationSortBy,
   StationSortOrder,
 } from '@/types/station';
-import { CONNECTOR_TYPES } from '@/types/vehicle';
+import {
+  CONNECTOR_TYPES,
+  type ConnectorType,
+  type DriverVehicle,
+  type VehicleCatalogItem,
+} from '@/types/vehicle';
 import {
   GeolocationError,
   getCurrentCoordinates,
@@ -28,6 +33,7 @@ import {
   DISTANCE_OPTIONS,
   getCitiesForUser,
 } from '@/utils/location-helpers';
+import { resolveFilterVehicleConnectors } from '@/utils/vehicle-connectors';
 
 const SORT_BY_OPTIONS: { label: string; value: StationSortBy }[] = [
   { label: 'Power', value: 'power' },
@@ -39,26 +45,56 @@ const SORT_ORDER_OPTIONS: { label: string; value: StationSortOrder }[] = [
   { label: 'Descending', value: 'desc' },
 ];
 
+type FilterVehicleOption = {
+  id: string;
+  label: string;
+};
+
+type LoadedFilterVehicles = {
+  options: FilterVehicleOption[];
+  driverVehicles: DriverVehicle[];
+  catalogItems: VehicleCatalogItem[];
+};
+
 function defaultSortOrderFor(sortBy: StationSortBy): StationSortOrder {
   return sortBy === 'price' ? 'asc' : 'desc';
 }
 
-async function loadFilterVehicleOptions(
+function pruneConnectorTypes(
+  selected: string[] | null | undefined,
+  supported: readonly string[],
+): string[] | null {
+  if (!selected || selected.length === 0) {
+    return null;
+  }
+  const next = selected.filter((connector) => supported.includes(connector));
+  return next.length > 0 ? next : null;
+}
+
+async function loadFilterVehicles(
   authToken: string | null,
-): Promise<Array<{ id: string; label: string }>> {
+): Promise<LoadedFilterVehicles> {
   if (authToken) {
     const items = await listDriverVehicles(authToken);
-    return items.map((item) => ({
-      id: item.id,
-      label: getDriverVehicleDisplayName(item),
-    }));
+    return {
+      options: items.map((item) => ({
+        id: item.id,
+        label: getDriverVehicleDisplayName(item),
+      })),
+      driverVehicles: items,
+      catalogItems: [],
+    };
   }
 
   const items = await fetchPublicVehicleModels({ all: true });
-  return items.map((item) => ({
-    id: item.id,
-    label: item.displayName,
-  }));
+  return {
+    options: items.map((item) => ({
+      id: item.id,
+      label: item.displayName,
+    })),
+    driverVehicles: [],
+    catalogItems: items,
+  };
 }
 
 type FilterBottomSheetProps = {
@@ -92,9 +128,11 @@ export function FilterBottomSheet({
   const [draftFilters, setDraftFilters] = useState<PublicStationFilterState>(appliedFilters);
   const [availableCities, setAvailableCities] = useState<string[]>(DEFAULT_FALLBACK_CITIES);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [vehicleOptions, setVehicleOptions] = useState<
-    Array<{ id: string; label: string }>
-  >([]);
+  const [vehicleOptions, setVehicleOptions] = useState<FilterVehicleOption[]>(
+    [],
+  );
+  const [driverVehicles, setDriverVehicles] = useState<DriverVehicle[]>([]);
+  const [catalogItems, setCatalogItems] = useState<VehicleCatalogItem[]>([]);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -123,16 +161,20 @@ export function FilterBottomSheet({
           }
         });
 
-      loadFilterVehicleOptions(authToken ?? null)
-        .then((options) => {
+      loadFilterVehicles(authToken ?? null)
+        .then((loaded) => {
           if (isMounted) {
-            setVehicleOptions(options);
+            setVehicleOptions(loaded.options);
+            setDriverVehicles(loaded.driverVehicles);
+            setCatalogItems(loaded.catalogItems);
             setIsLoadingVehicles(false);
           }
         })
         .catch(() => {
           if (isMounted) {
             setVehicleOptions([]);
+            setDriverVehicles([]);
+            setCatalogItems([]);
             setIsLoadingVehicles(false);
           }
         });
@@ -142,6 +184,18 @@ export function FilterBottomSheet({
       isMounted = false;
     };
   }, [visible, appliedFilters, authToken]);
+
+  const supportedConnectors = useMemo((): readonly ConnectorType[] => {
+    const resolved = resolveFilterVehicleConnectors(
+      draftFilters.vehicleId,
+      driverVehicles,
+      catalogItems,
+    );
+    if (resolved === null) {
+      return CONNECTOR_TYPES;
+    }
+    return resolved;
+  }, [draftFilters.vehicleId, driverVehicles, catalogItems]);
 
   const isDistanceFilterLocked = locationPermissionStatus !== 'granted';
 
@@ -191,10 +245,20 @@ export function FilterBottomSheet({
   };
 
   const handleSelectVehicle = (vehicleId: string) => {
-    setDraftFilters((prev) => ({
-      ...prev,
-      vehicleId: prev.vehicleId === vehicleId ? null : vehicleId,
-    }));
+    setDraftFilters((prev) => {
+      const nextVehicleId = prev.vehicleId === vehicleId ? null : vehicleId;
+      const resolved = resolveFilterVehicleConnectors(
+        nextVehicleId,
+        driverVehicles,
+        catalogItems,
+      );
+      const supported = resolved ?? CONNECTOR_TYPES;
+      return {
+        ...prev,
+        vehicleId: nextVehicleId,
+        connectorTypes: pruneConnectorTypes(prev.connectorTypes, supported),
+      };
+    });
   };
 
   const handleToggleConnector = (connector: string) => {
@@ -498,31 +562,41 @@ export function FilterBottomSheet({
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Connector type</Text>
-              <View style={styles.chipsRow}>
-                {CONNECTOR_TYPES.map((connector) => {
-                  const isSelected = selectedConnectors.includes(connector);
-                  return (
-                    <Pressable
-                      key={connector}
-                      style={[styles.chip, isSelected && styles.chipActive]}
-                      onPress={() => handleToggleConnector(connector)}
-                      accessibilityRole="button"
-                    >
-                      {isSelected && (
-                        <Icon name="check" size={14} color={theme.colors.onPrimary} />
-                      )}
-                      <Text
-                        style={[
-                          styles.chipText,
-                          isSelected && styles.chipTextActive,
-                        ]}
+              {supportedConnectors.length === 0 ? (
+                <Text style={styles.helperText}>
+                  No connectors listed for the selected vehicle.
+                </Text>
+              ) : (
+                <View style={styles.chipsRow}>
+                  {supportedConnectors.map((connector) => {
+                    const isSelected = selectedConnectors.includes(connector);
+                    return (
+                      <Pressable
+                        key={connector}
+                        style={[styles.chip, isSelected && styles.chipActive]}
+                        onPress={() => handleToggleConnector(connector)}
+                        accessibilityRole="button"
                       >
-                        {connector}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        {isSelected && (
+                          <Icon
+                            name="check"
+                            size={14}
+                            color={theme.colors.onPrimary}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isSelected && styles.chipTextActive,
+                          ]}
+                        >
+                          {connector}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
             <View style={styles.section}>

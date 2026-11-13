@@ -23,7 +23,8 @@ import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
 
 type ScreenHeroProps = {
-  title: string;
+  /** Optional; omit for a compact logo-only header (tab roots). */
+  title?: string;
   subtitle?: string;
   /** Overrides initials derived from the signed-in user. */
   avatarInitials?: string;
@@ -32,7 +33,7 @@ type ScreenHeroProps = {
   showBack?: boolean;
   /** Small muted line above the title (e.g. today's date). */
   eyebrow?: string;
-  /** Defaults to true so the bell matches profile availability on every screen. */
+  /** Defaults to false; pass true to show the header notification bell. */
   showNotifications?: boolean;
   /** Optional control beside the title (share, live badge…). */
   trailing?: ReactNode;
@@ -132,7 +133,7 @@ export function ScreenHero({
   onBack,
   showBack,
   eyebrow,
-  showNotifications = true,
+  showNotifications = false,
   trailing,
   children,
 }: ScreenHeroProps) {
@@ -145,6 +146,13 @@ export function ScreenHero({
     (isAuthenticated ? initialsOf(user?.name) || undefined : undefined);
   const [size, setSize] = useState<HeroSize>({ width: 0, height: 0 });
   const shouldShowBack = showBack ?? onBack != null;
+  const showBody =
+    Boolean(eyebrow) ||
+    Boolean(title) ||
+    Boolean(subtitle) ||
+    shouldShowBack ||
+    trailing != null ||
+    children != null;
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -156,7 +164,14 @@ export function ScreenHero({
   }, []);
 
   return (
-    <View style={[styles.hero, { paddingTop: insets.top }]} onLayout={onLayout}>
+    <View
+      style={[
+        styles.hero,
+        showBody ? styles.heroWithBody : styles.heroCompact,
+        { paddingTop: insets.top },
+      ]}
+      onLayout={onLayout}
+    >
       <HeroBackdrop size={size} />
       <HeroStatusBar />
 
@@ -167,28 +182,40 @@ export function ScreenHero({
         hasUnread
       />
 
-      <View style={styles.body}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-        <View style={styles.titleRow}>
-          {shouldShowBack ? (
-            <Pressable
-              onPress={() => handleDefaultBack(onBack)}
-              style={styles.backBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              hitSlop={8}
-            >
-              <Icon name="back" size={22} color={theme.colors.heroText} />
-            </Pressable>
+      {showBody ? (
+        <View style={styles.body}>
+          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+          {title || shouldShowBack || trailing ? (
+            <View style={styles.titleRow}>
+              {shouldShowBack ? (
+                <Pressable
+                  onPress={() => handleDefaultBack(onBack)}
+                  style={styles.backBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+                  hitSlop={8}
+                >
+                  <Icon name="back" size={22} color={theme.colors.heroText} />
+                </Pressable>
+              ) : null}
+              {title ? (
+                <Text
+                  style={styles.title}
+                  numberOfLines={2}
+                  accessibilityRole="header"
+                >
+                  {title}
+                </Text>
+              ) : (
+                <View style={styles.titleSpacer} />
+              )}
+              {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
+            </View>
           ) : null}
-          <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-            {title}
-          </Text>
-          {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {children ? <View style={styles.children}>{children}</View> : null}
         </View>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        {children ? <View style={styles.children}>{children}</View> : null}
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -200,7 +227,12 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderBottomLeftRadius: theme.radius.xxl,
       borderBottomRightRadius: theme.radius.xxl,
       overflow: 'hidden',
+    },
+    heroWithBody: {
       paddingBottom: theme.spacing.lg + theme.spacing.xs,
+    },
+    heroCompact: {
+      paddingBottom: theme.spacing.sm,
     },
     body: {
       paddingHorizontal: theme.spacing.xl,
@@ -228,6 +260,9 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       flex: 1,
       ...theme.textStyles.h1,
       color: theme.colors.heroText,
+    },
+    titleSpacer: {
+      flex: 1,
     },
     trailing: {
       flexShrink: 0,

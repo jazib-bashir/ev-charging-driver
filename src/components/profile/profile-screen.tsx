@@ -27,6 +27,7 @@ import { PageLoader } from '@/components/loaders/page-loader';
 import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { ScreenHero } from '@/components/layout/screen-hero';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Icon } from '@/components/ui/icon';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -56,6 +57,7 @@ export function ProfileScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { status, showError, showSuccess, clearStatus } = useRequestStatus();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [signOutVisible, setSignOutVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [vehicles, setVehicles] = useState<DriverVehicle[]>([]);
   const [recentSessions, setRecentSessions] = useState<ChargingSession[]>([]);
@@ -287,7 +289,7 @@ export function ProfileScreen() {
     ],
   );
 
-  const handleLogout = useCallback(async () => {
+  const handleConfirmSignOut = useCallback(() => {
     if (isLoggingOut) {
       return;
     }
@@ -295,20 +297,23 @@ export function ProfileScreen() {
     setIsLoggingOut(true);
     clearStatus();
 
-    try {
-      await logout();
-      showSuccess('Signed out successfully.');
-    } catch {
-      showError('Unable to sign out. Please try again.');
-    } finally {
-      setIsLoggingOut(false);
-    }
+    void (async () => {
+      try {
+        await logout();
+        showSuccess('Signed out successfully.');
+      } catch {
+        showError('Unable to sign out. Please try again.');
+      } finally {
+        setSignOutVisible(false);
+        setIsLoggingOut(false);
+      }
+    })();
   }, [isLoggingOut, logout, clearStatus, showSuccess, showError]);
 
   if (isLoading) {
     return (
       <ScreenContainer edges={[]} style={styles.screen}>
-        <ScreenHero title="Profile" />
+        <ScreenHero />
         <PageLoader message="Loading profile…" />
       </ScreenContainer>
     );
@@ -322,7 +327,7 @@ export function ProfileScreen() {
 
   return (
     <ScreenContainer edges={[]} style={styles.screen}>
-      <ScreenHero title="Profile" subtitle="Account, vehicles, and preferences" />
+      <ScreenHero />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -338,6 +343,15 @@ export function ProfileScreen() {
           />
         }
       >
+        <View style={styles.pageHeading}>
+          <Text style={styles.pageTitle} accessibilityRole="header">
+            Profile
+          </Text>
+          <Text style={styles.pageSubtitle}>
+            Account, vehicles, and preferences
+          </Text>
+        </View>
+
         <ProfileHero
           name={user.name || 'Driver'}
           email={user.email || '—'}
@@ -465,12 +479,24 @@ export function ProfileScreen() {
           leadingIcon="log-out"
           loading={isLoggingOut}
           disabled={actionsDisabled}
-          onPress={() => {
-            void handleLogout();
-          }}
+          onPress={() => setSignOutVisible(true)}
           accessibilityLabel="Sign out"
         />
       </ScrollView>
+
+      <ConfirmDialog
+        visible={signOutVisible}
+        title="Sign out"
+        message="Are you sure you want to sign out?"
+        cancelLabel="Cancel"
+        confirmLabel="Confirm"
+        confirmVariant="destructive"
+        confirming={isLoggingOut}
+        onCancel={() => {
+          if (!isLoggingOut) setSignOutVisible(false);
+        }}
+        onConfirm={handleConfirmSignOut}
+      />
 
       <ProfilePlateSheet
         visible={plateVehicle !== null}
@@ -492,9 +518,23 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     scrollContent: {
       paddingHorizontal: theme.spacing.gutter,
-      paddingTop: theme.spacing.sm,
+      paddingTop: theme.spacing.md,
       paddingBottom: theme.spacing.xl,
       gap: 24,
+    },
+    pageHeading: {
+      gap: theme.spacing.xs,
+      marginBottom: -8,
+    },
+    pageTitle: {
+      ...theme.textStyles.h1,
+      color: theme.colors.textPrimary,
+    },
+    pageSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      lineHeight: theme.typography.lineHeight.normal,
+      color: theme.colors.textSecondary,
     },
     profileHint: {
       marginTop: -8,
