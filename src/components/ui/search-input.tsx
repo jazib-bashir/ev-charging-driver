@@ -1,16 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
-  type TextInputProps,
   type StyleProp,
+  type TextInputProps,
   type ViewStyle,
 } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
+import { Text, TextInput } from '@/components/ui/text';
 import { useTheme } from '@/theme';
 
 type SearchInputProps = TextInputProps & {
@@ -31,10 +30,13 @@ export function SearchInput({
   style,
   value,
   onChangeText,
+  onFocus,
+  onBlur,
   ...props
 }: SearchInputProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const [focused, setFocused] = useState(false);
   const hasActiveFilters = activeFilterCount > 0;
   const hasText = typeof value === 'string' && value.length > 0;
 
@@ -43,18 +45,28 @@ export function SearchInput({
       style={[
         styles.container,
         embedded && styles.containerEmbedded,
+        focused && styles.containerFocused,
         containerStyle,
       ]}
     >
-      <Icon name="search" size={16} color={theme.colors.textMuted} />
+      <Icon name="search" size={18} color={focused ? theme.colors.primary : theme.colors.textMuted} />
       <TextInput
         style={[styles.input, style]}
-        placeholderTextColor={placeholderTextColor ?? theme.colors.textMuted}
+        placeholderTextColor={placeholderTextColor ?? theme.colors.inputPlaceholder}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
         value={value}
         onChangeText={onChangeText}
+        selectionColor={theme.colors.primary}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
         {...props}
       />
       {hasText && (
@@ -69,23 +81,24 @@ export function SearchInput({
         </Pressable>
       )}
       {showFilterIcon && (
-        <>
-          <View style={styles.divider} />
-          <Pressable
-            onPress={onFilterPress}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Open filters"
-            style={styles.filterButton}
-          >
-            <Icon name="filter" size={16} color={theme.colors.accent} />
-            {hasActiveFilters && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </Pressable>
-        </>
+        <Pressable
+          onPress={onFilterPress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Open filters"
+          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+        >
+          <Icon
+            name="sliders"
+            size={18}
+            color={hasActiveFilters ? theme.colors.onPrimary : theme.colors.primary}
+          />
+          {hasActiveFilters && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </Pressable>
       )}
     </View>
   );
@@ -96,68 +109,71 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      height: 45,
+      height: 52,
       gap: 10,
       marginHorizontal: theme.spacing.xl,
-      marginTop: 0,
-      paddingLeft: 14,
-      paddingRight: 8,
-      borderRadius: 14,
+      paddingLeft: 16,
+      paddingRight: 6,
+      borderRadius: theme.radius.control,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      ...(theme.isDark ? theme.shadows.none : theme.shadows.card),
     },
     containerEmbedded: {
       flex: 1,
       marginHorizontal: 0,
-      marginTop: 0,
       minWidth: 0,
+    },
+    containerFocused: {
+      borderColor: theme.colors.inputBorderFocus,
     },
     input: {
       flex: 1,
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: theme.typography.fontSize.sm,
-      lineHeight: theme.typography.lineHeight.normal,
+      fontSize: theme.typography.fontSize.md,
       color: theme.colors.textPrimary,
       padding: 0,
       margin: 0,
     },
     clearButton: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: theme.colors.iconBackground,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surfaceSunken,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    divider: {
-      width: StyleSheet.hairlineWidth,
-      height: 18,
-      backgroundColor: theme.colors.border,
     },
     filterButton: {
       position: 'relative',
-      width: 32,
-      height: 32,
+      width: 40,
+      height: 40,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },
+    filterButtonActive: {
+      backgroundColor: theme.colors.primary,
+    },
     badge: {
       position: 'absolute',
-      top: 2,
-      right: 2,
-      minWidth: 14,
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: theme.colors.accent,
+      top: -4,
+      right: -4,
+      minWidth: 17,
+      height: 17,
+      borderRadius: 9,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 3,
     },
     badgeText: {
-      color: theme.colors.textInverse,
+      color: theme.colors.primary,
+      fontFamily: theme.typography.fontFamily.bold,
       fontSize: 9,
-      fontWeight: theme.typography.fontWeight.bold,
     },
   });
 }

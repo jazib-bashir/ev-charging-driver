@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="konnectEVS app icon master"><g id="Background"><rect width="1024" height="1024" rx="224" fill="#0D1117"/></g><g transform="translate(205 205) scale(6.4)"><defs>
+  <mask id="weave-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="96">
+    <rect width="96" height="96" fill="#fff"/>
+    <path d="M8 20h14c28 0 18 56 46 56h20" stroke="#000" stroke-width="20" stroke-linecap="round"/>
+  </mask>
+</defs><g id="Symbol">
+  <g id="Lime-paths"><path d="M8 76h20c28 0 18-56 46-56h14" fill="none" stroke="#D4FF00" stroke-width="10" stroke-linecap="round" mask="url(#weave-cut)"/></g>
+  <g id="Coral-paths"><path d="M8 20h14c28 0 18 56 46 56h20" fill="none" stroke="#FF3E1D" stroke-width="10" stroke-linecap="round"/></g>
+</g></g></svg>

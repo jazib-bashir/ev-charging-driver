@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Icon } from '@/components/ui/icon';
 import {
   useStationDiscoveryContext,
@@ -10,9 +11,7 @@ import { useTheme } from '@/theme';
 
 import { DISCOVERY_LAYOUT } from './discovery-layout';
 
-const CHIP_TEXT_SELECTED = '#0F172A';
 const CHIP_GAP = 8;
-const ICON_TEXT_GAP = 6;
 
 type ChipDef = {
   id: DiscoveryQuickChipId;
@@ -31,25 +30,9 @@ const CHIPS: ChipDef[] = [
   { id: 'distance', label: '< 3 km' },
 ];
 
-function ChipIcon({
-  icon,
-  active,
-  idleColor,
-}: {
-  icon: NonNullable<ChipDef['icon']>;
-  active: boolean;
-  idleColor: string;
-}) {
-  if (icon === 'bolt') {
-    return <Icon name="bolt" size={12} color={active ? CHIP_TEXT_SELECTED : idleColor} />;
-  }
-
-  return <Icon name="check" size={12} color={active ? CHIP_TEXT_SELECTED : idleColor} />;
-}
-
 export function DiscoveryFilterChips({ floating = false }: DiscoveryFilterChipsProps) {
   const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme, floating), [theme, floating]);
+  const styles = useMemo(() => createStyles(floating), [floating]);
   const { filters, toggleQuickChip } = useStationDiscoveryContext();
 
   const selected = useMemo(() => {
@@ -72,25 +55,21 @@ export function DiscoveryFilterChips({ floating = false }: DiscoveryFilterChipsP
           const active = selected.has(chip.id);
 
           return (
-            <Pressable
+            <FilterChip
               key={chip.id}
+              label={chip.label}
+              active={active}
               onPress={() => toggleQuickChip(chip.id)}
-              style={[styles.chip, active ? styles.chipActive : styles.chipIdle]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={chip.label}
-            >
-              {chip.icon ? (
-                <ChipIcon
-                  icon={chip.icon}
-                  active={active}
-                  idleColor={theme.colors.textChip}
-                />
-              ) : null}
-              <Text style={[styles.label, active ? styles.labelActive : styles.labelIdle]}>
-                {chip.label}
-              </Text>
-            </Pressable>
+              icon={
+                chip.icon ? (
+                  <Icon
+                    name={chip.icon}
+                    size={13}
+                    color={active ? theme.colors.onPrimary : theme.colors.textSecondary}
+                  />
+                ) : undefined
+              }
+            />
           );
         })}
       </ScrollView>
@@ -98,10 +77,7 @@ export function DiscoveryFilterChips({ floating = false }: DiscoveryFilterChipsP
   );
 }
 
-function createStyles(
-  theme: ReturnType<typeof useTheme>['theme'],
-  floating: boolean,
-) {
+function createStyles(floating: boolean) {
   return StyleSheet.create({
     container: {
       paddingTop: floating ? 8 : DISCOVERY_LAYOUT.sectionGap,
@@ -114,36 +90,6 @@ function createStyles(
       alignItems: 'center',
       gap: CHIP_GAP,
       paddingHorizontal: DISCOVERY_LAYOUT.edge,
-    },
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ICON_TEXT_GAP,
-      height: DISCOVERY_LAYOUT.chipHeight,
-      paddingHorizontal: 14,
-      borderRadius: 20,
-      borderWidth: 1,
-    },
-    chipActive: {
-      backgroundColor: theme.colors.accent,
-      borderColor: theme.colors.accent,
-    },
-    chipIdle: {
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.border,
-    },
-    label: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 12,
-      lineHeight: 18,
-      includeFontPadding: false,
-    },
-    labelActive: {
-      color: CHIP_TEXT_SELECTED,
-    },
-    labelIdle: {
-      color: theme.colors.textChip,
     },
   });
 }

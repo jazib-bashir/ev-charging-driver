@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { Surface } from '@/components/ui/surface';
+import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
 import type { Charger } from '@/types/charger';
 import {
@@ -21,49 +26,11 @@ type StationChargersSectionProps = {
   onViewCharger: (charger: Charger) => void;
 };
 
-function StatusPill({
-  label,
-  variant,
-  styles,
-  theme,
-}: {
-  label: string;
-  variant: 'available' | 'unavailable' | 'neutral';
-  styles: ReturnType<typeof createStyles>;
-  theme: ReturnType<typeof useTheme>['theme'];
-}) {
-  const isAvailable = variant === 'available';
-  const isCharging = label.toLowerCase().includes('charg') || label.toLowerCase().includes('use');
-
-  return (
-    <View
-      style={[
-        styles.statusPill,
-        isAvailable && styles.statusPillAvailable,
-        isCharging && styles.statusPillCharging,
-        variant === 'unavailable' && styles.statusPillUnavailable,
-      ]}
-    >
-      <View
-        style={[
-          styles.statusDot,
-          isAvailable && styles.statusDotAvailable,
-          isCharging && { backgroundColor: theme.colors.brandLight },
-          variant === 'unavailable' && styles.statusDotUnavailable,
-        ]}
-      />
-      <Text
-        style={[
-          styles.statusPillText,
-          isAvailable && styles.statusPillTextAvailable,
-          isCharging && { color: theme.colors.brandLight },
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </View>
-  );
+function badgeVariantFor(label: string, variant: 'available' | 'unavailable' | 'neutral'): BadgeVariant {
+  if (variant === 'available') return 'available';
+  const lower = label.toLowerCase();
+  if (lower.includes('charg') || lower.includes('use')) return 'info';
+  return variant === 'unavailable' ? 'unavailable' : 'neutral';
 }
 
 function EvseBayRow({
@@ -71,14 +38,13 @@ function EvseBayRow({
   index,
   onViewCharger,
   styles,
-  theme,
 }: {
   bay: StationEvseBay;
   index: number;
   onViewCharger: (charger: Charger) => void;
   styles: ReturnType<typeof createStyles>;
-  theme: ReturnType<typeof useTheme>['theme'];
 }) {
+  const { theme } = useTheme();
   const status = getEvseBayStatus(bay);
   const connectors = getEvseBayConnectorSummary(bay);
   const power = formatChargerPower(bay.maxPowerKw);
@@ -96,18 +62,8 @@ function EvseBayRow({
         pressed && styles.chargerRowPressed,
       ]}
     >
-      <View
-        style={[
-          styles.chargerIndex,
-          isAvailable && styles.chargerIndexAvailable,
-        ]}
-      >
-        <Text
-          style={[
-            styles.chargerIndexText,
-            isAvailable && styles.chargerIndexTextAvailable,
-          ]}
-        >
+      <View style={[styles.chargerIndex, isAvailable && styles.chargerIndexAvailable]}>
+        <Text style={[styles.chargerIndexText, isAvailable && styles.chargerIndexTextAvailable]}>
           {formatChargerIndex(index)}
         </Text>
       </View>
@@ -124,11 +80,10 @@ function EvseBayRow({
       </View>
 
       <View style={styles.chargerTrailing}>
-        <StatusPill
+        <Badge
           label={status.label}
-          variant={status.variant}
-          styles={styles}
-          theme={theme}
+          variant={badgeVariantFor(status.label, status.variant)}
+          showDot
         />
         <Icon name="chevron-forward" size={16} color={theme.colors.textMuted} />
       </View>
@@ -152,30 +107,37 @@ export function StationChargersSection({
       <Text style={styles.heading}>Chargers ({bays.length})</Text>
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.accent} />
-        </View>
+        <Surface variant="card" padding={16} style={styles.loadingContainer}>
+          {[0, 1, 2].map((key) => (
+            <View key={key} style={styles.skeletonRow}>
+              <SkeletonLoader width={34} height={34} radius={11} />
+              <View style={styles.skeletonCopy}>
+                <SkeletonLoader width="55%" height={14} radius={7} />
+                <SkeletonLoader width="38%" height={11} radius={6} />
+              </View>
+              <SkeletonLoader width={64} height={24} radius={12} />
+            </View>
+          ))}
+        </Surface>
       ) : isError ? (
-        <View style={styles.errorContainer}>
+        <Surface variant="card" padding={20} style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Unable to load chargers</Text>
-          <Text style={styles.errorMessage}>
-            Please check your connection and try again.
-          </Text>
-          <Pressable
-            style={styles.retryButton}
+          <Text style={styles.errorMessage}>Please check your connection and try again.</Text>
+          <Button
+            label="Retry"
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
             onPress={onRetry}
-            accessibilityRole="button"
             accessibilityLabel="Retry loading chargers"
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </Pressable>
-        </View>
+          />
+        </Surface>
       ) : bays.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <Surface variant="sunken" padding={20} style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No chargers available</Text>
-        </View>
+        </Surface>
       ) : (
-        <View style={styles.groupCard}>
+        <Surface variant="card" padding={0} style={styles.groupCard}>
           {bays.map((bay, index) => (
             <View key={bay.evseId}>
               {index > 0 ? <View style={styles.rowDivider} /> : null}
@@ -184,11 +146,10 @@ export function StationChargersSection({
                 index={index}
                 onViewCharger={onViewCharger}
                 styles={styles}
-                theme={theme}
               />
             </View>
           ))}
-        </View>
+        </Surface>
       )}
     </View>
   );
@@ -198,32 +159,23 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     section: {
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 24,
       paddingBottom: theme.spacing.xxxl,
       gap: 12,
     },
     heading: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 17,
-      lineHeight: 22,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 16,
+      lineHeight: 24,
       color: theme.colors.textPrimary,
-      letterSpacing: -0.2,
+      letterSpacing: -0.5,
     },
-    loadingContainer: {
-      paddingVertical: theme.spacing.xl,
-      alignItems: 'center',
-    },
-    errorContainer: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: theme.spacing.lg,
-      gap: theme.spacing.xs,
-      alignItems: 'center',
-    },
+    loadingContainer: { gap: 16 },
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    skeletonCopy: { flex: 1, gap: 8 },
+    errorContainer: { gap: theme.spacing.xs, alignItems: 'center' },
     errorTitle: {
-      fontFamily: theme.typography.fontFamily.semibold,
+      fontFamily: theme.typography.fontFamily.brand,
       fontSize: theme.typography.fontSize.md,
       color: theme.colors.textPrimary,
       textAlign: 'center',
@@ -233,86 +185,47 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       fontSize: theme.typography.fontSize.sm,
       color: theme.colors.textMuted,
       textAlign: 'center',
+      marginBottom: theme.spacing.sm,
     },
-    retryButton: {
-      marginTop: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.accent,
-    },
-    retryButtonText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: theme.typography.fontSize.sm,
-      color: '#0F172A',
-    },
-    emptyContainer: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: theme.spacing.lg,
-      alignItems: 'center',
-    },
+    emptyContainer: { alignItems: 'center' },
     emptyText: {
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: theme.typography.fontSize.md,
       color: theme.colors.textMuted,
       textAlign: 'center',
     },
-    groupCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      overflow: 'hidden',
-    },
+    groupCard: { overflow: 'hidden' },
     chargerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       paddingVertical: 14,
       gap: 12,
     },
-    chargerRowUnavailable: {
-      opacity: 0.82,
-    },
-    chargerRowPressed: {
-      backgroundColor: theme.colors.iconBackground,
-    },
+    chargerRowUnavailable: { opacity: 0.8 },
+    chargerRowPressed: { backgroundColor: theme.colors.surfaceSunken },
     rowDivider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: theme.colors.border,
-      marginHorizontal: 14,
+      marginHorizontal: 16,
     },
     chargerIndex: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      width: 36,
+      height: 36,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.iconBackground,
+      backgroundColor: theme.colors.surfaceSunken,
       flexShrink: 0,
     },
-    chargerIndexAvailable: {
-      borderColor: theme.colors.selectionBorder,
-      backgroundColor: theme.colors.brandMuted,
-    },
+    chargerIndexAvailable: { backgroundColor: theme.colors.primarySoft },
     chargerIndexText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 12,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 13,
       color: theme.colors.textSecondary,
     },
-    chargerIndexTextAvailable: {
-      color: theme.colors.accent,
-    },
-    chargerCopy: {
-      flex: 1,
-      gap: 4,
-      minWidth: 0,
-    },
+    chargerIndexTextAvailable: { color: theme.colors.primary },
+    chargerCopy: { flex: 1, gap: 3, minWidth: 0 },
     chargerName: {
       fontFamily: theme.typography.fontFamily.semibold,
       fontSize: 15,
@@ -325,52 +238,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       lineHeight: 18,
       color: theme.colors.textMuted,
     },
-    chargerTrailing: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      flexShrink: 0,
-    },
-    statusPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: theme.radius.pill,
-      backgroundColor: theme.colors.iconBackground,
-      maxWidth: 108,
-    },
-    statusPillAvailable: {
-      backgroundColor: theme.colors.statusAvailableBg,
-    },
-    statusPillCharging: {
-      backgroundColor: theme.colors.brandMuted,
-    },
-    statusPillUnavailable: {
-      backgroundColor: theme.colors.iconBackground,
-    },
-    statusDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.colors.statusUnavailable,
-    },
-    statusDotAvailable: {
-      backgroundColor: theme.colors.statusAvailable,
-    },
-    statusDotUnavailable: {
-      backgroundColor: theme.colors.statusUnavailable,
-    },
-    statusPillText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 11,
-      lineHeight: 16,
-      color: theme.colors.textMuted,
-      flexShrink: 1,
-    },
-    statusPillTextAvailable: {
-      color: theme.colors.statusAvailable,
-    },
+    chargerTrailing: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
   });
 }

@@ -1,72 +1,36 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  type PressableProps,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 
-import { useTheme } from '@/theme';
-import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
 
-type AuthPrimaryButtonProps = PressableProps & {
+type AuthPrimaryButtonProps = {
   label: string;
+  onPress?: () => void;
+  disabled?: boolean | null;
+  accessibilityLabel?: string;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
+/**
+ * Auth call-to-action. Thin wrapper over the shared `Button` so the auth flow uses the same
+ * primary / disabled / loading (circular `ButtonLoader`) styles as the rest of the app.
+ */
 export function AuthPrimaryButton({
   label,
   loading = false,
   disabled,
   style,
-  ...props
+  onPress,
+  accessibilityLabel,
 }: AuthPrimaryButtonProps) {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const isDisabled = Boolean(disabled || loading);
-
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.button,
-        pressed && !isDisabled && styles.buttonPressed,
-        typeof style === 'function' ? undefined : style,
-      ]}
-      disabled={isDisabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled }}
-      {...props}
-    >
-      {loading ? (
-        <ActivityIndicator color="#FFFFFF" />
-      ) : (
-        <Text style={styles.label}>{label}</Text>
-      )}
-    </Pressable>
+    <Button
+      label={label}
+      loading={loading}
+      disabled={Boolean(disabled)}
+      style={style}
+      accessibilityLabel={accessibilityLabel ?? label}
+      onPress={onPress}
+    />
   );
-}
-
-function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
-  return StyleSheet.create({
-    button: {
-      height: 48,
-      borderRadius: 12,
-      backgroundColor: theme.colors.accent,
-      alignItems: 'center',
-      justifyContent: 'center',
-      opacity: 1,
-    },
-    buttonPressed: {
-      opacity: 0.9,
-    },
-    label: {
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 15,
-      color: '#FFFFFF',
-      includeFontPadding: false,
-    },
-  });
 }

@@ -24,13 +24,13 @@ import { confirmAsync, showUserAlert } from '@/utils/user-prompt';
 import { NoticeToast } from '@/components/ui/notice-toast';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 
+import { ScreenHero } from '@/components/layout/screen-hero';
+
 import { DiscoveryFilterChips } from './discovery-filter-chips';
-import { DiscoveryHeroIntro } from './discovery-hero-intro';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
 import { LocationPermissionBanner } from './location-permission-banner';
 import { StationErrorState } from './station-error-state';
-import { StationHeader } from './station-header';
 import { StationList } from './station-list';
 import { StationLoadingState } from './station-loading-state';
 
@@ -39,11 +39,9 @@ const NOTICE_MESSAGES: Record<string, string> = {
     'Complete your profile to book a charger. You can finish it anytime from Profile.',
 };
 
-const CHARGING_DARK_BG = '#0A2F2A';
-
 export function StationDiscoveryScreen() {
   const { token, user, isLoading: isAuthLoading, refreshUser } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, theme } = useTheme();
   const journeyLookupFailed = user?.activeJourneyLookup === 'failed';
   const whoAmIConfirmedNoJourney =
     user?.activeJourneyLookup === 'ok' && user.activeJourney == null;
@@ -405,10 +403,10 @@ export function StationDiscoveryScreen() {
   if (hasActiveJourney) {
     return (
       <ScreenContainer
-        edges={['top']}
+        edges={[]}
         style={
           hasActiveCharging && isDark
-            ? { backgroundColor: CHARGING_DARK_BG }
+            ? { backgroundColor: theme.colors.heroBackground }
             : undefined
         }
       >
@@ -462,8 +460,12 @@ export function StationDiscoveryScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top']}>
-      <StationHeader />
+    <ScreenContainer edges={[]}>
+      <ScreenHero
+        eyebrow="FIND YOUR NEXT CHARGE"
+        title="Where are you headed?"
+        subtitle="See live charger and queue availability nearby."
+      />
       {noticeMessage ? (
         <NoticeToast message={noticeMessage} onDismiss={dismissNotice} />
       ) : null}
@@ -472,10 +474,7 @@ export function StationDiscoveryScreen() {
         <NoticeToast message={locationError} onDismiss={clearLocationError} />
       ) : null}
 
-      <View>
-        <DiscoveryHeroIntro />
-        {discoverySearchChrome}
-      </View>
+      {discoverySearchChrome}
 
       <ScreenContent>{renderContent()}</ScreenContent>
 

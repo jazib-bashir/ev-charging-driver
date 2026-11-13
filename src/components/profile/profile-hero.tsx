@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
+import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
 
 type ProfileHeroProps = {
@@ -12,8 +13,17 @@ type ProfileHeroProps = {
   disabled?: boolean;
 };
 
-const ON_ACCENT = '#0F172A';
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return '';
+  }
+  const first = parts[0][0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1][0] ?? '') : '';
+  return (first + last).toUpperCase();
+}
 
+/** Obsidian identity card: emerald initials avatar, contact lines and an edit affordance. */
 export function ProfileHero({
   name,
   email,
@@ -24,27 +34,49 @@ export function ProfileHero({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const phoneLabel = phone?.trim() || null;
+  const emailLabel = email.trim() && email.trim() !== '—' ? email.trim() : null;
+  const initials = initialsOf(name);
 
   return (
     <View style={styles.container}>
+      <View style={styles.avatar}>
+        {initials ? (
+          <Text style={styles.initials}>{initials}</Text>
+        ) : (
+          <Icon name="user" size={30} color={theme.colors.onPrimary} />
+        )}
+      </View>
+
+      <View style={styles.copy}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name || 'Driver'}
+        </Text>
+        {phoneLabel ? (
+          <Text style={styles.lineText} numberOfLines={1}>
+            {phoneLabel}
+          </Text>
+        ) : null}
+        {emailLabel ? (
+          <Text style={styles.lineText} numberOfLines={1}>
+            {emailLabel}
+          </Text>
+        ) : null}
+      </View>
+
       <Pressable
         onPress={onEdit}
         disabled={disabled}
-        style={[styles.avatarButton, disabled && styles.disabled]}
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.edit,
+          disabled && styles.disabled,
+          pressed && styles.pressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel="Edit profile"
       >
-        <View style={styles.avatar}>
-          <Icon name="user" size={40} color={theme.colors.textMuted} />
-        </View>
-        <View style={styles.editBadge}>
-          <Icon name="create" size={13} color={ON_ACCENT} />
-        </View>
+        <Icon name="create" size={18} color={theme.colors.heroText} />
       </Pressable>
-
-      <Text style={styles.name}>{name || 'Driver'}</Text>
-      {phoneLabel ? <Text style={styles.phone}>{phoneLabel}</Text> : null}
-      {email.trim() ? <Text style={styles.email}>{email.trim()}</Text> : null}
     </View>
   );
 }
@@ -52,63 +84,63 @@ export function ProfileHero({
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     container: {
+      flexDirection: 'row',
       alignItems: 'center',
-      paddingTop: 8,
-      paddingBottom: 4,
-      gap: 6,
-    },
-    avatarButton: {
-      position: 'relative',
-      marginBottom: 10,
-    },
-    disabled: {
-      opacity: 0.55,
+      gap: 16,
+      padding: 20,
+      borderRadius: theme.radius.xxl,
+      backgroundColor: theme.colors.heroBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.heroBorder,
+      ...theme.shadows.raised,
     },
     avatar: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+      width: 64,
+      height: 64,
+      borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brandMuted,
-      borderWidth: 2,
-      borderColor: theme.colors.selectionBorder,
+      backgroundColor: theme.colors.primary,
     },
-    editBadge: {
-      position: 'absolute',
-      right: 2,
-      bottom: 2,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.accent,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
+    initials: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 24,
+      letterSpacing: -0.5,
+      color: theme.colors.onPrimary,
+    },
+    copy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
     },
     name: {
       fontFamily: theme.typography.fontFamily.brand,
       fontSize: 20,
-      lineHeight: 30,
-      color: theme.colors.textPrimary,
-      textAlign: 'center',
-      letterSpacing: -0.2,
+      lineHeight: 28,
+      letterSpacing: -0.4,
+      color: theme.colors.heroText,
     },
-    phone: {
+    lineText: {
+      flexShrink: 1,
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: 13,
-      lineHeight: 19.5,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
+      color: theme.colors.heroTextMuted,
     },
-    email: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 12,
-      lineHeight: 18,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      opacity: 0.9,
+    edit: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.heroSurface,
+      borderWidth: 1,
+      borderColor: theme.colors.heroBorder,
+    },
+    pressed: {
+      opacity: 0.8,
+    },
+    disabled: {
+      opacity: 0.5,
     },
   });
 }

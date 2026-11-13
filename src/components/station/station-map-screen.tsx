@@ -1,9 +1,9 @@
-import { router, type Href } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { getStationsWithCoordinates } from '@/utils/map-region';
@@ -17,8 +17,8 @@ import { LocationPermissionBanner } from './location-permission-banner';
 import { MapExpoGoNotice } from './map-expo-go-notice';
 import { MapLoadingState } from './map-loading-state';
 import { StationErrorState } from './station-error-state';
-import { StationHeader } from './station-header';
 import { StationMap } from './station-map';
+
 export function StationMapScreen() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -62,13 +62,9 @@ export function StationMapScreen() {
   const showExpoGoNotice = isExpoGoAndroid();
   const hasActiveDiscovery = hasActiveSearch || hasActiveFilters;
 
-  const handleBackToList = () => {
-    router.navigate('/' as Href);
-  };
-
   return (
-    <ScreenContainer edges={['top']} style={styles.screen}>
-      <StationHeader variant="map" onBack={handleBackToList} />
+    <ScreenContainer edges={[]} style={styles.screen}>
+      <ScreenHero title="Station Map" subtitle="Live chargers near you" />
 
       <View style={styles.mapStage}>
         {isInitialLoading ? <MapLoadingState /> : null}
@@ -168,7 +164,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     mapStage: {
       flex: 1,
-      backgroundColor: theme.colors.placeholder,
+      backgroundColor: theme.colors.background,
     },
     floatingChrome: {
       position: 'absolute',

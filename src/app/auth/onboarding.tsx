@@ -6,12 +6,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
 
+import { Text, TextInput } from '@/components/ui/text';
 import { AuthApiError, updateDriverProfile } from '@/api/auth';
 import { useAuth } from '@/auth/auth-context';
 import {
@@ -23,12 +22,12 @@ import {
 } from '@/auth/auth-helpers';
 import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
 import { AuthScreenShell } from '@/components/auth/auth-screen-shell';
-import { Icon } from '@/components/ui/icon';
 import {
   RequestStatusBanner,
   useRequestStatus,
 } from '@/components/ui/request-status';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { useTheme } from '@/theme';
 
 type InFieldProps = TextInputProps & {
@@ -306,21 +305,7 @@ export default function OnboardingScreen() {
           style={editStyles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={editStyles.headerBar}>
-            <Pressable
-              onPress={handleBack}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              style={editStyles.backButton}
-            >
-              <Icon name="back" size={22} color={theme.colors.textPrimary} />
-            </Pressable>
-            <Text style={editStyles.headerTitle} numberOfLines={1}>
-              Edit details
-            </Text>
-            <View style={editStyles.headerSpacer} />
-          </View>
+          <ScreenHeader title="Edit details" onBack={handleBack} />
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -405,44 +390,10 @@ function createEditStyles(
     flex: {
       flex: 1,
     },
-    headerBar: {
-      width: '100%',
-      minHeight: 56,
-      backgroundColor: theme.colors.surface,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.borderLight,
-      paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 8,
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'transparent',
-      zIndex: 1,
-    },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: 16,
-      lineHeight: 22,
-      color: theme.colors.textPrimary,
-      marginHorizontal: -40,
-    },
-    headerSpacer: {
-      width: 40,
-      height: 40,
-    },
     content: {
       flexGrow: 1,
-      paddingHorizontal: 20,
-      paddingTop: 16,
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: 4,
       paddingBottom: 24,
     },
     subtitle: {
@@ -454,33 +405,33 @@ function createEditStyles(
     },
     formCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 14,
-      borderWidth: 1,
+      borderRadius: theme.radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.border,
       overflow: 'hidden',
       marginTop: 0,
-      ...theme.shadows.card,
-      shadowColor: theme.colors.shadow,
+      ...(theme.isDark ? theme.shadows.none : theme.shadows.card),
     },
     fieldBlock: {
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      paddingVertical: 14,
+      paddingHorizontal: 18,
     },
     fieldDivider: {
-      borderBottomWidth: 1,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.borderLight,
     },
     fieldLabel: {
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 11,
       lineHeight: 16,
+      letterSpacing: 0.4,
       color: theme.colors.textMuted,
       marginBottom: 2,
     },
     fieldInput: {
       fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 16,
+      lineHeight: 22,
       color: theme.colors.textPrimary,
       padding: 0,
       margin: 0,
@@ -492,16 +443,11 @@ function createEditStyles(
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 11,
       lineHeight: 16,
-      color: theme.colors.notification,
-      paddingHorizontal: 14,
+      color: theme.colors.errorText,
+      paddingHorizontal: 18,
       paddingBottom: 8,
     },
     saveButton: {
-      backgroundColor: theme.colors.brand,
-      height: 48,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
       marginTop: 24,
     },
     onboardingActions: {

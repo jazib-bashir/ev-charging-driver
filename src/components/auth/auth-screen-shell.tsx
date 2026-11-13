@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import {
@@ -6,13 +7,15 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 
+import { Text } from '@/components/ui/text';
+import { WeaveMark } from '@/components/brand/weave-mark';
+import { Wordmark } from '@/components/brand/wordmark';
 import { Icon } from '@/components/ui/icon';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 
 type AuthScreenShellProps = {
   title: string;
@@ -53,6 +56,8 @@ export function AuthScreenShell({
   headerSection,
   onBack,
 }: AuthScreenShellProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const useStepHeader = Boolean(headerStep);
   const handleBack = () => {
     if (onBack) {
@@ -105,8 +110,8 @@ export function AuthScreenShell({
               </Text>
             </View>
 
-            <View style={styles.headerButton} accessibilityRole="image">
-              <Icon name="bolt" size={18} color={theme.colors.brand} />
+            <View style={styles.markTile} accessibilityRole="image" accessibilityLabel="konnectEVS">
+              <WeaveMark size={22} />
             </View>
           </View>
         ) : (
@@ -127,8 +132,8 @@ export function AuthScreenShell({
 
             {showBrandBadge ? (
               <View style={styles.brandBadge} accessibilityRole="text">
-                <Icon name="bolt" size={14} color={theme.colors.brand} />
-                <Text style={styles.brandBadgeText}>GRIDFLOW</Text>
+                <WeaveMark size={18} />
+                <Wordmark width={78} tone="onDark" />
               </View>
             ) : (
               <View style={styles.headerButtonSpacer} />
@@ -199,7 +204,8 @@ export function AuthScreenShell({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
   screen: {
     backgroundColor: theme.colors.background,
   },
@@ -226,12 +232,18 @@ const styles = StyleSheet.create({
   headerButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceSunken,
+  },
+  markTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.heroBackground,
   },
   headerButtonSpacer: {
     width: 40,
@@ -251,15 +263,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   stepMetaAccent: {
-    color: theme.colors.brand,
+    color: theme.colors.primary,
   },
   stepMetaMuted: {
     color: theme.colors.textMuted,
   },
   stepTitle: {
     marginTop: 6,
-    fontSize: 22,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 20,
+    fontFamily: theme.typography.fontFamily.brand,
     color: theme.colors.textPrimary,
     letterSpacing: -0.4,
     textAlign: 'center',
@@ -271,12 +283,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: theme.colors.brandMuted,
+    backgroundColor: theme.colors.heroBackground,
   },
   brandBadgeText: {
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.brand,
+    color: theme.colors.primary,
     letterSpacing: 0.8,
   },
   content: {
@@ -303,14 +315,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderLight,
     backgroundColor: theme.colors.surface,
+    ...theme.shadows.floating,
+    shadowOpacity: theme.isDark ? 0 : 0.08,
   },
   hero: {
     alignItems: 'center',
     marginBottom: theme.spacing.xs,
   },
   title: {
-    fontSize: 28,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 24,
+    fontFamily: theme.typography.fontFamily.brand,
     color: theme.colors.textPrimary,
     letterSpacing: -0.4,
   },
@@ -346,3 +360,4 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xs,
   },
 });
+}

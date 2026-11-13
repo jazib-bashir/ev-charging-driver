@@ -1,6 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   ScrollView,
@@ -9,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { ButtonLoader } from '@/components/loaders/button-loader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useTheme } from '@/theme';
 import type { Station } from '@/types/station';
@@ -55,8 +55,8 @@ export function StationList({
     <RefreshControl
       refreshing={isRefreshing}
       onRefresh={onRefresh}
-      tintColor={theme.colors.brand}
-      colors={[theme.colors.brand]}
+      tintColor={theme.colors.primary}
+      colors={[theme.colors.primary]}
     />
   ) : undefined;
 
@@ -114,7 +114,7 @@ export function StationList({
       ListFooterComponent={
         isLoadingMore ? (
           <View style={styles.footer}>
-            <ActivityIndicator color={theme.colors.brand} />
+            <ButtonLoader size={32} color={theme.colors.textLink} />
           </View>
         ) : null
       }

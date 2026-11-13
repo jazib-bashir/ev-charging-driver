@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 import type { Station } from '@/types/station';
@@ -53,16 +54,16 @@ export function StationMapMarker({ station, selected = false }: StationMapMarker
   const muted = availability === 'unavailable' && !selected;
 
   const iconColor = selected
-    ? theme.colors.textPrimary
+    ? theme.colors.onPrimary
     : muted
       ? theme.colors.textMuted
       : accent;
   const powerColor = selected
-    ? theme.colors.textPrimary
+    ? theme.colors.onPrimary
     : muted
       ? theme.colors.textMuted
       : theme.colors.textPrimary;
-  const dotColor = selected ? theme.colors.textPrimary : accent;
+  const dotColor = selected ? theme.colors.onPrimary : accent;
 
   return (
     <View
@@ -71,11 +72,11 @@ export function StationMapMarker({ station, selected = false }: StationMapMarker
         muted && styles.markerMuted,
         selected
           ? {
-              backgroundColor: theme.colors.accent,
-              borderColor: theme.colors.accent,
+              backgroundColor: theme.colors.primary,
+              borderColor: theme.colors.primary,
               paddingHorizontal: compact ? 10 : 11,
               paddingVertical: compact ? 5 : 6,
-              shadowColor: theme.colors.accent,
+              shadowColor: theme.colors.primary,
               shadowOpacity: 0.3,
               shadowRadius: 5,
               shadowOffset: { width: 0, height: 3 },
@@ -134,7 +135,7 @@ function createStyles(
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      shadowColor: '#0F172A',
+      shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.12,
       shadowRadius: 4,
@@ -176,7 +177,7 @@ function createClusterStyles(theme: ReturnType<typeof useTheme>['theme']) {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: 'rgba(0, 217, 160, 0.16)',
+      backgroundColor: theme.colors.primaryMuted,
     },
     cluster: {
       width: 34,
@@ -184,10 +185,10 @@ function createClusterStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.primary,
       borderWidth: 2,
       borderColor: theme.colors.surface,
-      shadowColor: '#0F172A',
+      shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.16,
       shadowRadius: 4,
@@ -196,7 +197,7 @@ function createClusterStyles(theme: ReturnType<typeof useTheme>['theme']) {
     count: {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 12,
-      color: theme.colors.textPrimary,
+      color: theme.colors.onPrimary,
       includeFontPadding: false,
     },
   });

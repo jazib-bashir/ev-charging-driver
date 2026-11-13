@@ -1,12 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { theme } from '@/theme';
+import { Text } from '@/components/ui/text';
+import { useTheme } from '@/theme';
 
 type ConnectorTagProps = {
   label: string;
 };
 
 export function ConnectorTag({ label }: ConnectorTagProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.tag}>
       <Text style={styles.label}>{label}</Text>
@@ -14,19 +19,21 @@ export function ConnectorTag({ label }: ConnectorTagProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.connectorBorder,
-    backgroundColor: theme.colors.connectorBg,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.connectorText,
-    letterSpacing: 0.2,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    tag: {
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: theme.radius.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.connectorBorder,
+      backgroundColor: theme.colors.connectorBg,
+    },
+    label: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 11,
+      color: theme.colors.connectorText,
+      letterSpacing: 0.2,
+    },
+  });
+}

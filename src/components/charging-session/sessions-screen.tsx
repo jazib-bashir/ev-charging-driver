@@ -1,7 +1,6 @@
 import { router, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -11,7 +10,10 @@ import {
 import { fetchPublicChargers } from '@/api/publicChargers';
 import { fetchPublicStation } from '@/api/publicStations';
 import { useAuth } from '@/auth/auth-context';
-import { EmptyState } from '@/components/ui/empty-state';
+import { ButtonLoader } from '@/components/loaders/button-loader';
+import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
+import { ScreenHero } from '@/components/layout/screen-hero';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { useChargingSessions } from '@/hooks/use-charging-sessions';
 import { useTheme } from '@/theme';
@@ -20,7 +22,6 @@ import { formatConnectorLabel, formatEvseLabel } from '@/utils/charging-session-
 
 import { SessionListItem } from './session-list-item';
 import { SessionStatusFilterRow } from './session-status-filter-row';
-import { SessionsScreenHeader } from './sessions-screen-header';
 
 type SessionLabels = {
   stationName?: string;
@@ -113,15 +114,24 @@ export function SessionsScreen() {
 
     if (isInitialLoading) {
       return (
-        <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.accent} size="large" />
+        <View style={styles.listContent}>
+          {[0, 1, 2, 3].map((index) => (
+            <View key={index} style={styles.skeletonCard}>
+              <SkeletonLoader width={44} height={44} radius={14} />
+              <View style={styles.skeletonBody}>
+                <SkeletonLoader width="60%" height={16} />
+                <SkeletonLoader width="40%" height={12} />
+                <SkeletonLoader width="80%" height={14} />
+              </View>
+            </View>
+          ))}
         </View>
       );
     }
 
     if (error && sessions.length === 0) {
       return (
-        <EmptyState
+        <ErrorState
           title="Unable to load sessions"
           message={error}
           primaryActionLabel="Retry"
@@ -150,8 +160,8 @@ export function SessionsScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={refresh}
-            tintColor={theme.colors.accent}
-            colors={[theme.colors.accent]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
         onEndReached={() => {
@@ -163,7 +173,7 @@ export function SessionsScreen() {
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator color={theme.colors.accent} />
+              <ButtonLoader size={28} color={theme.colors.textLink} />
             </View>
           ) : null
         }
@@ -186,10 +196,10 @@ export function SessionsScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top']} style={styles.screen}>
-      <SessionsScreenHeader
-        onRefresh={() => void refresh()}
-        isRefreshing={isRefreshing}
+    <ScreenContainer edges={[]} style={styles.screen}>
+      <ScreenHero
+        title="My Sessions"
+        subtitle="Charging history and live status"
       />
       <SessionStatusFilterRow
         activeStatus={statusFilter}
@@ -209,9 +219,9 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       marginTop: 0,
     },
     listContent: {
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 24,
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.xl,
     },
     listItem: {
       marginBottom: 0,
@@ -221,6 +231,20 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 24,
+    },
+    skeletonCard: {
+      flexDirection: 'row',
+      gap: 14,
+      padding: 16,
+      marginBottom: 12,
+      borderRadius: theme.radius.xl,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    skeletonBody: {
+      flex: 1,
+      gap: 8,
     },
     footerLoader: {
       paddingVertical: 16,

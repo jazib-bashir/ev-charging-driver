@@ -1,69 +1,78 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Icon, type IconName } from '@/components/ui/icon';
+import { FeedbackIllustration, type FeedbackKind } from '@/components/brand/illustrations';
+import { Button } from '@/components/ui/button';
+import type { IconName } from '@/components/ui/icon';
+import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
 
 type EmptyStateProps = {
   title: string;
   message?: string;
+  /** Approved feedback illustration to show (defaults to the empty glyph). */
+  kind?: FeedbackKind;
+  /** @deprecated Illustrations replace icons; kept so existing callers keep compiling. */
   iconName?: IconName;
   primaryActionLabel?: string;
   onPrimaryAction?: () => void;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
+  /** Smaller illustration for inline placement inside lists. */
+  compact?: boolean;
 };
 
+/**
+ * Standard feedback layout: illustration, title, helper text, primary action.
+ * `ErrorState` and `OfflineState` are thin presets of this component.
+ */
 export function EmptyState({
   title,
   message,
-  iconName = 'search-off',
+  kind = 'empty',
   primaryActionLabel,
   onPrimaryAction,
   secondaryActionLabel,
   onSecondaryAction,
+  compact = false,
 }: EmptyStateProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const hasActions = Boolean(primaryActionLabel || secondaryActionLabel);
 
   return (
     <View style={styles.container}>
-      {hasActions && (
-        <View style={styles.iconCircle}>
-          <Icon name={iconName} size={64} color={theme.colors.textMuted} />
-        </View>
-      )}
+      <View style={[styles.illustration, compact && styles.illustrationCompact]}>
+        <FeedbackIllustration kind={kind} size={compact ? 72 : 104} />
+      </View>
 
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
-      {hasActions && (
-        <View style={styles.actionsContainer}>
+      {primaryActionLabel || secondaryActionLabel ? (
+        <View style={styles.actions}>
           {primaryActionLabel && onPrimaryAction ? (
-            <Pressable
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-              onPress={onPrimaryAction}
-              accessibilityRole="button"
-            >
-              <Text style={styles.primaryButtonText}>{primaryActionLabel}</Text>
-            </Pressable>
+            <Button label={primaryActionLabel} onPress={onPrimaryAction} />
           ) : null}
-
           {secondaryActionLabel && onSecondaryAction ? (
-            <Pressable
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
+            <Button
+              label={secondaryActionLabel}
               onPress={onSecondaryAction}
-              accessibilityRole="button"
-            >
-              <Icon name="locate" size={18} color={theme.colors.textPrimary} />
-              <Text style={styles.secondaryButtonText}>{secondaryActionLabel}</Text>
-            </Pressable>
+              variant="outline"
+              leadingIcon="locate"
+            />
           ) : null}
         </View>
-      )}
+      ) : null}
     </View>
   );
+}
+
+export function ErrorState(props: Omit<EmptyStateProps, 'kind'>) {
+  return <EmptyState kind="error" {...props} />;
+}
+
+export function OfflineState(props: Omit<EmptyStateProps, 'kind'>) {
+  return <EmptyState kind="offline" {...props} />;
 }
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
@@ -72,72 +81,49 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing.xl,
+      paddingHorizontal: theme.spacing.xxl,
       paddingVertical: theme.spacing.xxxl,
       gap: theme.spacing.sm,
     },
-    iconCircle: {
-      width: 150,
-      height: 150,
-      borderRadius: 75,
-      backgroundColor: theme.colors.iconBackground,
+    illustration: {
+      width: 148,
+      height: 148,
+      borderRadius: 44,
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
       marginBottom: theme.spacing.md,
+      ...(theme.isDark ? theme.shadows.none : theme.shadows.card),
+    },
+    illustrationCompact: {
+      width: 104,
+      height: 104,
+      borderRadius: 32,
     },
     title: {
-      fontSize: theme.typography.fontSize.xl,
-      fontWeight: theme.typography.fontWeight.bold,
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 20,
+      lineHeight: 28,
+      letterSpacing: -0.5,
       color: theme.colors.textPrimary,
       textAlign: 'center',
     },
     message: {
+      fontFamily: theme.typography.fontFamily.regular,
       fontSize: theme.typography.fontSize.md,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      maxWidth: 290,
-      lineHeight: 20,
+      maxWidth: 300,
+      lineHeight: 22,
       marginBottom: theme.spacing.md,
     },
-    actionsContainer: {
+    actions: {
       width: '100%',
       maxWidth: 340,
       gap: theme.spacing.md,
       marginTop: theme.spacing.sm,
-    },
-    primaryButton: {
-      backgroundColor: theme.colors.brandDark,
-      paddingVertical: 14,
-      borderRadius: theme.radius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    primaryButtonPressed: {
-      opacity: 0.9,
-    },
-    primaryButtonText: {
-      color: theme.colors.textInverse,
-      fontSize: theme.typography.fontSize.md,
-      fontWeight: theme.typography.fontWeight.semibold,
-    },
-    secondaryButton: {
-      backgroundColor: theme.colors.surface,
-      paddingVertical: 14,
-      borderRadius: theme.radius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-      gap: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    secondaryButtonPressed: {
-      backgroundColor: theme.colors.borderLight,
-    },
-    secondaryButtonText: {
-      color: theme.colors.textPrimary,
-      fontSize: theme.typography.fontSize.md,
-      fontWeight: theme.typography.fontWeight.semibold,
     },
   });
 }

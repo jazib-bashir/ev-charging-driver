@@ -11,16 +11,19 @@ import {
 import { darkColors, lightColors, type ThemeColors, type ThemeMode } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
+import { sizes } from '@/theme/sizes';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { textStyles, typography } from '@/theme/typography';
 import { readThemeMode, saveThemeMode } from '@/theme/theme-storage';
 
 export type AppTheme = {
   colors: ThemeColors;
   spacing: typeof spacing;
   typography: typeof typography;
+  textStyles: typeof textStyles;
   radius: typeof radius;
   shadows: typeof shadows;
+  sizes: typeof sizes;
   mode: ThemeMode;
   isDark: boolean;
 };
@@ -40,8 +43,10 @@ function buildTheme(mode: ThemeMode): AppTheme {
     colors: mode === 'dark' ? (darkColors as ThemeColors) : lightColors,
     spacing,
     typography,
+    textStyles,
     radius,
     shadows,
+    sizes,
     mode,
     isDark: mode === 'dark',
   };

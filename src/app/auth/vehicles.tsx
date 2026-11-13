@@ -1,18 +1,16 @@
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Keyboard,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 
+import { Text, TextInput } from '@/components/ui/text';
 import { AuthApiError } from '@/api/auth';
 import {
   createDriverVehicle,
@@ -31,14 +29,18 @@ import {
   driverVehicleTitle,
   resumeBookingHref,
 } from '@/auth/profile-flow';
-import { AuthPrimaryButton } from '@/components/auth/auth-primary-button';
+import { ButtonLoader } from '@/components/loaders/button-loader';
+import { PageLoader } from '@/components/loaders/page-loader';
+import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/empty-state';
 import { Icon } from '@/components/ui/icon';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import {
   RequestStatusBanner,
   useRequestStatus,
 } from '@/components/ui/request-status';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { theme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { DriverVehicle, VehicleCatalogItem } from '@/types/vehicle';
 
 type BusyKey = string | null;
@@ -56,6 +58,8 @@ function connectorsLine(parts: Array<string | null | undefined>): string {
 }
 
 export default function VehicleSelectionScreen() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { from } = useLocalSearchParams<{ from?: string }>();
   const fromProfile = from === 'profile';
   const { token, pendingBooking, refreshUser } = useAuth();
@@ -435,7 +439,7 @@ export default function VehicleSelectionScreen() {
                         size={20}
                         color={
                           vehicle.isDefault
-                            ? theme.colors.accent
+                            ? theme.colors.primary
                             : theme.colors.textMuted
                         }
                       />
@@ -474,7 +478,7 @@ export default function VehicleSelectionScreen() {
                         <Icon
                           name="star"
                           size={11}
-                          color={theme.colors.accent}
+                          color={theme.colors.textLink}
                         />
                         <Text style={styles.defaultTagLabel}>Default</Text>
                       </View>
@@ -516,10 +520,7 @@ export default function VehicleSelectionScreen() {
 
                   {loading ? (
                     <View style={styles.garageBusy}>
-                      <ActivityIndicator
-                        size="small"
-                        color={theme.colors.accent}
-                      />
+                      <ButtonLoader size={22} color={theme.colors.textLink} />
                     </View>
                   ) : null}
                 </View>
@@ -573,37 +574,21 @@ export default function VehicleSelectionScreen() {
   return (
     <View style={styles.root}>
       <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={handleBack}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={styles.backButton}
-          >
-            <Icon name="back" size={22} color={theme.colors.textPrimary} />
-          </Pressable>
-        </View>
-
-        <Text style={styles.pageTitle}>Vehicles</Text>
+        <ScreenHeader title="Vehicles" onBack={handleBack} />
 
         {isLoading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={theme.colors.accent} />
-            <Text style={styles.loadingLabel}>Loading vehicles…</Text>
-          </View>
+          <PageLoader message="Loading vehicles…" />
         ) : loadFailed &&
           catalog.length === 0 &&
           savedVehicles.length === 0 ? (
-          <View style={styles.centered}>
-            <RequestStatusBanner status={status} />
-            <AuthPrimaryButton
-              label="Try again"
-              onPress={() => {
-                void loadVehicles();
-              }}
-            />
-          </View>
+          <ErrorState
+            title="Couldn't load vehicles"
+            message={status?.message ?? 'Check your connection and try again.'}
+            primaryActionLabel="Try again"
+            onPrimaryAction={() => {
+              void loadVehicles();
+            }}
+          />
         ) : (
           <FlatList
             data={pagedCatalog}
@@ -661,16 +646,13 @@ export default function VehicleSelectionScreen() {
                       </Text>
                     ) : null}
                     {loading ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={theme.colors.accent}
-                      />
+                      <ButtonLoader size={22} color={theme.colors.textLink} />
                     ) : (
                       <View style={styles.addIconWrap}>
                         <Icon
                           name="add"
                           size={18}
-                          color={theme.colors.accent}
+                          color={theme.colors.textLink}
                         />
                       </View>
                     )}
@@ -684,7 +666,7 @@ export default function VehicleSelectionScreen() {
         <View style={styles.footerBar}>
           {defaultVehicle ? (
             <View style={styles.footerDefaultRow}>
-              <Icon name="checkmark" size={14} color={theme.colors.accent} />
+              <Icon name="checkmark" size={14} color={theme.colors.textLink} />
               <Text style={styles.footerDefaultText} numberOfLines={1}>
                 Default: {driverVehicleTitle(defaultVehicle)}
               </Text>
@@ -694,14 +676,13 @@ export default function VehicleSelectionScreen() {
               Select a vehicle to set as your default to continue.
             </Text>
           )}
-          <AuthPrimaryButton
+          <Button
             label={fromProfile ? 'Done' : 'Save & Continue'}
             onPress={() => {
               void finishFlow();
             }}
             loading={busyKey === 'continue'}
             disabled={!canContinue || isBusy}
-            style={styles.doneButton}
           />
           <Pressable
             onPress={handleAddCustom}
@@ -752,42 +733,29 @@ export default function VehicleSelectionScreen() {
               />
 
               <View style={styles.modalActions}>
-                <Pressable
+                <Button
+                  label="Cancel"
+                  variant="secondary"
+                  size="md"
                   onPress={closePlatePrompt}
                   disabled={busyKey === 'plate'}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel"
-                  style={styles.modalCancel}
-                >
-                  <Text style={styles.modalCancelLabel}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    void handleSavePlate();
-                  }}
-                  disabled={busyKey === 'plate'}
-                  accessibilityRole="button"
-                  accessibilityLabel={
+                  style={styles.modalButton}
+                />
+                <Button
+                  label={
                     platePrompt.mode === 'edit'
                       ? 'Save'
                       : plateValue.trim()
                         ? 'Add vehicle'
-                        : 'Skip and add'
+                        : 'Skip & add'
                   }
-                  style={styles.modalConfirm}
-                >
-                  {busyKey === 'plate' ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.modalConfirmLabel}>
-                      {platePrompt.mode === 'edit'
-                        ? 'Save'
-                        : plateValue.trim()
-                          ? 'Add Vehicle'
-                          : 'Skip & Add'}
-                    </Text>
-                  )}
-                </Pressable>
+                  size="md"
+                  onPress={() => {
+                    void handleSavePlate();
+                  }}
+                  loading={busyKey === 'plate'}
+                  style={styles.modalButton}
+                />
               </View>
             </View>
           </View>
@@ -815,30 +783,24 @@ export default function VehicleSelectionScreen() {
               </Text>
 
               <View style={styles.modalActions}>
-                <Pressable
+                <Button
+                  label="Cancel"
+                  variant="secondary"
+                  size="md"
                   onPress={() => setPendingRemoval(null)}
                   disabled={isBusy}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel"
-                  style={styles.modalCancel}
-                >
-                  <Text style={styles.modalCancelLabel}>Cancel</Text>
-                </Pressable>
-                <Pressable
+                  style={styles.modalButton}
+                />
+                <Button
+                  label="Remove"
+                  variant="destructive"
+                  size="md"
                   onPress={() => {
                     void confirmRemoveSaved();
                   }}
-                  disabled={isBusy}
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove vehicle"
-                  style={[styles.modalConfirm, styles.modalConfirmDanger]}
-                >
-                  {isBusy ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.modalConfirmLabel}>Remove</Text>
-                  )}
-                </Pressable>
+                  loading={isBusy}
+                  style={styles.modalButton}
+                />
               </View>
             </View>
           </View>
@@ -848,401 +810,294 @@ export default function VehicleSelectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  screen: {
-    backgroundColor: theme.colors.background,
-  },
-  topBar: {
-    paddingHorizontal: 8,
-    paddingTop: 4,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  pageTitle: {
-    fontFamily: theme.typography.fontFamily.brand,
-    fontSize: 24,
-    color: theme.colors.textPrimary,
-    paddingHorizontal: 16,
-    marginTop: 12,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    paddingHorizontal: 16,
-  },
-  loadingLabel: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textMuted,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: 16,
-  },
-  garageSection: {
-    marginTop: 14,
-  },
-  sectionLabel: {
-    fontFamily: theme.typography.fontFamily.brand,
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.8,
-    marginHorizontal: 16,
-  },
-  garageListContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  garageCard: {
-    width: 220,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    padding: 14,
-    marginRight: 12,
-    ...theme.shadows.card,
-    shadowColor: theme.colors.shadow,
-  },
-  garageCardSelected: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.brandMuted,
-  },
-  garageCardTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  garageIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.iconBackground,
-  },
-  garageIconSelected: {
-    backgroundColor: 'rgba(0, 217, 160, 0.18)',
-  },
-  garageCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  garageTitle: {
-    fontFamily: theme.typography.fontFamily.brandSemiBold,
-    fontSize: 15,
-    color: theme.colors.textPrimary,
-  },
-  garagePlugs: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-  },
-  garageRemove: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.iconBackground,
-  },
-  garageActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 12,
-  },
-  defaultTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  defaultTagLabel: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: 11,
-    color: theme.colors.accent,
-  },
-  garageActionLink: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-  },
-  garageBusy: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(248, 250, 252, 0.55)',
-    borderRadius: 16,
-  },
-  directoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  directoryTitle: {
-    marginHorizontal: 0,
-  },
-  countPill: {
-    backgroundColor: theme.colors.iconBackground,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  countPillText: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 44,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadows.card,
-    shadowColor: theme.colors.shadow,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-    padding: 0,
-  },
-  statusWrap: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-  },
-  catalogRow: {
-    height: 52,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...theme.shadows.card,
-    shadowColor: theme.colors.shadow,
-  },
-  cardDisabled: {
-    opacity: 0.7,
-  },
-  catalogTitle: {
-    flex: 1,
-    fontFamily: theme.typography.fontFamily.brandSemiBold,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-    paddingRight: 10,
-  },
-  catalogTrailing: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  catalogPlugs: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginRight: 12,
-    maxWidth: 120,
-  },
-  addIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.brandMuted,
-  },
-  emptyText: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    paddingVertical: 24,
-  },
-  loadMore: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  loadMoreLabel: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: 13,
-    color: theme.colors.accent,
-  },
-  footerBar: {
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.borderLight,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  footerHint: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  footerDefaultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  footerDefaultText: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: 13,
-    color: theme.colors.statusAvailable,
-  },
-  doneButton: {
-    backgroundColor: theme.colors.accent,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  customLinkRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  customLinkMuted: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textMuted,
-  },
-  customLink: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: 13,
-    color: theme.colors.accent,
-    textDecorationLine: 'underline',
-  },
-  plateOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.overlay,
-    justifyContent: 'flex-end',
-    zIndex: 9999,
-    elevation: 9999,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  modalDismiss: {
-    ...StyleSheet.absoluteFill,
-  },
-  modalSheetWrap: {
-    width: '100%',
-  },
-  modalSheet: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    width: '100%',
-  },
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 4,
-  },
-  modalTitle: {
-    fontFamily: theme.typography.fontFamily.brand,
-    fontSize: 18,
-    color: theme.colors.textPrimary,
-  },
-  modalTitleOptional: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    marginLeft: 6,
-  },
-  modalSubtitle: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  modalInput: {
-    height: 48,
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 14,
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 20,
-  },
-  modalCancel: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: theme.colors.iconBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCancelLabel: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-  },
-  modalConfirm: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: theme.colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalConfirmDanger: {
-    backgroundColor: '#EF4444',
-  },
-  modalConfirmLabel: {
-    fontFamily: theme.typography.fontFamily.brand,
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  const card = theme.isDark ? theme.shadows.none : theme.shadows.card;
+  return StyleSheet.create({
+    root: { flex: 1 },
+    screen: { backgroundColor: theme.colors.background },
+    list: { flex: 1 },
+    listContent: { paddingBottom: theme.spacing.lg },
+    garageSection: { marginTop: 4 },
+    sectionLabel: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 11,
+      color: theme.colors.textMuted,
+      letterSpacing: 1.2,
+      marginHorizontal: theme.spacing.gutter,
+    },
+    garageListContent: {
+      paddingHorizontal: theme.spacing.gutter,
+      paddingVertical: 12,
+    },
+    garageCard: {
+      width: 236,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.xl,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      padding: 16,
+      marginRight: 12,
+      ...card,
+    },
+    garageCardSelected: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryMuted,
+    },
+    garageCardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    garageIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surfaceSunken,
+    },
+    garageIconSelected: { backgroundColor: theme.colors.primarySoft },
+    garageCopy: { flex: 1, minWidth: 0 },
+    garageTitle: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 15,
+      letterSpacing: -0.2,
+      color: theme.colors.textPrimary,
+    },
+    garagePlugs: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+    },
+    garageRemove: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surfaceSunken,
+    },
+    garageActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 14,
+    },
+    defaultTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    defaultTagLabel: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 11,
+      color: theme.colors.primary,
+    },
+    garageActionLink: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 12,
+      color: theme.colors.textLink,
+    },
+    garageBusy: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.overlay,
+      borderRadius: theme.radius.xl,
+    },
+    directoryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginHorizontal: theme.spacing.gutter,
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    directoryTitle: { marginHorizontal: 0 },
+    countPill: {
+      backgroundColor: theme.colors.surfaceSunken,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: theme.radius.pill,
+    },
+    countPillText: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      height: 50,
+      marginHorizontal: theme.spacing.gutter,
+      marginBottom: 12,
+      paddingHorizontal: 14,
+      borderRadius: theme.radius.control,
+      backgroundColor: theme.colors.inputBackground,
+    },
+    searchInput: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.medium,
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+      padding: 0,
+    },
+    statusWrap: { marginHorizontal: theme.spacing.gutter, marginBottom: 8 },
+    catalogRow: {
+      minHeight: 56,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      marginHorizontal: theme.spacing.gutter,
+      marginBottom: 8,
+      paddingHorizontal: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      ...card,
+    },
+    cardDisabled: { opacity: 0.7 },
+    catalogTitle: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 14,
+      color: theme.colors.textPrimary,
+      paddingRight: 10,
+    },
+    catalogTrailing: { flexDirection: 'row', alignItems: 'center' },
+    catalogPlugs: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginRight: 12,
+      maxWidth: 120,
+    },
+    addIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primaryMuted,
+    },
+    emptyText: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+      paddingVertical: 24,
+    },
+    loadMore: { alignItems: 'center', paddingVertical: 12 },
+    loadMoreLabel: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 13,
+      color: theme.colors.textLink,
+    },
+    footerBar: {
+      backgroundColor: theme.colors.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+      paddingHorizontal: theme.spacing.gutter,
+      paddingVertical: 14,
+      gap: 10,
+    },
+    footerHint: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    footerDefaultRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    footerDefaultText: {
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 13,
+      color: theme.colors.successText,
+    },
+    customLinkRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    customLinkMuted: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textMuted,
+    },
+    customLink: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 13,
+      color: theme.colors.textLink,
+    },
+    plateOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.colors.overlay,
+      justifyContent: 'flex-end',
+      zIndex: 9999,
+      elevation: 9999,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.colors.overlay,
+      justifyContent: 'flex-end',
+    },
+    modalDismiss: { ...StyleSheet.absoluteFill },
+    modalSheetWrap: { width: '100%' },
+    modalSheet: {
+      backgroundColor: theme.colors.surfaceRaised,
+      borderTopLeftRadius: theme.radius.xxl,
+      borderTopRightRadius: theme.radius.xxl,
+      paddingHorizontal: theme.spacing.gutter + 4,
+      paddingTop: 24,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+      width: '100%',
+    },
+    modalTitleRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 },
+    modalTitle: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 20,
+      letterSpacing: -0.4,
+      color: theme.colors.textPrimary,
+    },
+    modalTitleOptional: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textMuted,
+      marginLeft: 6,
+    },
+    modalSubtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+      marginBottom: 16,
+    },
+    modalInput: {
+      height: 54,
+      backgroundColor: theme.colors.inputBackground,
+      borderRadius: theme.radius.control,
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
+      paddingHorizontal: 16,
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 16,
+      letterSpacing: 1,
+      color: theme.colors.textPrimary,
+    },
+    modalActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
+    modalButton: { flex: 1 },
+  });
+}

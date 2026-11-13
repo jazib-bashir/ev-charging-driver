@@ -1,55 +1,45 @@
 {
   "expo": {
-    "name": "GridFlow",
+    "name": "konnectEVS",
     "slug": "ev-charging-driver",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/gridflow-logo.png",
+    "icon": "./assets/brand/konnectev-android-432.png",
     "scheme": "evchargingdriver",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0D1117",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/brand/konnectev-android-432.png"
     },
     "android": {
       "package": "com.gridflow.driver",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#f5f7f9",
-        "foregroundImage": "./assets/images/gridflow-logo.png"
+        "backgroundColor": "#0D1117",
+        "foregroundImage": "./assets/brand/konnectev-android-432.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/gridflow-logo.png"
+      "favicon": "./assets/icons/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "GridFlow uses your location to show nearby charging stations and filter results by distance."
+          "locationWhenInUsePermission": "konnectEVS uses your location to show nearby charging stations and filter results by distance."
         }
       ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#f5f7f9",
-          "image": "./assets/images/gridflow-logo.png",
+          "backgroundColor": "#0D1117",
+          "image": "./assets/splash/konnectev-splash-native.png",
           "resizeMode": "contain",
-          "imageWidth": 180,
-          "ios": {
-            "backgroundColor": "#f5f7f9",
-            "image": "./assets/images/gridflow-logo.png",
-            "resizeMode": "contain",
-            "imageWidth": 180
-          },
-          "android": {
-            "backgroundColor": "#f5f7f9",
-            "image": "./assets/images/gridflow-logo.png",
-            "resizeMode": "contain",
-            "imageWidth": 180
-          }
+          "imageWidth": 288
         }
       ]
     ],

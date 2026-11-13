@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { WeaveLoader } from '@/components/brand/weave-loader';
+import { ChargingRing } from '@/components/charging/charging-ring';
+import { QueueRings } from '@/components/charging/queue-rings';
+import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { StationHeader } from '@/components/station/station-header';
+import { StatRow, StatTile } from '@/components/ui/stat-tile';
+import { Surface } from '@/components/ui/surface';
+import { Text } from '@/components/ui/text';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { useTheme, type AppTheme } from '@/theme';
 import type { ChargingSession } from '@/types/charging-session';
 import type { QueueMember } from '@/types/queue';
@@ -21,18 +21,17 @@ import {
 } from '@/utils/charging-session-format';
 import {
   formatEstimatedWaitRelative,
-  formatQueuePositionPadded,
   formatReadyChargerBayNumber,
   formatReadyConnectorBadge,
   getAtStationPreparationHeadline,
   getPeopleAhead,
+  getQueueRank,
   homeJourneyActionLabel,
   homeJourneyActionSubtitle,
   homeJourneyStatusBadgeLabel,
   resolveHomeJourneyVisualVariant,
 } from '@/utils/queue-display';
 
-const CHARGING_BG = '#0A2F2A';
 const EDGE = 20;
 
 type HomeActiveJourneyScreenProps = {
@@ -49,6 +48,13 @@ type HomeActiveJourneyScreenProps = {
   onLeaveQueue?: () => void;
 };
 
+type JourneyStyles = ReturnType<typeof createStyles>;
+
+/**
+ * Home when the driver has an active journey (queued / arrived / ready / charging).
+ * Layout: brand header → station identity → obsidian hero panel (variant body) → primary action.
+ * All state decisions come from `@/utils/queue-display`; this file only presents them.
+ */
 export function HomeActiveJourneyScreen({
   membership,
   session,
@@ -62,116 +68,105 @@ export function HomeActiveJourneyScreen({
   onOpenJourneyDetails,
   onLeaveQueue,
 }: HomeActiveJourneyScreenProps) {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const hasActiveSession = session?.status === 'CHARGING';
   const variant = resolveHomeJourneyVisualVariant(membership, {
     hasActiveSession,
     chargingWithoutSession: chargingWithoutSession && !hasActiveSession,
   });
   const isCharging = variant === 'charging';
-  /** Dark teal cockpit only when app dark mode is on; light mode uses theme tokens. */
-  const chargingDark = isCharging && isDark;
-  const styles = useMemo(
-    () => createStyles(theme, chargingDark),
-    [theme, chargingDark],
-  );
 
   const statusLabel = homeJourneyStatusBadgeLabel(variant);
   const actionTitle = homeJourneyActionLabel(variant);
   const actionSubtitle = homeJourneyActionSubtitle(variant);
-  const freshness = isRefreshing ? 'Updating…' : 'Updated now';
 
   const identitySubtitle = isCharging
     ? buildChargingIdentitySubtitle(session, membership, connectorLabel)
     : stationSubtitle?.trim() || null;
 
-  const identityIcon: 'bolt' | 'map-pin' = isCharging ? 'bolt' : 'map-pin';
   /** Leave only while waiting in line — not after operator calls approach / assigns bay. */
   const canLeaveQueue =
     Boolean(onLeaveQueue) && !isCharging && membership?.state === 'QUEUED';
 
   return (
     <View style={styles.screen} accessibilityLabel={`Home journey · ${statusLabel}`}>
-      <StationHeader appearance={chargingDark ? 'charging' : 'default'} />
-
-      <StationIdentityRow
-        name={stationName?.trim() || 'Charging station'}
-        subtitle={identitySubtitle}
-        statusLabel={statusLabel}
-        icon={identityIcon}
-        isCharging={isCharging}
-        brand={theme.colors.brand}
-        styles={styles}
+      <ScreenHero
+        title={stationName?.trim() || 'Charging station'}
+        subtitle={identitySubtitle ?? statusLabel}
       />
 
-      <View style={styles.body}>
-        {variant === 'charging' && session ? (
-          <ChargingBody
-            session={session}
-            vehicleLabel={vehicleLabel}
-            freshness={isRefreshing ? 'LIVE · UPDATING' : 'LIVE · UPDATED NOW'}
-            brand={theme.colors.brand}
-            ringTrackColor={
-              chargingDark ? 'rgba(255,255,255,0.12)' : theme.colors.border
-            }
-            styles={styles}
-          />
-        ) : variant === 'ready' && membership ? (
-          <ReadyBody
-            membership={membership}
-            connectorLabel={connectorLabel}
-            brand={theme.colors.brand}
-            styles={styles}
-          />
-        ) : variant === 'at-station' && membership ? (
-          <ArrivedBody membership={membership} brand={theme.colors.brand} styles={styles} />
-        ) : variant === 'session-pending' ? (
-          <SessionPendingBody brand={theme.colors.brand} styles={styles} />
-        ) : membership ? (
-          <QueuedBody
-            membership={membership}
-            freshness={freshness}
-            brand={theme.colors.brand}
-            styles={styles}
-          />
-        ) : (
-          <View style={styles.pendingWrap}>
-            <ActivityIndicator color={theme.colors.brand} />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.identityRow}>
+          <View style={styles.identityIcon}>
+            <Icon name={isCharging ? 'bolt' : 'map-pin'} size={18} color={theme.colors.primary} />
           </View>
-        )}
-      </View>
+          <View style={styles.identityCopy}>
+            <Text style={styles.identityName} numberOfLines={1}>
+              {stationName?.trim() || 'Charging station'}
+            </Text>
+            {identitySubtitle ? (
+              <Text style={styles.identitySubtitle} numberOfLines={1}>
+                {identitySubtitle}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.statusBadge}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>{statusLabel}</Text>
+          </View>
+        </View>
 
-      {canLeaveQueue ? (
-        <Pressable
-          onPress={onLeaveQueue}
-          disabled={isLeavingQueue}
-          accessibilityRole="button"
-          accessibilityLabel="Leave queue"
-          style={({ pressed }) => [
-            styles.leaveButton,
-            (pressed || isLeavingQueue) && styles.leaveButtonPressed,
-          ]}
-        >
-          {isLeavingQueue ? (
-            <ActivityIndicator color={theme.colors.textSecondary} />
+        <Surface variant="hero" padding={theme.spacing.xl} style={styles.hero}>
+          {variant === 'charging' && session ? (
+            <ChargingBody
+              session={session}
+              vehicleLabel={vehicleLabel}
+              isRefreshing={isRefreshing}
+              styles={styles}
+            />
+          ) : variant === 'ready' && membership ? (
+            <ReadyBody membership={membership} connectorLabel={connectorLabel} styles={styles} />
+          ) : variant === 'at-station' && membership ? (
+            <ArrivedBody membership={membership} styles={styles} />
+          ) : variant === 'session-pending' ? (
+            <SessionPendingBody styles={styles} />
+          ) : membership ? (
+            <QueuedBody membership={membership} isRefreshing={isRefreshing} styles={styles} />
           ) : (
-            <Text style={styles.leaveButtonText}>Leave queue</Text>
+            <View style={styles.pendingWrap}>
+              <WeaveLoader size={56} />
+            </View>
           )}
-        </Pressable>
-      ) : null}
+        </Surface>
 
-      <JourneyActionRow
-        title={actionTitle}
-        subtitle={actionSubtitle}
-        isCharging={isCharging}
-        brand={theme.colors.brand}
-        onPress={onOpenJourneyDetails}
-        styles={styles}
-      />
+        {variant === 'queued' && membership ? <QueuedGuidance styles={styles} /> : null}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        {canLeaveQueue ? (
+          <Button
+            label="Leave queue"
+            variant="tertiary"
+            size="md"
+            onPress={onLeaveQueue}
+            loading={isLeavingQueue}
+          />
+        ) : null}
+        <Button
+          label={actionTitle}
+          onPress={onOpenJourneyDetails}
+          trailingIcon="chevron-forward"
+          accessibilityLabel={`${actionTitle}. ${actionSubtitle}`}
+        />
+        <Text style={styles.actionSubtitle}>{actionSubtitle}</Text>
+      </View>
     </View>
   );
 }
-
 
 function buildChargingIdentitySubtitle(
   session: ChargingSession | null | undefined,
@@ -179,9 +174,7 @@ function buildChargingIdentitySubtitle(
   connectorLabel?: string | null,
 ): string | null {
   const bay =
-    formatReadyChargerBayNumber(membership?.allocation) ||
-    session?.evseLabel?.trim() ||
-    null;
+    formatReadyChargerBayNumber(membership?.allocation) || session?.evseLabel?.trim() || null;
   const connector = formatHomeJourneyConnectorLabel(
     connectorLabel,
     session?.connectorLabel,
@@ -193,183 +186,82 @@ function buildChargingIdentitySubtitle(
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-function StationIdentityRow({
-  name,
-  subtitle,
-  statusLabel,
-  icon,
-  isCharging,
-  brand,
-  styles,
-}: {
-  name: string;
-  subtitle: string | null;
-  statusLabel: string;
-  icon: 'bolt' | 'map-pin';
-  isCharging: boolean;
-  brand: string;
-  styles: ReturnType<typeof createStyles>;
-}) {
-  return (
-    <View style={styles.identityRow}>
-      <View style={[styles.identityIcon, isCharging && styles.identityIconCharging]}>
-        <Icon name={icon} size={16} color={isCharging ? brand : brand} />
-      </View>
-      <View style={styles.identityCopy}>
-        <Text style={styles.identityName} numberOfLines={1}>
-          {name}
-        </Text>
-        {subtitle ? (
-          <Text style={styles.identitySubtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      <View style={styles.statusBadge}>
-        <View style={styles.statusDot} />
-        <Text style={styles.statusText}>{statusLabel}</Text>
-      </View>
-    </View>
-  );
-}
-
-function JourneyActionRow({
-  title,
-  subtitle,
-  isCharging,
-  brand,
-  onPress,
-  styles,
-}: {
-  title: string;
-  subtitle: string;
-  isCharging: boolean;
-  brand: string;
-  onPress: () => void;
-  styles: ReturnType<typeof createStyles>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      style={({ pressed }) => [
-        styles.actionRow,
-        isCharging && styles.actionRowCharging,
-        pressed && styles.actionRowPressed,
-      ]}
-    >
-      <View style={styles.actionCopy}>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionSubtitle}>{subtitle}</Text>
-      </View>
-      <View style={[styles.actionButton, { backgroundColor: brand }]}>
-        <Icon name="chevron-forward" size={22} color="#0F172A" />
-      </View>
-    </Pressable>
-  );
-}
-
 function QueuedBody({
   membership,
-  freshness,
-  brand,
+  isRefreshing,
   styles,
 }: {
   membership: QueueMember;
-  freshness: string;
-  brand: string;
-  styles: ReturnType<typeof createStyles>;
+  isRefreshing: boolean;
+  styles: JourneyStyles;
 }) {
-  const position = formatQueuePositionPadded(membership) ?? '—';
+  const rank = getQueueRank(membership);
   const ahead = getPeopleAhead(membership);
   const wait = formatEstimatedWaitRelative(membership.estimatedTurnAt) ?? '—';
-  const centerHint = ahead === 0 ? "You're next" : `${ahead} ahead`;
 
   return (
-    <View style={styles.queuedBody}>
-      <View style={styles.queueVizWrap}>
-        <View style={[styles.ringOuter, { borderColor: `${brand}55` }]} />
-        <View style={[styles.ringMid, { borderColor: `${brand}99` }]} />
-        <View style={[styles.ringCore, { backgroundColor: `${brand}22` }]}>
-          <Text style={[styles.queueEyebrow, { color: brand }]}>Your position</Text>
-          <Text style={styles.queuePosition}>{position}</Text>
-          <Text style={[styles.queueHint, { color: brand }]}>{centerHint}</Text>
-        </View>
-      </View>
+    <View style={styles.bodyCenter}>
+      <QueueRings rank={rank} size={184} caption={ahead === 0 ? "You're next" : `${ahead} ahead`} />
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCell}>
-          <Text style={styles.statLabel}>Drivers ahead</Text>
-          <Text style={styles.statValue}>{String(ahead)}</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statCell}>
-          <Text style={styles.statLabel}>Estimated wait</Text>
-          <Text style={styles.statValue}>{wait}</Text>
-        </View>
-      </View>
+      <StatRow onHero style={styles.fullWidth}>
+        <StatTile onHero label="Drivers ahead" value={String(ahead)} />
+        <StatTile onHero label="Estimated wait" value={wait} />
+      </StatRow>
 
-      <View style={styles.guidanceBand}>
-        <View style={[styles.guidanceIcon, { backgroundColor: `${brand}1F` }]}>
-          <Icon name="bell" size={16} color={brand} />
-        </View>
-        <View style={styles.guidanceCopy}>
-          <Text style={styles.guidanceTitle}>Nothing to do right now</Text>
-          <Text style={styles.guidanceBody}>
-            Stay nearby. We’ll alert you when it’s time to arrive.
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.freshnessRow}>
-        <Text style={styles.freshnessLeft}>Estimate based on the current queue</Text>
-        <Text style={[styles.freshnessRight, { color: brand }]}>{freshness}</Text>
-      </View>
+      <Text style={styles.heroFootnote}>
+        Estimate based on the current queue · {isRefreshing ? 'Updating…' : 'Updated now'}
+      </Text>
     </View>
   );
 }
 
-function ArrivedBody({
-  membership,
-  brand,
-  styles,
-}: {
-  membership: QueueMember;
-  brand: string;
-  styles: ReturnType<typeof createStyles>;
-}) {
+function QueuedGuidance({ styles }: { styles: JourneyStyles }) {
+  const { theme } = useTheme();
+  return (
+    <Surface variant="tinted" padding={theme.spacing.lg} style={styles.guidance}>
+      <View style={styles.guidanceIcon}>
+        <Icon name="bell" size={18} color={theme.colors.primary} />
+      </View>
+      <View style={styles.guidanceCopy}>
+        <Text style={styles.guidanceTitle}>Nothing to do right now</Text>
+        <Text style={styles.guidanceBody}>
+          Stay nearby. We’ll alert you when it’s time to arrive.
+        </Text>
+      </View>
+    </Surface>
+  );
+}
+
+function ArrivedBody({ membership, styles }: { membership: QueueMember; styles: JourneyStyles }) {
+  const { theme } = useTheme();
   const headline = getAtStationPreparationHeadline(membership);
 
   return (
-    <View style={styles.arrivedBody}>
-      <View style={styles.arrivedVizWrap}>
-        <View style={[styles.arrivedRingOuter, { borderColor: `${brand}33` }]} />
-        <View style={[styles.arrivedRingMid, { borderColor: `${brand}55` }]} />
-        <View style={[styles.arrivedCheck, { backgroundColor: brand }]}>
-          <Icon name="check" size={36} color="#0F172A" />
+    <View style={styles.bodyCenter}>
+      <View style={styles.checkWrap}>
+        <View style={styles.checkRingOuter} />
+        <View style={styles.checkRingInner} />
+        <View style={styles.checkCore}>
+          <Icon name="check" size={34} color={theme.colors.onPrimary} />
         </View>
       </View>
 
-      <Text style={[styles.arrivedEyebrow, { color: brand }]}>Arrival confirmed</Text>
-      <Text style={styles.arrivedTitle}>You’re checked in</Text>
-      <Text style={styles.arrivedSubtitle}>The station knows you’re here.</Text>
+      <Text style={styles.heroEyebrow}>ARRIVAL CONFIRMED</Text>
+      <Text style={styles.heroTitle}>You’re checked in</Text>
+      <Text style={styles.heroSubtitle}>The station knows you’re here.</Text>
 
-      <View style={styles.happeningBlock}>
-        <Text style={[styles.sectionEyebrow, { color: brand }]}>Happening now</Text>
+      <View style={styles.happening}>
+        <Text style={styles.happeningLabel}>HAPPENING NOW</Text>
         <Text style={styles.happeningTitle}>{headline}</Text>
         <View style={styles.segmentRow}>
           {[0, 1, 2, 3].map((index) => (
             <View
               key={index}
-              style={[
-                styles.segment,
-                { backgroundColor: index < 2 ? brand : `${brand}33` },
-              ]}
+              style={[styles.segment, index < 2 ? styles.segmentOn : styles.segmentOff]}
             />
           ))}
         </View>
-        <Text style={styles.happeningHint}>
+        <Text style={styles.heroSubtitleLeft}>
           Remain in the waiting area. We’ll show your bay here as soon as it’s assigned.
         </Text>
       </View>
@@ -380,92 +272,59 @@ function ArrivedBody({
 function ReadyBody({
   membership,
   connectorLabel,
-  brand,
   styles,
 }: {
   membership: QueueMember;
   connectorLabel?: string | null;
-  brand: string;
-  styles: ReturnType<typeof createStyles>;
+  styles: JourneyStyles;
 }) {
+  const { theme } = useTheme();
   const bayRaw = formatReadyChargerBayNumber(membership.allocation);
-  const bayDisplay = bayRaw
-    ? /^\d+$/.test(bayRaw)
-      ? bayRaw.padStart(2, '0')
-      : bayRaw
-    : '—';
+  const bayDisplay = bayRaw ? (/^\d+$/.test(bayRaw) ? bayRaw.padStart(2, '0') : bayRaw) : '—';
   const connector =
     formatReadyConnectorBadge(membership.allocation) ||
     (connectorLabel?.trim() ? connectorLabel.trim() : null) ||
     '—';
 
   return (
-    <View style={styles.readyBody}>
-      <View style={styles.readyDiagonal} pointerEvents="none" />
-
-      <View style={styles.readyHeroRow}>
+    <View>
+      <View style={styles.readyRow}>
         <View style={styles.readyBayCol}>
-          <Text style={[styles.sectionEyebrow, { color: brand }]}>Assigned bay</Text>
+          <Text style={styles.heroEyebrow}>ASSIGNED BAY</Text>
           <Text style={styles.readyBayNumber}>{bayDisplay}</Text>
-          <View style={styles.readyProgressRow}>
-            <View style={[styles.readyProgressLine, { backgroundColor: brand }]} />
-            {[0, 1, 2].map((index) => (
-              <View
-                key={index}
-                style={[
-                  styles.readyProgressDot,
-                  {
-                    backgroundColor: index === 0 ? brand : themeFallbackMuted(brand),
-                  },
-                ]}
-              />
-            ))}
-          </View>
         </View>
 
-        <View style={styles.readyConnectorDivider} />
-
         <View style={styles.readyConnectorCol}>
-          <View style={[styles.readyConnectorIcon, { backgroundColor: brand }]}>
-            <Icon name="plug" size={22} color="#0F172A" />
+          <View style={styles.readyConnectorIcon}>
+            <Icon name="plug" size={22} color={theme.colors.onPrimary} />
           </View>
           <Text style={styles.readyConnectorLabel}>Connector</Text>
-          <Text style={styles.readyConnectorValue}>{connector}</Text>
+          <Text style={styles.readyConnectorValue} numberOfLines={1}>
+            {connector}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.readyNextBlock}>
-        <Text style={[styles.sectionEyebrow, { color: brand }]}>Next action</Text>
+      <View style={styles.readyNext}>
+        <Text style={styles.heroEyebrow}>NEXT ACTION</Text>
         <Text style={styles.readyNextTitle}>
           {bayRaw ? `Go to Bay ${bayRaw} and plug in` : 'Go to your bay and plug in'}
         </Text>
-        <Text style={styles.readyNextBody}>
-          Follow the green bay signs. Charging will begin only after the charger confirms
-          your connection.
+        <Text style={styles.heroSubtitleLeft}>
+          Follow the bay signs. Charging will begin only after the charger confirms your
+          connection.
         </Text>
       </View>
     </View>
   );
 }
 
-function themeFallbackMuted(brand: string): string {
-  return `${brand}40`;
-}
-
-function SessionPendingBody({
-  brand,
-  styles,
-}: {
-  brand: string;
-  styles: ReturnType<typeof createStyles>;
-}) {
+function SessionPendingBody({ styles }: { styles: JourneyStyles }) {
   return (
     <View style={styles.pendingWrap}>
-      <View style={[styles.pendingIcon, { backgroundColor: `${brand}22` }]}>
-        <ActivityIndicator color={brand} />
-      </View>
-      <Text style={styles.pendingTitle}>Linking your charger</Text>
-      <Text style={styles.pendingBody}>
+      <WeaveLoader size={64} />
+      <Text style={styles.heroTitle}>Linking your charger</Text>
+      <Text style={styles.heroSubtitle}>
         Your bay is ready. We’re confirming the charging session with the station.
       </Text>
     </View>
@@ -475,120 +334,43 @@ function SessionPendingBody({
 function ChargingBody({
   session,
   vehicleLabel,
-  freshness,
-  brand,
-  ringTrackColor,
+  isRefreshing,
   styles,
 }: {
   session: ChargingSession;
   vehicleLabel?: string | null;
-  freshness: string;
-  brand: string;
-  ringTrackColor: string;
-  styles: ReturnType<typeof createStyles>;
+  isRefreshing: boolean;
+  styles: JourneyStyles;
 }) {
-  const powerRaw = formatPowerKw(session.averagePowerKw ?? session.maxPowerKw);
-  const powerParts = splitPower(powerRaw);
+  const power = splitPower(formatPowerKw(session.averagePowerKw ?? session.maxPowerKw));
   const energy =
     session.energyKwh != null && !Number.isNaN(session.energyKwh)
-      ? `${session.energyKwh.toFixed(1)} kWh`
-      : '—';
+      ? { value: session.energyKwh.toFixed(1), unit: 'kWh' }
+      : { value: '—', unit: undefined };
   const duration = formatHomeJourneyDuration(session.durationSeconds, session.startedAt);
-  const vehicle =
-    vehicleLabel?.trim() || session.vehicleLabel?.trim() || '—';
-
-  const size = 220;
-  const stroke = 14;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  /** Decorative cockpit arc — not a fabricated SoC / completion %. */
-  const progress = 0.72;
-  const dashOffset = circumference * (1 - progress);
-
-  const wave = [0.35, 0.55, 0.4, 0.75, 0.5, 0.9, 0.65, 0.45, 0.8, 0.55, 0.7, 0.4];
+  const vehicle = vehicleLabel?.trim() || session.vehicleLabel?.trim() || '—';
 
   return (
-    <View style={styles.chargingBody}>
-      <View style={styles.chargingRings} pointerEvents="none">
-        <View style={styles.chargingRingA} />
-        <View style={styles.chargingRingB} />
-        <View style={styles.chargingRingC} />
-      </View>
-
+    <View style={styles.bodyCenter}>
       <View style={styles.livePill}>
-        <View style={[styles.livePillDot, { backgroundColor: brand }]} />
-        <Text style={[styles.livePillText, { color: brand }]}>{freshness}</Text>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>{isRefreshing ? 'LIVE · UPDATING' : 'LIVE · UPDATED NOW'}</Text>
       </View>
 
-      <View style={styles.powerRingWrap}>
-        <Svg width={size} height={size}>
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={ringTrackColor}
-            strokeWidth={stroke}
-            fill="none"
-          />
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={brand}
-            strokeWidth={stroke}
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={dashOffset}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          />
-        </Svg>
-        <View style={styles.powerInner}>
-          <Text style={styles.powerEyebrow}>Live power</Text>
-          <View style={styles.powerValueRow}>
-            <Text style={styles.powerValue}>{powerParts.value}</Text>
-            {powerParts.unit ? (
-              <Text style={styles.powerUnit}>{powerParts.unit}</Text>
-            ) : null}
-          </View>
-          <View style={styles.waveRow}>
-            {wave.map((intensity, index) => (
-              <View
-                key={`w-${index}`}
-                style={[
-                  styles.waveBar,
-                  {
-                    height: Math.max(4, Math.round(intensity * 18)),
-                    backgroundColor: brand,
-                  },
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.powerCaption}>Measured at charger</Text>
-        </View>
-      </View>
+      <ChargingRing
+        value={power.value}
+        unit={power.unit ?? 'kW'}
+        caption="Live power"
+        size={208}
+        live
+        onHero
+      />
 
-      <View style={styles.chargingMetrics}>
-        <View style={styles.chargingMetric}>
-          <Text style={styles.chargingMetricLabel}>Energy delivered</Text>
-          <Text style={styles.chargingMetricValue}>{energy}</Text>
-        </View>
-        <View style={styles.chargingMetricDivider} />
-        <View style={styles.chargingMetric}>
-          <Text style={styles.chargingMetricLabel}>Session duration</Text>
-          <Text style={styles.chargingMetricValue}>
-            {duration === EMPTY_METRIC ? '—' : duration}
-          </Text>
-        </View>
-        <View style={styles.chargingMetricDivider} />
-        <View style={styles.chargingMetric}>
-          <Text style={styles.chargingMetricLabel}>Vehicle</Text>
-          <Text style={styles.chargingMetricValue} numberOfLines={1}>
-            {vehicle}
-          </Text>
-        </View>
-      </View>
+      <StatRow onHero style={styles.fullWidth}>
+        <StatTile onHero label="Delivered" value={energy.value} unit={energy.unit} />
+        <StatTile onHero label="Duration" value={!duration || duration === EMPTY_METRIC ? '—' : duration} />
+        <StatTile onHero label="Vehicle" value={vehicle} />
+      </StatRow>
     </View>
   );
 }
@@ -604,670 +386,187 @@ function splitPower(raw: string): { value: string; unit: string | null } {
   return { value: match[1], unit: match[2] || null };
 }
 
-function createStyles(theme: AppTheme, chargingDark: boolean) {
-  const textPrimary = chargingDark ? '#FFFFFF' : theme.colors.textPrimary;
-  const textMuted = chargingDark ? 'rgba(255,255,255,0.62)' : theme.colors.textMuted;
-  const brand = theme.colors.brand;
-  const metricBorder = chargingDark ? 'rgba(255,255,255,0.14)' : theme.colors.border;
-  const powerMuted = chargingDark ? 'rgba(255,255,255,0.55)' : theme.colors.textMuted;
-  const powerCaptionColor = chargingDark
-    ? 'rgba(255,255,255,0.45)'
-    : theme.colors.textMuted;
-  const powerPrimary = chargingDark ? '#FFFFFF' : theme.colors.textPrimary;
+function createStyles(theme: AppTheme) {
+  const c = theme.colors;
+  const font = theme.typography.fontFamily;
 
   return StyleSheet.create({
-    screen: {
-      flex: 1,
-      backgroundColor: chargingDark ? CHARGING_BG : theme.colors.background,
-    },
+    screen: { flex: 1, backgroundColor: c.background },
+    scrollContent: { paddingBottom: theme.spacing.lg },
     identityRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       paddingHorizontal: EDGE,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: 20,
+      paddingBottom: 14,
     },
     identityIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.brandMuted,
+      backgroundColor: c.primaryMuted,
     },
-    identityIconCharging: chargingDark
-      ? {
-          backgroundColor: 'rgba(0, 217, 160, 0.16)',
-          borderWidth: 1,
-          borderColor: 'rgba(0, 217, 160, 0.35)',
-        }
-      : {
-          backgroundColor: theme.colors.brandMuted,
-        },
-    identityCopy: {
-      flex: 1,
-      gap: 2,
-      minWidth: 0,
-    },
+    identityCopy: { flex: 1, gap: 2, minWidth: 0 },
     identityName: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 16,
-      fontWeight: '700',
-      color: textPrimary,
+      fontFamily: font.brand,
+      fontSize: 18,
+      letterSpacing: -0.4,
+      color: c.textPrimary,
     },
-    identitySubtitle: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 12,
-      color: textMuted,
-    },
+    identitySubtitle: { fontFamily: font.regular, fontSize: 12, color: c.textMuted },
     statusBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      flexShrink: 0,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      backgroundColor: c.statusAvailableBg,
     },
-    statusDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 4,
-      backgroundColor: brand,
-    },
-    statusText: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 13,
-      fontWeight: '700',
-      color: brand,
-    },
-    body: {
-      flex: 1,
-      paddingHorizontal: EDGE,
-    },
-    actionRow: {
+    statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.statusDot },
+    statusText: { fontFamily: font.bold, fontSize: 12, color: c.statusAvailable },
+    hero: { marginHorizontal: EDGE },
+    guidance: {
+      marginHorizontal: EDGE,
+      marginTop: theme.spacing.md,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginHorizontal: EDGE,
-      marginBottom: 10,
-      paddingVertical: 14,
-      paddingHorizontal: 4,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-    },
-    actionRowCharging: chargingDark
-      ? {
-          borderColor: 'rgba(255,255,255,0.14)',
-          backgroundColor: 'rgba(0,0,0,0.18)',
-          borderRadius: 16,
-          borderWidth: 0,
-          paddingHorizontal: 14,
-          marginBottom: 12,
-        }
-      : {
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
-          borderRadius: 16,
-          borderTopWidth: 1,
-          borderBottomWidth: 1,
-          paddingHorizontal: 14,
-          marginBottom: 12,
-        },
-    actionRowPressed: {
-      opacity: 0.85,
-    },
-    actionCopy: {
-      flex: 1,
-      gap: 2,
-      minWidth: 0,
-    },
-    actionTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 16,
-      fontWeight: '700',
-      color: textPrimary,
-    },
-    actionSubtitle: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 12,
-      color: textMuted,
-    },
-    actionButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    leaveButton: {
-      marginHorizontal: EDGE,
-      marginBottom: 8,
-      minHeight: 48,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 16,
-    },
-    leaveButtonPressed: {
-      opacity: 0.7,
-    },
-    leaveButtonText: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 15,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-    },
-
-    queuedBody: {
-      flex: 1,
-      alignItems: 'center',
-      paddingTop: 8,
-    },
-    queueVizWrap: {
-      width: 236,
-      height: 236,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 8,
-      marginBottom: 18,
-    },
-    ringOuter: {
-      position: 'absolute',
-      width: 236,
-      height: 236,
-      borderRadius: 118,
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-    },
-    ringMid: {
-      position: 'absolute',
-      width: 200,
-      height: 200,
-      borderRadius: 100,
-      borderWidth: 2,
-    },
-    ringCore: {
-      width: 168,
-      height: 168,
-      borderRadius: 84,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
-    },
-    queueEyebrow: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.9,
-      textTransform: 'uppercase',
-    },
-    queuePosition: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 56,
-      fontWeight: '700',
-      color: textPrimary,
-      letterSpacing: -1.5,
-      lineHeight: 62,
-    },
-    queueHint: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 15,
-      fontWeight: '700',
-    },
-    statsRow: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      width: '100%',
-      paddingVertical: 14,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-    },
-    statCell: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 4,
-    },
-    statDivider: {
-      width: StyleSheet.hairlineWidth,
-      backgroundColor: theme.colors.border,
-    },
-    statLabel: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 12,
-      color: textMuted,
-    },
-    statValue: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 20,
-      fontWeight: '700',
-      color: textPrimary,
-    },
-    guidanceBand: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-      width: '100%',
-      marginTop: 16,
-      paddingVertical: 14,
-      paddingHorizontal: 12,
-      borderRadius: 14,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     guidanceIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 38,
+      height: 38,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: c.primarySoft,
     },
-    guidanceCopy: {
-      flex: 1,
-      gap: 2,
+    guidanceCopy: { flex: 1, gap: 2 },
+    guidanceTitle: { fontFamily: font.bold, fontSize: 14, color: c.textPrimary },
+    guidanceBody: { fontFamily: font.regular, fontSize: 12, lineHeight: 17, color: c.textSecondary },
+    footer: {
+      paddingHorizontal: EDGE,
+      paddingTop: theme.spacing.sm,
+      paddingBottom: theme.spacing.sm,
+      gap: theme.spacing.sm,
     },
-    guidanceTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 14,
-      fontWeight: '700',
-      color: textPrimary,
-    },
-    guidanceBody: {
-      fontFamily: theme.typography.fontFamily.regular,
+    actionSubtitle: {
+      fontFamily: font.regular,
       fontSize: 12,
-      lineHeight: 17,
-      color: textMuted,
-    },
-    freshnessRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      width: '100%',
-      marginTop: 14,
-      gap: 8,
-    },
-    freshnessLeft: {
-      flex: 1,
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 11,
-      color: textMuted,
-    },
-    freshnessRight: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 11,
-      fontWeight: '700',
-    },
-
-    arrivedBody: {
-      flex: 1,
-      alignItems: 'center',
-      paddingTop: 12,
-    },
-    arrivedVizWrap: {
-      width: 168,
-      height: 168,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 18,
-    },
-    arrivedRingOuter: {
-      position: 'absolute',
-      width: 168,
-      height: 168,
-      borderRadius: 84,
-      borderWidth: 1.5,
-    },
-    arrivedRingMid: {
-      position: 'absolute',
-      width: 136,
-      height: 136,
-      borderRadius: 68,
-      borderWidth: 1.5,
-    },
-    arrivedCheck: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    arrivedEyebrow: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.9,
-      textTransform: 'uppercase',
-      marginBottom: 6,
-    },
-    arrivedTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 26,
-      fontWeight: '700',
-      color: textPrimary,
-      letterSpacing: -0.3,
+      color: c.textMuted,
       textAlign: 'center',
     },
-    arrivedSubtitle: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 14,
-      color: textMuted,
-      marginTop: 6,
-      marginBottom: 22,
-      textAlign: 'center',
-    },
-    happeningBlock: {
-      width: '100%',
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      paddingVertical: 16,
-      gap: 8,
-    },
-    sectionEyebrow: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.9,
-      textTransform: 'uppercase',
-    },
-    happeningTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 18,
-      fontWeight: '700',
-      color: textPrimary,
-    },
-    segmentRow: {
-      flexDirection: 'row',
-      gap: 6,
-      marginVertical: 4,
-    },
-    segment: {
-      flex: 1,
-      height: 6,
-      borderRadius: 3,
-    },
-    happeningHint: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 13,
-      lineHeight: 18,
-      color: textMuted,
-    },
 
-    readyBody: {
-      flex: 1,
-      paddingTop: 28,
-      overflow: 'hidden',
-    },
-    readyDiagonal: {
-      position: 'absolute',
-      left: -40,
-      bottom: 40,
-      width: 280,
-      height: 1,
-      backgroundColor: brand,
-      opacity: 0.18,
-      transform: [{ rotate: '-28deg' }],
-    },
-    readyHeroRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 16,
-      marginBottom: 28,
-    },
-    readyBayCol: {
-      flex: 1,
-      gap: 6,
-    },
-    readyBayNumber: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 72,
-      fontWeight: '700',
-      color: textPrimary,
-      letterSpacing: -2,
-      lineHeight: 78,
-    },
-    readyProgressRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginTop: 4,
-    },
-    readyProgressLine: {
-      width: 36,
-      height: 3,
-      borderRadius: 2,
-    },
-    readyProgressDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
-    readyConnectorDivider: {
-      width: StyleSheet.hairlineWidth,
-      alignSelf: 'stretch',
-      backgroundColor: theme.colors.border,
-      marginVertical: 8,
-    },
-    readyConnectorCol: {
-      width: 112,
-      alignItems: 'center',
-      paddingTop: 18,
-      gap: 8,
-    },
-    readyConnectorIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    readyConnectorLabel: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 12,
-      color: textMuted,
-    },
-    readyConnectorValue: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 18,
-      fontWeight: '700',
-      color: textPrimary,
-    },
-    readyNextBlock: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      paddingTop: 18,
-      gap: 8,
-    },
-    readyNextTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
+    bodyCenter: { alignItems: 'center', gap: theme.spacing.xl },
+    fullWidth: { alignSelf: 'stretch' },
+    heroFootnote: { fontFamily: font.regular, fontSize: 11, color: c.heroTextMuted, textAlign: 'center' },
+    heroEyebrow: { fontFamily: font.bold, fontSize: 11, letterSpacing: 1.3, color: c.heroAccent },
+    heroTitle: {
+      fontFamily: font.brand,
       fontSize: 20,
-      fontWeight: '700',
-      color: textPrimary,
+      letterSpacing: -0.6,
+      color: c.heroText,
+      textAlign: 'center',
     },
-    readyNextBody: {
-      fontFamily: theme.typography.fontFamily.regular,
+    heroSubtitle: {
+      fontFamily: font.regular,
       fontSize: 14,
       lineHeight: 20,
-      color: textMuted,
-    },
-
-    pendingWrap: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-      paddingHorizontal: 24,
-    },
-    pendingIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 4,
-    },
-    pendingTitle: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 20,
-      fontWeight: '700',
-      color: textPrimary,
+      color: c.heroTextMuted,
       textAlign: 'center',
     },
-    pendingBody: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 14,
-      lineHeight: 20,
-      color: textMuted,
-      textAlign: 'center',
-    },
+    heroSubtitleLeft: { fontFamily: font.regular, fontSize: 13, lineHeight: 19, color: c.heroTextMuted },
 
-    chargingBody: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingBottom: 8,
-    },
-    chargingRings: {
-      ...StyleSheet.absoluteFill,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    chargingRingA: {
-      position: 'absolute',
-      width: 320,
-      height: 320,
-      borderRadius: 160,
-      borderWidth: 1,
-      borderColor: chargingDark ? 'rgba(0, 217, 160, 0.08)' : 'rgba(0, 217, 160, 0.14)',
-    },
-    chargingRingB: {
-      position: 'absolute',
-      width: 260,
-      height: 260,
-      borderRadius: 130,
-      borderWidth: 1,
-      borderColor: chargingDark ? 'rgba(0, 217, 160, 0.1)' : 'rgba(0, 217, 160, 0.18)',
-    },
-    chargingRingC: {
-      position: 'absolute',
-      width: 200,
-      height: 200,
-      borderRadius: 100,
-      borderWidth: 1,
-      borderColor: chargingDark ? 'rgba(0, 217, 160, 0.12)' : 'rgba(0, 217, 160, 0.22)',
-    },
     livePill: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginBottom: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      backgroundColor: 'rgba(16, 185, 129, 0.16)',
     },
-    livePillDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
+    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.secondary },
+    liveText: { fontFamily: font.extrabold, fontSize: 10, letterSpacing: 1, color: c.secondary },
+
+    checkWrap: { width: 156, height: 156, alignItems: 'center', justifyContent: 'center' },
+    checkRingOuter: {
+      position: 'absolute',
+      width: 156,
+      height: 156,
+      borderRadius: 78,
+      borderWidth: 1.5,
+      borderColor: c.heroBorder,
     },
-    livePillText: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.7,
-      textTransform: 'uppercase',
+    checkRingInner: {
+      position: 'absolute',
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      borderWidth: 1.5,
+      borderColor: c.secondary,
+      opacity: 0.45,
     },
-    powerRingWrap: {
-      width: 220,
-      height: 220,
+    checkCore: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 20,
+      backgroundColor: c.primary,
     },
-    powerInner: {
-      ...StyleSheet.absoluteFill,
+    happening: {
+      alignSelf: 'stretch',
+      gap: 8,
+      padding: theme.spacing.lg,
+      borderRadius: theme.radius.xl,
+      backgroundColor: c.heroSurface,
+    },
+    happeningLabel: { fontFamily: font.bold, fontSize: 11, letterSpacing: 1.3, color: c.heroAccent },
+    happeningTitle: { fontFamily: font.brand, fontSize: 18, letterSpacing: -0.3, color: c.heroText },
+    segmentRow: { flexDirection: 'row', gap: 6, marginVertical: 4 },
+    segment: { flex: 1, height: 6, borderRadius: 3 },
+    segmentOn: { backgroundColor: c.secondary },
+    segmentOff: { backgroundColor: c.heroBorder },
+
+    readyRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.lg, marginBottom: theme.spacing.xl },
+    readyBayCol: { flex: 1, gap: 4 },
+    readyBayNumber: {
+      fontFamily: font.brand,
+      fontSize: 76,
+      lineHeight: 82,
+      letterSpacing: -3,
+      color: c.heroText,
+    },
+    readyConnectorCol: {
+      width: 112,
+      alignItems: 'center',
+      gap: 8,
+      padding: theme.spacing.md,
+      borderRadius: theme.radius.xl,
+      backgroundColor: c.heroSurface,
+    },
+    readyConnectorIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 2,
-      paddingTop: 8,
+      backgroundColor: c.primary,
     },
-    powerEyebrow: {
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 11,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-      color: powerMuted,
-    },
-    powerValueRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: 4,
-    },
-    powerValue: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 52,
-      fontWeight: '700',
-      color: powerPrimary,
-      letterSpacing: -1.5,
-      lineHeight: 56,
-    },
-    powerUnit: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 18,
-      fontWeight: '700',
-      color: powerPrimary,
-      marginBottom: 8,
-    },
-    waveRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: 3,
-      height: 20,
-      marginTop: 4,
-    },
-    waveBar: {
-      width: 3,
-      borderRadius: 1.5,
-      opacity: 0.9,
-    },
-    powerCaption: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 11,
-      color: powerCaptionColor,
-      marginTop: 6,
-    },
-    chargingMetrics: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      width: '100%',
+    readyConnectorLabel: { fontFamily: font.medium, fontSize: 11, color: c.heroTextMuted },
+    readyConnectorValue: { fontFamily: font.brand, fontSize: 16, color: c.heroText },
+    readyNext: {
+      gap: 8,
+      paddingTop: theme.spacing.lg,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: metricBorder,
-      paddingVertical: 14,
+      borderTopColor: c.heroBorder,
     },
-    chargingMetric: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 4,
-    },
-    chargingMetricDivider: {
-      width: StyleSheet.hairlineWidth,
-      backgroundColor: metricBorder,
-    },
-    chargingMetricLabel: {
-      fontFamily: theme.typography.fontFamily.medium,
-      fontSize: 11,
-      color: powerMuted,
-      textAlign: 'center',
-    },
-    chargingMetricValue: {
-      fontFamily: theme.typography.fontFamily.bold,
-      fontSize: 15,
-      fontWeight: '700',
-      color: powerPrimary,
-      textAlign: 'center',
-    },
+    readyNextTitle: { fontFamily: font.brand, fontSize: 20, letterSpacing: -0.4, color: c.heroText },
+
+    pendingWrap: { alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 12 },
   });
 }

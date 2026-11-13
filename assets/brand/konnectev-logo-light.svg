@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 480 108"
+     role="img"
+     aria-label="konnectEVS primary horizontal logo">
+
+  <defs>
+    <mask id="weave-cut"
+          maskUnits="userSpaceOnUse"
+          x="0" y="0" width="96" height="96">
+      <rect width="96" height="96" fill="#fff"/>
+      <path d="M8 20h14c28 0 18 56 46 56h20"
+            stroke="#000"
+            stroke-width="20"
+            stroke-linecap="round"/>
+    </mask>
+  </defs>
+
+  <g id="Symbol" transform="translate(8 8) scale(.92)">
+    <g id="Lime-paths">
+      <path d="M8 76h20c28 0 18-56 46-56h14"
+            fill="none"
+            stroke="#D4FF00"
+            stroke-width="10"
+            stroke-linecap="round"
+            mask="url(#weave-cut)"/>
+    </g>
+
+    <g id="Coral-paths">
+      <path d="M8 20h14c28 0 18 56 46 56h20"
+            fill="none"
+            stroke="#FF3E1D"
+            stroke-width="10"
+            stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <g id="Wordmark"
+     font-family="Space Grotesk, Arial, sans-serif"
+     font-weight="700">
+
+    <text x="115"
+          y="78"
+          fill="#FFFFFF"
+          font-size="66"
+          letter-spacing="-5">
+      konnect
+    </text>
+
+    <text x="350"
+          y="48"
+          fill="#FF3E1D"
+          font-size="28"
+          letter-spacing="-1">
+      EV
+    </text>
+
+    <text x="381"
+          y="48"
+          fill="#FF3E1D"
+          font-size="22"
+          letter-spacing="-1">
+      S
+    </text>
+
+  </g>
+</svg>

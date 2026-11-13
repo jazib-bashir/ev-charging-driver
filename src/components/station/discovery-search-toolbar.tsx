@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { SearchInput } from '@/components/ui/search-input';
@@ -24,6 +25,16 @@ export function DiscoverySearchToolbar({
   floating = false,
 }: DiscoverySearchToolbarProps) {
   const { theme } = useTheme();
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        wrap: { paddingTop: 18, backgroundColor: 'transparent' },
+        wrapFloating: { paddingTop: 8 },
+        input: { marginTop: 0, marginHorizontal: DISCOVERY_LAYOUT.edge },
+        floatingInput: { ...theme.shadows.raised, borderColor: theme.colors.border },
+      }),
+    [theme],
+  );
 
   return (
     <View style={[styles.wrap, floating && styles.wrapFloating]}>
@@ -33,35 +44,8 @@ export function DiscoverySearchToolbar({
         placeholder={placeholder}
         onFilterPress={onFilterPress}
         activeFilterCount={activeFilterCount}
-        containerStyle={[
-          styles.input,
-          floating && {
-            borderRadius: 12,
-            borderColor: theme.colors.border,
-            backgroundColor: theme.colors.surface,
-            shadowColor: theme.colors.shadow,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 1,
-            shadowRadius: 10,
-            elevation: 4,
-          },
-        ]}
+        containerStyle={[styles.input, floating && styles.floatingInput]}
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    paddingTop: 16,
-    paddingBottom: 0,
-    backgroundColor: 'transparent',
-  },
-  wrapFloating: {
-    paddingTop: 8,
-  },
-  input: {
-    marginTop: 0,
-    marginHorizontal: DISCOVERY_LAYOUT.edge,
-  },
-});

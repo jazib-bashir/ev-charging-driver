@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
+import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { useTheme } from '@/theme';
 
 import { DISCOVERY_LAYOUT } from './discovery-layout';
@@ -8,22 +9,19 @@ import { DISCOVERY_LAYOUT } from './discovery-layout';
 const TABLET_BREAKPOINT = 768;
 const SKELETON_COUNT = 3;
 
-function StationCardSkeleton({
-  styles,
-}: {
-  styles: ReturnType<typeof createStyles>;
-}) {
+/** Station card skeleton (shimmering) – discovery keeps skeletons instead of a spinner. */
+function StationCardSkeleton({ styles }: { styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.card}>
-      <View style={styles.image} />
+      <SkeletonLoader height={156} radius={0} />
       <View style={styles.body}>
-        <View style={styles.titleLine} />
-        <View style={styles.addressLine} />
-        <View style={styles.divider} />
+        <SkeletonLoader width="62%" height={18} radius={8} />
+        <SkeletonLoader width="84%" height={13} radius={7} />
+        <SkeletonLoader width="100%" height={6} radius={3} style={styles.meter} />
         <View style={styles.metaRow}>
-          <View style={styles.metaItem} />
-          <View style={styles.metaItem} />
-          <View style={styles.metaItemWide} />
+          <SkeletonLoader width="28%" height={30} radius={10} />
+          <SkeletonLoader width="28%" height={30} radius={10} />
+          <SkeletonLoader width="28%" height={30} radius={10} />
         </View>
       </View>
     </View>
@@ -37,12 +35,13 @@ export function StationLoadingState() {
   const isTablet = width >= TABLET_BREAKPOINT;
 
   return (
-    <View style={[styles.container, isTablet && styles.containerTablet]}>
+    <View
+      style={[styles.container, isTablet && styles.containerTablet]}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading stations"
+    >
       {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-        <View
-          key={`station-skeleton-${index}`}
-          style={[styles.item, isTablet && styles.itemTablet]}
-        >
+        <View key={`station-skeleton-${index}`} style={[styles.item, isTablet && styles.itemTablet]}>
           <StationCardSkeleton styles={styles} />
         </View>
       ))}
@@ -54,69 +53,22 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     container: {
       paddingHorizontal: DISCOVERY_LAYOUT.edge,
-      paddingTop: 0,
+      paddingTop: DISCOVERY_LAYOUT.sectionGap,
       paddingBottom: DISCOVERY_LAYOUT.edge,
       gap: DISCOVERY_LAYOUT.cardGap,
     },
-    containerTablet: {
-      alignItems: 'center',
-    },
-    item: {
-      marginBottom: theme.spacing.md,
-    },
-    itemTablet: {
-      width: '100%',
-      maxWidth: 640,
-    },
+    containerTablet: { alignItems: 'center' },
+    item: { marginBottom: theme.spacing.xs },
+    itemTablet: { width: '100%', maxWidth: 640 },
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      borderWidth: 1,
+      borderRadius: theme.radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.colors.border,
       overflow: 'hidden',
     },
-    image: {
-      height: 156,
-      backgroundColor: theme.colors.placeholder,
-    },
-    body: {
-      paddingHorizontal: 16,
-      paddingTop: 14,
-      paddingBottom: 14,
-      gap: 10,
-    },
-    titleLine: {
-      height: 18,
-      width: '65%',
-      borderRadius: 6,
-      backgroundColor: theme.colors.placeholder,
-    },
-    addressLine: {
-      height: 14,
-      width: '85%',
-      borderRadius: 6,
-      backgroundColor: theme.colors.placeholder,
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: theme.colors.border,
-      marginVertical: 2,
-    },
-    metaRow: {
-      flexDirection: 'row',
-      gap: 12,
-    },
-    metaItem: {
-      height: 14,
-      width: 56,
-      borderRadius: 6,
-      backgroundColor: theme.colors.placeholder,
-    },
-    metaItemWide: {
-      height: 14,
-      flex: 1,
-      borderRadius: 6,
-      backgroundColor: theme.colors.placeholder,
-    },
+    body: { padding: 16, gap: 10 },
+    meter: { marginTop: 4 },
+    metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   });
 }

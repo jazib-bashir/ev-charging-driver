@@ -1,17 +1,16 @@
 import { router, type Href } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   type TextInput as TextInputType,
 } from 'react-native';
 
+import { Text, TextInput } from '@/components/ui/text';
 import {
   AuthApiError,
   requestOtp,
@@ -37,7 +36,8 @@ import {
   useRequestStatus,
 } from '@/components/ui/request-status';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { theme } from '@/theme';
+import { FullScreenLoader } from '@/components/loaders';
+import { useTheme } from '@/theme';
 
 type AuthStep = 'phone' | 'otp';
 
@@ -51,6 +51,9 @@ function formatResendCountdown(seconds: number): string {
 }
 
 export function OtpAuthScreen() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [isVerifying, setIsVerifying] = useState(false);
   const { setSession, pendingBooking } = useAuth();
   const otpInputRef = useRef<TextInputType>(null);
   const { status, showError, clearStatus } = useRequestStatus(3000);
@@ -190,6 +193,7 @@ export function OtpAuthScreen() {
 
     clearStatus();
     setIsSubmitting(true);
+    setIsVerifying(true);
 
     try {
       const tokenResponse = await verifyOtp(challengeId, otpCode);
@@ -229,13 +233,15 @@ export function OtpAuthScreen() {
       showError(message);
     } finally {
       setIsSubmitting(false);
+      setIsVerifying(false);
     }
   };
 
   const isPhoneStep = step === 'phone';
+  const phoneError = status?.tone === 'error';
 
   return (
-    <ScreenContainer edges={['bottom']} style={styles.screen}>
+    <ScreenContainer edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -245,38 +251,27 @@ export function OtpAuthScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <AuthWaveHeader
-            onBack={isPhoneStep ? handlePhoneScreenBack : goBackToPhone}
-          />
+          <AuthWaveHeader onBack={isPhoneStep ? handlePhoneScreenBack : goBackToPhone} />
 
           {isPhoneStep ? (
-            <>
-              <Text style={styles.heading}>Let's get you connected ⚡</Text>
-              <Text style={styles.subtitle}>
-                Enter your mobile number to continue.
-              </Text>
+            <View style={styles.form}>
+              <Text style={styles.overline}>LET'S GET CONNECTED</Text>
+              <Text style={styles.heading}>Your journey starts here.</Text>
+              <Text style={styles.subtitle}>Enter your mobile number to continue.</Text>
 
-              <View
-                style={[
-                  styles.phoneRow,
-                  status?.tone === 'error' ? styles.phoneRowError : null,
-                ]}
-              >
+              <View style={[styles.phoneRow, phoneError ? styles.phoneRowError : null]}>
                 <View style={styles.prefixChip}>
                   <Text style={styles.flag}>🇵🇰</Text>
                   <Text style={styles.dialCode}>{PAKISTAN_DIAL_CODE}</Text>
-                  <Icon
-                    name="chevron-down"
-                    size={14}
-                    color={theme.colors.textMuted}
-                  />
+                  <Icon name="chevron-down" size={14} color={theme.colors.textMuted} />
                 </View>
                 <TextInput
                   style={styles.phoneInput}
                   value={formatPkLocalDisplay(localPhone)}
                   onChangeText={handlePhoneChange}
                   placeholder="3XX XXXXXXX"
-                  placeholderTextColor={theme.colors.textMuted}
+                  placeholderTextColor={theme.colors.inputPlaceholder}
+                  selectionColor={theme.colors.primary}
                   keyboardType="phone-pad"
                   autoComplete="tel"
                   textContentType="telephoneNumber"
@@ -286,9 +281,11 @@ export function OtpAuthScreen() {
                 />
               </View>
 
-              <View style={styles.statusGap}>
-                <RequestStatusBanner status={status} />
-              </View>
+              {status ? (
+                <View style={styles.statusGap}>
+                  <RequestStatusBanner status={status} />
+                </View>
+              ) : null}
 
               <AuthPrimaryButton
                 label="Continue"
@@ -301,23 +298,24 @@ export function OtpAuthScreen() {
               />
 
               <View style={styles.smsHint}>
-                <Icon name="checkmark" size={16} color={theme.colors.accent} />
+                <Icon name="checkmark" size={16} color={theme.colors.textLink} />
                 <Text style={styles.smsHintText}>
                   We'll send a 6-digit verification code via SMS.
                 </Text>
               </View>
 
               <Text style={styles.legalText}>
-                By continuing, you agree to GridFlow's{' '}
+                By continuing, you agree to konnectEVS{' '}
                 <Text style={styles.legalLink}>Terms of Service</Text> and{' '}
                 <Text style={styles.legalLink}>Privacy Policy</Text>.
               </Text>
-            </>
+            </View>
           ) : (
-            <>
-              <Text style={styles.heading}>Verify Your Phone</Text>
-              <Text style={styles.otpInstruction}>
-                We sent a 6-digit code to{'\n'}
+            <View style={styles.form}>
+              <Text style={styles.overline}>VERIFY YOUR NUMBER</Text>
+              <Text style={styles.heading}>Enter the 6-digit code.</Text>
+              <Text style={styles.subtitle}>
+                Sent to{' '}
                 <Text style={styles.otpPhone}>
                   {e164Phone ? maskE164ForDisplay(e164Phone) : 'your phone'}
                 </Text>{' '}
@@ -327,10 +325,7 @@ export function OtpAuthScreen() {
                       goBackToPhone();
                     }
                   }}
-                  style={[
-                    styles.editLink,
-                    isSubmitting && styles.editLinkDisabled,
-                  ]}
+                  style={[styles.editLink, isSubmitting && styles.editLinkDisabled]}
                   accessibilityRole="button"
                   accessibilityLabel="Edit phone number"
                 >
@@ -358,7 +353,7 @@ export function OtpAuthScreen() {
                         styles.otpBox,
                         digit ? styles.otpBoxFilled : null,
                         isActive ? styles.otpBoxActive : null,
-                        status?.tone === 'error' ? styles.otpBoxError : null,
+                        phoneError ? styles.otpBoxError : null,
                       ]}
                     >
                       <Text style={styles.otpDigit}>{digit ?? ''}</Text>
@@ -381,17 +376,19 @@ export function OtpAuthScreen() {
                 editable={!isSubmitting}
               />
 
-              <Text style={styles.otpHint}>
-                Tap any slot or paste code from clipboard
-              </Text>
+              {status ? (
+                <View style={styles.statusGap}>
+                  <RequestStatusBanner status={status} />
+                </View>
+              ) : (
+                <Text style={styles.otpHint}>Tap any slot or paste the code from your clipboard.</Text>
+              )}
 
               <View style={styles.resendCard}>
                 <Icon name="time" size={16} color={theme.colors.textMuted} />
                 <Text style={styles.resendPrompt}>Didn't receive the code?</Text>
                 {resendIn > 0 ? (
-                  <Text style={styles.resendWait}>
-                    Resend in {formatResendCountdown(resendIn)}
-                  </Text>
+                  <Text style={styles.resendWait}>Resend in {formatResendCountdown(resendIn)}</Text>
                 ) : (
                   <Pressable
                     onPress={() => {
@@ -402,240 +399,229 @@ export function OtpAuthScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Resend verification code"
                   >
-                    <Text
-                      style={[
-                        styles.resendAction,
-                        isSubmitting && styles.editLinkDisabled,
-                      ]}
-                    >
+                    <Text style={[styles.resendAction, isSubmitting && styles.editLinkDisabled]}>
                       Resend
                     </Text>
                   </Pressable>
                 )}
               </View>
 
-              <View style={styles.statusGap}>
-                <RequestStatusBanner status={status} />
-              </View>
-
               <AuthPrimaryButton
-                label="Verify & Continue →"
+                label="Verify code"
                 onPress={() => {
                   void handleOtpContinue();
                 }}
-                loading={isSubmitting}
-                disabled={
-                  otpCode.trim().length < 4 || !challengeId || isSubmitting
-                }
+                loading={isSubmitting && !isVerifying}
+                disabled={otpCode.trim().length < 4 || !challengeId || isSubmitting}
                 style={styles.primaryButton}
               />
-            </>
+
+              <Text style={styles.legalText}>
+                By continuing, you agree to konnectEVS's{' '}
+                <Text style={styles.legalLink}>Terms of Service</Text> and{' '}
+                <Text style={styles.legalLink}>Privacy Policy</Text>.
+              </Text>
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {isVerifying ? <FullScreenLoader variant="scrim" message="Verifying your code…" /> : null}
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  screen: {
-    backgroundColor: theme.colors.surface,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: theme.spacing.xl,
-  },
-  heading: {
-    fontFamily: theme.typography.fontFamily.brand,
-    fontSize: 24,
-    color: theme.colors.textPrimary,
-    paddingHorizontal: 24,
-    marginTop: 24,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    paddingHorizontal: 24,
-    marginBottom: 20,
-  },
-  otpInstruction: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    paddingHorizontal: 24,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    height: 56,
-    paddingHorizontal: 12,
-    marginHorizontal: 24,
-    ...theme.shadows.card,
-    shadowColor: theme.colors.shadow,
-  },
-  phoneRowError: {
-    borderColor: theme.colors.notification,
-  },
-  prefixChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.borderLight,
-    paddingRight: 10,
-    marginRight: 10,
-  },
-  flag: {
-    fontSize: 18,
-  },
-  dialCode: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-  },
-  phoneInput: {
-    flex: 1,
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: 14,
-    color: theme.colors.textPrimary,
-    paddingVertical: 0,
-  },
-  statusGap: {
-    marginHorizontal: 24,
-    marginTop: 8,
-  },
-  primaryButton: {
-    backgroundColor: theme.colors.accent,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 24,
-    marginTop: 16,
-    opacity: 1,
-  },
-  smsHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    marginHorizontal: 24,
-    marginBottom: theme.spacing.sm,
-  },
-  smsHintText: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-  },
-  legalText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.xl,
-  },
-  legalLink: {
-    color: theme.colors.textSecondary,
-    textDecorationLine: 'underline',
-  },
-  otpPhone: {
-    fontFamily: theme.typography.fontFamily.medium,
-    color: theme.colors.textPrimary,
-  },
-  editLink: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    color: theme.colors.accent,
-  },
-  editLinkDisabled: {
-    opacity: 0.45,
-  },
-  otpBoxes: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginVertical: 16,
-  },
-  otpBox: {
-    flex: 1,
-    aspectRatio: 1,
-    maxWidth: 44,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-    ...theme.shadows.card,
-    shadowColor: theme.colors.shadow,
-  },
-  otpBoxFilled: {
-    borderColor: theme.colors.accent,
-  },
-  otpBoxActive: {
-    borderColor: theme.colors.accent,
-  },
-  otpBoxError: {
-    borderColor: theme.colors.notification,
-  },
-  otpDigit: {
-    fontFamily: theme.typography.fontFamily.brand,
-    fontSize: 18,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-  otpHint: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  resendCard: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginHorizontal: 24,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.background,
-  },
-  resendPrompt: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  resendWait: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.accent,
-  },
-  resendAction: {
-    fontFamily: theme.typography.fontFamily.semibold,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.accent,
-  },
-  hiddenOtpInput: {
-    position: 'absolute',
-    opacity: 0,
-    height: 1,
-    width: 1,
-  },
-});
+function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: theme.spacing.xxl,
+    },
+    form: {
+      paddingHorizontal: theme.spacing.gutter + 4,
+      paddingTop: theme.spacing.xxl,
+    },
+    overline: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: 11,
+      letterSpacing: 1.4,
+      color: theme.colors.textLink,
+      marginBottom: theme.spacing.sm,
+    },
+    heading: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 24,
+      lineHeight: 36,
+      letterSpacing: -1,
+      color: theme.colors.textPrimary,
+    },
+    subtitle: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.md,
+      lineHeight: 22,
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing.sm,
+      marginBottom: theme.spacing.xxl,
+    },
+    phoneRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.control,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      height: 60,
+      paddingHorizontal: 14,
+      ...(theme.isDark ? theme.shadows.none : theme.shadows.card),
+    },
+    phoneRowError: {
+      borderColor: theme.colors.error,
+    },
+    prefixChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRightWidth: StyleSheet.hairlineWidth,
+      borderRightColor: theme.colors.borderStrong,
+      paddingRight: 12,
+      marginRight: 12,
+    },
+    flag: {
+      fontSize: 20,
+    },
+    dialCode: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.fontSize.md,
+      color: theme.colors.textPrimary,
+    },
+    phoneInput: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.semibold,
+      fontSize: 17,
+      letterSpacing: 0.4,
+      color: theme.colors.textPrimary,
+      paddingVertical: 0,
+    },
+    statusGap: {
+      marginTop: theme.spacing.md,
+    },
+    primaryButton: {
+      marginTop: theme.spacing.xl,
+    },
+    smsHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: theme.spacing.lg,
+    },
+    smsHintText: {
+      flex: 1,
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      lineHeight: 18,
+    },
+    legalText: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 18,
+      paddingHorizontal: theme.spacing.md,
+      marginTop: theme.spacing.xxl,
+    },
+    legalLink: {
+      color: theme.colors.textLink,
+      fontFamily: theme.typography.fontFamily.semibold,
+    },
+    otpPhone: {
+      fontFamily: theme.typography.fontFamily.bold,
+      color: theme.colors.textPrimary,
+    },
+    editLink: {
+      fontFamily: theme.typography.fontFamily.bold,
+      color: theme.colors.textLink,
+    },
+    editLinkDisabled: {
+      opacity: 0.45,
+    },
+    otpBoxes: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginBottom: theme.spacing.lg,
+    },
+    otpBox: {
+      flex: 1,
+      maxWidth: theme.sizes.otpBox.width,
+      height: theme.sizes.otpBox.height,
+      backgroundColor: theme.colors.inputBackground,
+      borderRadius: theme.radius.control,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    otpBoxFilled: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.borderStrong,
+    },
+    otpBoxActive: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.primary,
+    },
+    otpBoxError: {
+      backgroundColor: theme.colors.errorBg,
+      borderColor: theme.colors.error,
+    },
+    otpDigit: {
+      fontFamily: theme.typography.fontFamily.brand,
+      fontSize: 24,
+      color: theme.colors.textPrimary,
+      textAlign: 'center',
+      includeFontPadding: false,
+    },
+    otpHint: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textMuted,
+      marginBottom: theme.spacing.sm,
+    },
+    resendCard: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: theme.spacing.sm,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.colors.surfaceSunken,
+    },
+    resendPrompt: {
+      fontFamily: theme.typography.fontFamily.regular,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textSecondary,
+    },
+    resendWait: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textLink,
+    },
+    resendAction: {
+      fontFamily: theme.typography.fontFamily.bold,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.textLink,
+    },
+    hiddenOtpInput: {
+      position: 'absolute',
+      opacity: 0,
+      height: 1,
+      width: 1,
+    },
+  });
+}

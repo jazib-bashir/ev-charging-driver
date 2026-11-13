@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useTheme, type AppTheme } from '@/theme';
 
@@ -49,7 +50,7 @@ export function JourneyProgressCard({ currentStepIndex }: JourneyProgressCardPro
                 ]}
               >
                 {isComplete ? (
-                  <Icon name="check" size={12} color="#FFFFFF" />
+                  <Icon name="check" size={12} color={theme.colors.onPrimary} />
                 ) : (
                   <Text
                     style={[
@@ -80,7 +81,7 @@ function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 16,
@@ -130,7 +131,7 @@ function createStyles(theme: AppTheme) {
       backgroundColor: theme.colors.border,
     },
     railFillActive: {
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
     },
     circle: {
       width: 26,
@@ -141,7 +142,7 @@ function createStyles(theme: AppTheme) {
       zIndex: 1,
     },
     circleActive: {
-      backgroundColor: theme.colors.brand,
+      backgroundColor: theme.colors.primary,
     },
     circleUpcoming: {
       backgroundColor: theme.colors.surface,
@@ -155,7 +156,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textMuted,
     },
     numberActive: {
-      color: '#FFFFFF',
+      color: theme.colors.onPrimary,
     },
     numberUpcoming: {
       color: theme.colors.textMuted,
@@ -168,7 +169,7 @@ function createStyles(theme: AppTheme) {
       textAlign: 'center',
     },
     stepLabelActive: {
-      color: theme.colors.brand,
+      color: theme.colors.textLink,
       fontFamily: theme.typography.fontFamily.semibold,
       fontWeight: '600',
     },
