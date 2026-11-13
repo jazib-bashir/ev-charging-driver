@@ -1,9 +1,9 @@
-import { ScreenHeader } from '@/components/ui/screen-header';
+import { ScreenHero } from '@/components/layout/screen-hero';
 
 type SessionDetailHeaderProps = {
   onBack: () => void;
 };
 
 export function SessionDetailHeader({ onBack }: SessionDetailHeaderProps) {
-  return <ScreenHeader title="Session details" onBack={onBack} />;
+  return <ScreenHero title="Session details" onBack={onBack} />;
 }

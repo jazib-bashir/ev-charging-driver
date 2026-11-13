@@ -520,7 +520,7 @@ export default function VehicleSelectionScreen() {
 
                   {loading ? (
                     <View style={styles.garageBusy}>
-                      <ButtonLoader size={22} />
+                      <ButtonLoader size={22} color={theme.colors.textLink} />
                     </View>
                   ) : null}
                 </View>
@@ -646,7 +646,7 @@ export default function VehicleSelectionScreen() {
                       </Text>
                     ) : null}
                     {loading ? (
-                      <ButtonLoader size={22} />
+                      <ButtonLoader size={22} color={theme.colors.textLink} />
                     ) : (
                       <View style={styles.addIconWrap}>
                         <Icon

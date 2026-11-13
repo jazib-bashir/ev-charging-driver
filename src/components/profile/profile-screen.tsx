@@ -25,7 +25,7 @@ import { ProfileSessionPreview } from '@/components/profile/profile-session-prev
 import { ProfileVehicleCard } from '@/components/profile/profile-vehicle-card';
 import { PageLoader } from '@/components/loaders/page-loader';
 import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
-import { StationHeader } from '@/components/station/station-header';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Icon } from '@/components/ui/icon';
@@ -307,7 +307,8 @@ export function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <ScreenContainer edges={['top']} style={styles.screen}>
+      <ScreenContainer edges={[]} style={styles.screen}>
+        <ScreenHero title="Profile" />
         <PageLoader message="Loading profile…" />
       </ScreenContainer>
     );
@@ -320,8 +321,8 @@ export function ProfileScreen() {
   const actionsDisabled = isLoggingOut || isRefreshing || busyVehicleId !== null;
 
   return (
-    <ScreenContainer edges={['top']} style={styles.screen}>
-      <StationHeader />
+    <ScreenContainer edges={[]} style={styles.screen}>
+      <ScreenHero title="Profile" subtitle="Account, vehicles, and preferences" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

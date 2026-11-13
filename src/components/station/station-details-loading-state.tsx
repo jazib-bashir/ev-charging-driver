@@ -4,8 +4,11 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { useTheme } from '@/theme';
 
+import { StationDetailsBackChrome } from './station-details-back-chrome';
+
 const TABLET_BREAKPOINT = 768;
 const MAX_CONTENT_WIDTH = 720;
+const HERO_HEIGHT = 260;
 
 function SkeletonBlock({
   width,
@@ -20,7 +23,11 @@ function SkeletonBlock({
   return <SkeletonLoader width={width} height={height} radius={height > 40 ? 20 : 9} style={style} />;
 }
 
-export function StationDetailsLoadingState() {
+type StationDetailsLoadingStateProps = {
+  onBack: () => void;
+};
+
+export function StationDetailsLoadingState({ onBack }: StationDetailsLoadingStateProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { width } = useWindowDimensions();
@@ -28,12 +35,15 @@ export function StationDetailsLoadingState() {
 
   return (
     <View style={[styles.container, isTablet && styles.containerTablet]}>
-      <SkeletonBlock
-        width="100%"
-        height={260}
-        style={styles.hero}
-        blockStyle={styles.block}
-      />
+      <View style={styles.heroWrap}>
+        <SkeletonBlock
+          width="100%"
+          height={HERO_HEIGHT}
+          style={styles.hero}
+          blockStyle={styles.block}
+        />
+        <StationDetailsBackChrome onBack={onBack} placement="overlay" />
+      </View>
 
       <View style={styles.section}>
         <SkeletonBlock width="72%" height={24} blockStyle={styles.block} />
@@ -105,6 +115,10 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       alignSelf: 'center',
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
+    },
+    heroWrap: {
+      position: 'relative',
+      height: HERO_HEIGHT,
     },
     block: {
       borderRadius: theme.radius.sm,

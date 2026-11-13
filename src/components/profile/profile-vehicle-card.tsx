@@ -184,7 +184,7 @@ export function ProfileVehicleCard({
               accessibilityLabel={`Make ${title} default`}
             >
               {isBusy ? (
-                <ButtonLoader size={22} />
+                <ButtonLoader size={22} color={theme.colors.textLink} />
               ) : (
                 <>
                   <Icon name="star" size={12} color={theme.colors.textLink} />

@@ -13,7 +13,7 @@ type AuthPrimaryButtonProps = {
 
 /**
  * Auth call-to-action. Thin wrapper over the shared `Button` so the auth flow uses the same
- * primary / disabled / loading (branded `ButtonLoader`) styles as the rest of the app.
+ * primary / disabled / loading (circular `ButtonLoader`) styles as the rest of the app.
  */
 export function AuthPrimaryButton({
   label,

@@ -114,7 +114,7 @@ export function StationList({
       ListFooterComponent={
         isLoadingMore ? (
           <View style={styles.footer}>
-            <ButtonLoader size={32} />
+            <ButtonLoader size={32} color={theme.colors.textLink} />
           </View>
         ) : null
       }

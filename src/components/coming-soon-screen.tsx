@@ -3,8 +3,7 @@ import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { FeedbackIllustration } from '@/components/brand/illustrations';
-import { Icon } from '@/components/ui/icon';
-import { IconButton } from '@/components/ui/icon-button';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
@@ -18,18 +17,17 @@ export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <ScreenContainer edges={['top']}>
-      <View style={styles.header}>
-        <IconButton
-          onPress={() => router.back()}
-          accessibilityLabel="Go back"
-          appearance="soft"
-        >
-          <Icon name="back" size={22} color={theme.colors.textPrimary} />
-        </IconButton>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <View style={styles.headerSide} />
-      </View>
+    <ScreenContainer edges={[]}>
+      <ScreenHero
+        title={title}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/');
+          }
+        }}
+      />
 
       <ScreenContent style={styles.content}>
         <View style={styles.art}>
@@ -46,24 +44,6 @@ export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.gutter,
-      paddingVertical: theme.spacing.md,
-    },
-    headerSide: {
-      width: 40,
-      height: 40,
-    },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: theme.typography.fontSize.lg,
-      color: theme.colors.textPrimary,
-      letterSpacing: -0.3,
-    },
     content: {
       alignItems: 'center',
       justifyContent: 'center',

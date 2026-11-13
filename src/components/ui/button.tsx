@@ -20,7 +20,7 @@ type ButtonProps = {
   onPress?: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Shows the branded ButtonLoader, keeps the button's exact dimensions and blocks duplicate taps. */
+  /** Shows a circular ButtonLoader, keeps the button's exact dimensions and blocks duplicate taps. */
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
@@ -96,7 +96,7 @@ export function Button({
       </View>
       {loading ? (
         <View style={styles.loader} pointerEvents="none">
-          <ButtonLoader size={size === 'sm' ? 22 : 28} />
+          <ButtonLoader size={size === 'sm' ? 18 : 22} color={palette.text} />
         </View>
       ) : null}
     </Pressable>

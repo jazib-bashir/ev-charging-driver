@@ -15,8 +15,8 @@ type BrandLoaderProps = {
 };
 
 /**
- * Core konnectEV loading indicator – the approved animated Weave loader. All other loaders
- * (`ButtonLoader`, `PageLoader`, `FullScreenLoader`) are built on top of this component.
+ * Core konnectEV loading indicator – the approved animated Weave loader. Page and full-screen
+ * loaders (`PageLoader`, `FullScreenLoader`) are built on top of this component.
  */
 export function BrandLoader({ size = 56, tile = true, style }: BrandLoaderProps) {
   if (!tile) {

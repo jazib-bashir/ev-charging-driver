@@ -48,8 +48,9 @@ export const lightColors = {
   brandMuted: 'rgba(8, 120, 94, 0.09)',
   accent: PRIMARY,
 
-  // Dark hero panels (active session, queue, journey)
+  // Dark hero panels (ScreenHero, active session, queue, journey)
   heroBackground: '#0D1117',
+  heroBackgroundEnd: '#101A1F',
   heroSurface: 'rgba(255, 255, 255, 0.06)',
   heroBorder: 'rgba(255, 255, 255, 0.10)',
   heroText: '#FFFFFF',
@@ -83,9 +84,9 @@ export const lightColors = {
   selectionBorder: 'rgba(8, 120, 94, 0.38)',
 
   // Navigation
-  /** White top chrome behind StationHeader (logo + notifications). */
+  /** Legacy light top chrome token (ScreenHero uses heroBackground). */
   navBarBackground: '#FFFFFF',
-  /** Title / hero strip under the top nav — product Emerald (Home, Sessions, Map). */
+  /** Legacy emerald title-band token (ScreenHero uses heroBackground). */
   titleBandBackground: PRIMARY,
   titleBandText: '#FFFFFF',
   titleBandTextMuted: 'rgba(255, 255, 255, 0.85)',
@@ -168,6 +169,7 @@ export const darkColors: { [K in keyof typeof lightColors]: string } = {
   accent: SECONDARY,
 
   heroBackground: '#101A1F',
+  heroBackgroundEnd: '#101A1F',
   heroSurface: 'rgba(255, 255, 255, 0.06)',
   heroBorder: 'rgba(255, 255, 255, 0.10)',
   heroText: '#FFFFFF',

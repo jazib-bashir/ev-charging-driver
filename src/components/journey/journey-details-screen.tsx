@@ -800,7 +800,7 @@ export function JourneyDetailsScreen() {
   }
 
   return (
-    <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
+    <ScreenContainer edges={['bottom']} style={styles.screen}>
       <JourneyDetailsHeader onBack={handleBack} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}

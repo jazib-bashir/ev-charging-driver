@@ -18,14 +18,15 @@ const WEAVE_SHIFT_X = (WORDMARK_KONNECT_CENTER_RATIO - 0.5) * WORDMARK_WIDTH;
 
 type AuthWaveHeaderProps = {
   onBack: () => void;
+  showBack?: boolean;
 };
 
 /**
- * Emerald brand header shared by phone login and OTP verification (Figma `authArt`).
+ * Emerald brand header shared by phone login and OTP verification.
  * Explicit SVG sizing (not percentage height) keeps the wave silhouette correct on native.
  * The Weave is aligned to the "konnect" portion of the wordmark.
  */
-export function AuthWaveHeader({ onBack }: AuthWaveHeaderProps) {
+export function AuthWaveHeader({ onBack, showBack = true }: AuthWaveHeaderProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(), []);
 
@@ -75,15 +76,17 @@ export function AuthWaveHeader({ onBack }: AuthWaveHeaderProps) {
         />
       </Svg>
 
-      <Pressable
-        onPress={onBack}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        style={styles.backButton}
-      >
-        <Icon name="back" size={22} color={theme.colors.onPrimary} />
-      </Pressable>
+      {showBack ? (
+        <Pressable
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={styles.backButton}
+        >
+          <Icon name="back" size={22} color={theme.colors.onPrimary} />
+        </Pressable>
+      ) : null}
 
       <View style={styles.brand} pointerEvents="none">
         <View style={[styles.tile, { transform: [{ translateX: WEAVE_SHIFT_X }] }]}>

@@ -12,9 +12,9 @@ import { fetchPublicStation } from '@/api/publicStations';
 import { useAuth } from '@/auth/auth-context';
 import { ButtonLoader } from '@/components/loaders/button-loader';
 import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
-import { StationHeader } from '@/components/station/station-header';
 import { useChargingSessions } from '@/hooks/use-charging-sessions';
 import { useTheme } from '@/theme';
 import type { ChargingSession, ChargingSessionStatus } from '@/types/charging-session';
@@ -22,7 +22,6 @@ import { formatConnectorLabel, formatEvseLabel } from '@/utils/charging-session-
 
 import { SessionListItem } from './session-list-item';
 import { SessionStatusFilterRow } from './session-status-filter-row';
-import { SessionsScreenHeader } from './sessions-screen-header';
 
 type SessionLabels = {
   stationName?: string;
@@ -174,7 +173,7 @@ export function SessionsScreen() {
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoader}>
-              <ButtonLoader size={28} />
+              <ButtonLoader size={28} color={theme.colors.textLink} />
             </View>
           ) : null
         }
@@ -197,11 +196,10 @@ export function SessionsScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top']} style={styles.screen}>
-      <StationHeader />
-      <SessionsScreenHeader
-        onRefresh={() => void refresh()}
-        isRefreshing={isRefreshing}
+    <ScreenContainer edges={[]} style={styles.screen}>
+      <ScreenHero
+        title="My Sessions"
+        subtitle="Charging history and live status"
       />
       <SessionStatusFilterRow
         activeStatus={statusFilter}

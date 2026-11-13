@@ -24,13 +24,13 @@ import { confirmAsync, showUserAlert } from '@/utils/user-prompt';
 import { NoticeToast } from '@/components/ui/notice-toast';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 
+import { ScreenHero } from '@/components/layout/screen-hero';
+
 import { DiscoveryFilterChips } from './discovery-filter-chips';
-import { DiscoveryHeroIntro } from './discovery-hero-intro';
 import { DiscoverySearchToolbar } from './discovery-search-toolbar';
 import { FilterBottomSheet } from './filter-bottom-sheet';
 import { LocationPermissionBanner } from './location-permission-banner';
 import { StationErrorState } from './station-error-state';
-import { StationHeader } from './station-header';
 import { StationList } from './station-list';
 import { StationLoadingState } from './station-loading-state';
 
@@ -403,7 +403,7 @@ export function StationDiscoveryScreen() {
   if (hasActiveJourney) {
     return (
       <ScreenContainer
-        edges={['top']}
+        edges={[]}
         style={
           hasActiveCharging && isDark
             ? { backgroundColor: theme.colors.heroBackground }
@@ -460,8 +460,12 @@ export function StationDiscoveryScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top']}>
-      <StationHeader />
+    <ScreenContainer edges={[]}>
+      <ScreenHero
+        eyebrow="FIND YOUR NEXT CHARGE"
+        title="Where are you headed?"
+        subtitle="See live charger and queue availability nearby."
+      />
       {noticeMessage ? (
         <NoticeToast message={noticeMessage} onDismiss={dismissNotice} />
       ) : null}
@@ -470,10 +474,7 @@ export function StationDiscoveryScreen() {
         <NoticeToast message={locationError} onDismiss={clearLocationError} />
       ) : null}
 
-      <View>
-        <DiscoveryHeroIntro />
-        {discoverySearchChrome}
-      </View>
+      {discoverySearchChrome}
 
       <ScreenContent>{renderContent()}</ScreenContent>
 

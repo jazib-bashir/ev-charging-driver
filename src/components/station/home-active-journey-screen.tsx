@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { StatRow, StatTile } from '@/components/ui/stat-tile';
 import { Surface } from '@/components/ui/surface';
 import { Text } from '@/components/ui/text';
-import { StationHeader } from '@/components/station/station-header';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { useTheme, type AppTheme } from '@/theme';
 import type { ChargingSession } from '@/types/charging-session';
 import type { QueueMember } from '@/types/queue';
@@ -91,7 +91,10 @@ export function HomeActiveJourneyScreen({
 
   return (
     <View style={styles.screen} accessibilityLabel={`Home journey · ${statusLabel}`}>
-      <StationHeader />
+      <ScreenHero
+        title={stationName?.trim() || 'Charging station'}
+        subtitle={identitySubtitle ?? statusLabel}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

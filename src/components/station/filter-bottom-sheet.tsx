@@ -415,7 +415,7 @@ export function FilterBottomSheet({
               <Text style={styles.sectionTitle}>City</Text>
               {isLoadingCities ? (
                 <View style={styles.loadingContainer}>
-                  <ButtonLoader size={26} />
+                  <ButtonLoader size={26} color={theme.colors.textLink} />
                   <Text style={styles.loadingText}>Loading cities...</Text>
                 </View>
               ) : (
@@ -456,7 +456,7 @@ export function FilterBottomSheet({
               </Text>
               {isLoadingVehicles ? (
                 <View style={styles.loadingContainer}>
-                  <ButtonLoader size={26} />
+                  <ButtonLoader size={26} color={theme.colors.textLink} />
                   <Text style={styles.loadingText}>
                     {authToken ? 'Loading your vehicles...' : 'Loading vehicles...'}
                   </Text>
@@ -605,7 +605,7 @@ export function FilterBottomSheet({
 
       <View style={styles.bottomBar}>
         <Button
-          label={isResolvingLocation ? 'Locating…' : 'Search'}
+          label="Search"
           onPress={() => {
             void handleApply();
           }}

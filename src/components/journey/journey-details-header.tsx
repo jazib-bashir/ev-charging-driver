@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { JOURNEY_DETAILS_GUTTER } from '@/components/journey/journey-details-layout';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { Badge } from '@/components/ui/badge';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { useTheme, type AppTheme } from '@/theme';
 
 type JourneyDetailsHeaderProps = {
@@ -19,10 +18,10 @@ export function JourneyDetailsHeader({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <ScreenHeader
+    <ScreenHero
       title="Journey details"
       onBack={onBack}
-      right={
+      trailing={
         <View style={styles.live}>
           <Badge label={liveLabel} variant="available" showDot />
         </View>
@@ -34,7 +33,7 @@ export function JourneyDetailsHeader({
 function createStyles(_theme: AppTheme) {
   return StyleSheet.create({
     live: {
-      marginRight: JOURNEY_DETAILS_GUTTER - 16 > 0 ? JOURNEY_DETAILS_GUTTER - 16 : 0,
+      maxWidth: 160,
     },
   });
 }

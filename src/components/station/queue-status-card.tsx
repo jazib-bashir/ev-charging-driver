@@ -86,7 +86,7 @@ function PendingEvseSection({ message }: { message: string }) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.pendingEvse}>
-      <ButtonLoader size={20} />
+      <ButtonLoader size={20} color={theme.colors.textLink} />
       <Text style={styles.pendingText}>{message}</Text>
     </View>
   );

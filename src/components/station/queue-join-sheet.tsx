@@ -230,7 +230,7 @@ export function QueueJoinSheet({
 
               {isLoadingVehicles ? (
                 <View style={styles.loadingBlock}>
-                  <ButtonLoader size={36} />
+                  <ButtonLoader size={36} color={theme.colors.textLink} />
                   <Text style={styles.loadingLabel}>Loading vehicles…</Text>
                 </View>
               ) : vehiclesError ? (

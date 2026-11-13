@@ -3,10 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { useStationDiscoveryContext } from '@/contexts/station-discovery-context';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { Text } from '@/components/ui/text';
-import { TitleBand } from '@/components/ui/title-band';
 import { getStationsWithCoordinates } from '@/utils/map-region';
 import { useTheme } from '@/theme';
 import { isExpoGoAndroid } from '@/utils/runtime';
@@ -18,7 +17,6 @@ import { LocationPermissionBanner } from './location-permission-banner';
 import { MapExpoGoNotice } from './map-expo-go-notice';
 import { MapLoadingState } from './map-loading-state';
 import { StationErrorState } from './station-error-state';
-import { StationHeader } from './station-header';
 import { StationMap } from './station-map';
 
 export function StationMapScreen() {
@@ -65,13 +63,8 @@ export function StationMapScreen() {
   const hasActiveDiscovery = hasActiveSearch || hasActiveFilters;
 
   return (
-    <ScreenContainer edges={['top']} style={styles.screen}>
-      <StationHeader />
-
-      <TitleBand contentStyle={styles.titleContent}>
-        <Text style={styles.title}>Station Map</Text>
-        <Text style={styles.subtitle}>Live chargers near you</Text>
-      </TitleBand>
+    <ScreenContainer edges={[]} style={styles.screen}>
+      <ScreenHero title="Station Map" subtitle="Live chargers near you" />
 
       <View style={styles.mapStage}>
         {isInitialLoading ? <MapLoadingState /> : null}
@@ -168,22 +161,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     screen: {
       backgroundColor: theme.colors.background,
-    },
-    titleContent: {
-      gap: 4,
-    },
-    title: {
-      fontFamily: theme.typography.fontFamily.brand,
-      fontSize: theme.textStyles.h1.fontSize,
-      lineHeight: theme.textStyles.h1.lineHeight,
-      letterSpacing: theme.textStyles.h1.letterSpacing,
-      color: theme.colors.titleBandText,
-    },
-    subtitle: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: theme.typography.fontSize.md,
-      lineHeight: 20,
-      color: theme.colors.titleBandTextMuted,
     },
     mapStage: {
       flex: 1,

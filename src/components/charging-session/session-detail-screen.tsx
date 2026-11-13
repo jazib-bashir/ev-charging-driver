@@ -471,7 +471,7 @@ export function SessionDetailScreen() {
   };
 
   return (
-    <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
+    <ScreenContainer edges={['bottom']} style={styles.screen}>
       <SessionDetailHeader onBack={() => router.back()} />
       {renderBody()}
     </ScreenContainer>

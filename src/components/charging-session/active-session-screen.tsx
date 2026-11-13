@@ -6,9 +6,9 @@ import { useAuth } from '@/auth/auth-context';
 import { fetchPublicChargers } from '@/api/publicChargers';
 import { fetchPublicStation } from '@/api/publicStations';
 import { stopDriverChargingSession } from '@/api/chargingSessions';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { PageLoader } from '@/components/loaders';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
@@ -80,10 +80,9 @@ export function ActiveSessionScreen() {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={[]}>
+      <ScreenHero title="Active session" showBack />
       <ScreenContent>
-        <ScreenHeader title="Active session" />
-
         {isLoading ? <PageLoader message="Loading your session…" /> : null}
 
         {error && !isLoading ? (

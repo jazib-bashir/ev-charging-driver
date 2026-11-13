@@ -60,7 +60,7 @@ import { QueueJoinSheet } from './queue-join-sheet';
 import { QueueStatusCard } from './queue-status-card';
 import { StationAmenitiesSection } from './station-amenities-section';
 import { StationChargersSection } from './station-chargers-section';
-import { StationDetailsHeader } from './station-details-header';
+import { StationDetailsBackChrome } from './station-details-back-chrome';
 import { StationDetailsLoadingState } from './station-details-loading-state';
 
 const TABLET_BREAKPOINT = 768;
@@ -473,17 +473,16 @@ function StationDetailsContent({
 
   if (isStationLoading) {
     return (
-      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
-        <StationDetailsHeader onBack={handleBack} />
-        <StationDetailsLoadingState />
+      <ScreenContainer edges={['bottom']} style={styles.screen}>
+        <StationDetailsLoadingState onBack={handleBack} />
       </ScreenContainer>
     );
   }
 
   if (isStationError) {
     return (
-      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
-        <StationDetailsHeader onBack={handleBack} />
+      <ScreenContainer edges={['bottom']} style={styles.screen}>
+        <StationDetailsBackChrome onBack={handleBack} placement="bar" />
         <StationErrorState onRetry={retryStation} />
       </ScreenContainer>
     );
@@ -491,8 +490,8 @@ function StationDetailsContent({
 
   if (isStationNotFound || !station) {
     return (
-      <ScreenContainer edges={['top', 'bottom']} style={styles.screen}>
-        <StationDetailsHeader onBack={handleBack} />
+      <ScreenContainer edges={['bottom']} style={styles.screen}>
+        <StationDetailsBackChrome onBack={handleBack} placement="bar" />
         <StationNotFoundState onBack={handleBack} />
       </ScreenContainer>
     );

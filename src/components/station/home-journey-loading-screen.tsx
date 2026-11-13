@@ -43,7 +43,7 @@ export function HomeJourneyLoadingScreen({
             </View>
           ) : (
             <View style={styles.checkSlot}>
-              <ButtonLoader size={22} />
+              <ButtonLoader size={22} color={theme.colors.textLink} />
             </View>
           )}
           <Text style={[styles.checkLabel, accountVerified ? styles.checkLabelDone : styles.checkLabelActive]}>
@@ -54,7 +54,7 @@ export function HomeJourneyLoadingScreen({
         <View style={styles.checkRow}>
           {accountVerified ? (
             <View style={styles.checkSlot}>
-              <ButtonLoader size={22} />
+              <ButtonLoader size={22} color={theme.colors.textLink} />
             </View>
           ) : (
             <View style={styles.checkPending} />

@@ -20,5 +20,4 @@ export { Surface, type SurfaceVariant } from './surface';
 export { Text, TextInput } from './text';
 export { ViewToggle, type ViewMode } from './view-toggle';
 export { ScreenHeader } from './screen-header';
-export { TitleBand } from './title-band';
 export { BottomSheet } from './bottom-sheet';
