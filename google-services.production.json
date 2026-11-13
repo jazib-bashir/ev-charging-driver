@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "369325813977",
+    "project_id": "konnect-evs-driver",
+    "storage_bucket": "konnect-evs-driver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369325813977:android:0f92c19d7c37940be78ec8",
+        "android_client_info": {
+          "package_name": "com.konnectev.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgewIz06g2UFCc7Sn7URDE318DqOOP9_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

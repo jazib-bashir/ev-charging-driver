@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 const { expo } = require('./app.json');
 
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || undefined;
@@ -32,6 +35,25 @@ if (isProductionEasBuild && !apiBaseUrl) {
     'Missing EXPO_PUBLIC_API_BASE_URL for this EAS production build. ' +
       'Set it in the Expo project production environment or via `eas env:create`, then rebuild.',
   );
+}
+
+const GOOGLE_SERVICES_DEV = './google-services.json';
+const GOOGLE_SERVICES_PRODUCTION = './google-services.production.json';
+
+function resolveGoogleServicesFile() {
+  if (process.env.GOOGLE_SERVICES_JSON) {
+    return process.env.GOOGLE_SERVICES_JSON;
+  }
+  if (isProductionEasBuild) {
+    if (!fs.existsSync(path.join(__dirname, 'google-services.production.json'))) {
+      throw new Error(
+        'Missing google-services.production.json for production (Android package com.konnectev.driver). ' +
+          'Download it from the konnect-evs-driver Firebase project and place it in the repo root, then rebuild.',
+      );
+    }
+    return GOOGLE_SERVICES_PRODUCTION;
+  }
+  return GOOGLE_SERVICES_DEV;
 }
 
 /** @type {import('expo/config').ExpoConfig} */
@@ -90,7 +112,7 @@ module.exports = {
   android: {
     ...expo.android,
     ...(isProductionEasBuild ? { package: 'com.konnectev.driver' } : {}),
-    googleServicesFile: './google-services.json',
+    googleServicesFile: resolveGoogleServicesFile(),
     permissions: [
       ...(expo.android?.permissions ?? []),
       'ACCESS_COARSE_LOCATION',
@@ -109,7 +131,7 @@ module.exports = {
     googleMapsApiKey,
     googleMapsMapId,
     eas: {
-      projectId: '482d6adb-bdf0-46a9-bf8c-ddacf0245e04',
+      projectId: 'da5173ca-e7b0-475a-90d9-18ac44e0dd8e',
     },
   },
 };

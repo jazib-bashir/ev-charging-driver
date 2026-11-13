@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "konnectEVS",
-    "slug": "ev-charging-driver",
+    "slug": "konnect-evs-driver",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/brand/konnectev-android-432.png",

@@ -22,9 +22,11 @@ Native projects are generated on demand (`npx expo prebuild`); `android/` and `i
 
 ## Identifiers kept for compatibility
 
-Android package `com.gridflow.driver`, Expo slug `ev-charging-driver`, URL scheme `evchargingdriver`
-and the `gridflow.driver.*` SecureStore keys are unchanged so existing installs, push configuration and
-sessions keep working.
+Android package `com.gridflow.driver` (production EAS: `com.konnectev.driver`), Expo slug
+`konnect-evs-driver`, URL scheme `evchargingdriver`, and the `gridflow.driver.*` SecureStore keys
+are unchanged on dev/preview so existing installs, push configuration, and sessions keep working.
+Production EAS Android builds use `google-services.production.json` (Firebase project
+`konnect-evs-driver`); dev/preview use `google-services.json` (`ev-charging-driver`).
 
 ## Scripts
 
