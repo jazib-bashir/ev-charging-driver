@@ -17,7 +17,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#0D1117",
-        "foregroundImage": "./assets/brand/konnectev-android-432.png"
+        "foregroundImage": "./assets/brand/konnectev-adaptive-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
