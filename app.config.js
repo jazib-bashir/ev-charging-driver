@@ -1,7 +1,7 @@
 const { expo } = require('./app.json');
 
-const DEFAULT_API_BASE_URL = 'https://ev-charging-backend-wwyk.onrender.com';
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || undefined;
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || undefined;
 const googleMapsMapId = process.env.EXPO_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim() || undefined;
 
 /**
@@ -24,6 +24,13 @@ if (isEasAndroidBuild && !googleMapsApiKey) {
     'Missing EXPO_PUBLIC_GOOGLE_MAPS_API_KEY for this EAS Android build. ' +
       'Set it in the Expo project environment (production) or via `eas env:create`, ' +
       'then rebuild. Without it, Google Maps is omitted from AndroidManifest and the map screen crashes on open.',
+  );
+}
+
+if (isProductionEasBuild && !apiBaseUrl) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_API_BASE_URL for this EAS production build. ' +
+      'Set it in the Expo project production environment or via `eas env:create`, then rebuild.',
   );
 }
 
@@ -82,6 +89,7 @@ module.exports = {
   },
   android: {
     ...expo.android,
+    ...(isProductionEasBuild ? { package: 'com.konnectev.driver' } : {}),
     googleServicesFile: './google-services.json',
     permissions: [
       ...(expo.android?.permissions ?? []),
@@ -97,7 +105,7 @@ module.exports = {
     },
   },
   extra: {
-    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL,
+    apiBaseUrl,
     googleMapsApiKey,
     googleMapsMapId,
     eas: {
