@@ -14,8 +14,11 @@ import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
+import { FullScreenImageModal } from '@/components/vehicle/full-screen-image-modal';
+import { VehicleThumbnail } from '@/components/vehicle/vehicle-thumbnail';
 import { useTheme } from '@/theme';
 import type { DriverVehicle } from '@/types/vehicle';
+import { getDriverVehicleImageUrl } from '@/utils/vehicle-image';
 
 type ProfileVehicleCardProps = {
   vehicle: DriverVehicle;
@@ -59,11 +62,13 @@ export function ProfileVehicleCard({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const connectors = getDriverVehicleConnectors(vehicle);
   const title = driverVehicleTitle(vehicle);
   const subtitle = getVehicleProfileSubtitle(vehicle, title);
   const isDefault = vehicle.isDefault;
+  const imageUrl = getDriverVehicleImageUrl(vehicle);
 
   const plateActionLabel = vehicle.licensePlate
     ? 'Edit Number Plate'
@@ -109,27 +114,48 @@ export function ProfileVehicleCard({
     <>
       <View style={[styles.card, isDefault && styles.cardDefault]}>
         <View style={styles.topRow}>
-          <View
-            style={[
-              styles.iconWrap,
-              isDefault ? styles.iconWrapDefault : styles.iconWrapIdle,
-            ]}
-          >
-            <Icon
-              name="car"
-              size={20}
-              color={isDefault ? theme.colors.onPrimary : theme.colors.textMuted}
-            />
-          </View>
+          <VehicleThumbnail
+            uri={imageUrl}
+            accessibilityLabel={`${title} image`}
+            width={88}
+            height={88}
+            iconSize={32}
+            onPress={
+              imageUrl
+                ? () => {
+                    setLightboxOpen(true);
+                  }
+                : undefined
+            }
+          />
 
           <View style={styles.body}>
-            <View style={styles.titleLine}>
-              <Text style={styles.title} numberOfLines={1}>
-                {title}
-              </Text>
-              {isDefault ? (
-                <Badge label="Default" variant="available" />
-              ) : null}
+            <View style={styles.headerRow}>
+              <View style={styles.titleLine}>
+                <Text style={styles.title} numberOfLines={1}>
+                  {title}
+                </Text>
+                {isDefault ? (
+                  <Badge
+                    label="Default"
+                    variant="available"
+                    style={styles.defaultBadge}
+                  />
+                ) : null}
+              </View>
+
+              <IconButton
+                accessibilityLabel={`Vehicle options for ${title}`}
+                onPress={() => setMenuOpen(true)}
+                disabled={disabled || isBusy}
+                style={[
+                  styles.menuButton,
+                  // Prevent harsh blue focus ring in web / Expo web preview.
+                  { outlineStyle: 'none', outlineWidth: 0 } as object,
+                ]}
+              >
+                <Icon name="more" size={16} color={theme.colors.textMuted} />
+              </IconButton>
             </View>
 
             {subtitle ? (
@@ -141,58 +167,52 @@ export function ProfileVehicleCard({
             <Text style={styles.meta} numberOfLines={1}>
               {metaLine}
             </Text>
+
+            <View style={styles.footer}>
+              <View style={styles.connectorRow}>
+                {connectors.length > 0 ? (
+                  connectors.map((connector) => (
+                    <ProfileConnectorChip
+                      key={connector}
+                      label={connector}
+                      styles={styles}
+                    />
+                  ))
+                ) : (
+                  <Text style={styles.connectorEmpty}>
+                    No connectors listed
+                  </Text>
+                )}
+              </View>
+
+              {!isDefault ? (
+                <Pressable
+                  onPress={onMakeDefault}
+                  disabled={disabled || isBusy}
+                  hitSlop={6}
+                  style={[
+                    styles.makeDefaultButton,
+                    (disabled || isBusy) && styles.makeDefaultDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Make ${title} default`}
+                >
+                  {isBusy ? (
+                    <ButtonLoader size={22} color={theme.colors.textLink} />
+                  ) : (
+                    <>
+                      <Icon
+                        name="star"
+                        size={12}
+                        color={theme.colors.textLink}
+                      />
+                      <Text style={styles.makeDefaultLabel}>Make Default</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-
-          <IconButton
-            accessibilityLabel={`Vehicle options for ${title}`}
-            onPress={() => setMenuOpen(true)}
-            disabled={disabled || isBusy}
-            style={[
-              styles.menuButton,
-              // Prevent harsh blue focus ring in web / Expo web preview.
-              { outlineStyle: 'none', outlineWidth: 0 } as object,
-            ]}
-          >
-            <Icon name="more" size={16} color={theme.colors.textMuted} />
-          </IconButton>
-        </View>
-
-        <View style={styles.footer}>
-          <View style={styles.connectorRow}>
-            {connectors.length > 0 ? (
-              connectors.map((connector) => (
-                <ProfileConnectorChip
-                  key={connector}
-                  label={connector}
-                  styles={styles}
-                />
-              ))
-            ) : (
-              <Text style={styles.connectorEmpty}>No connectors listed</Text>
-            )}
-          </View>
-
-          {!isDefault ? (
-            <Pressable
-              onPress={onMakeDefault}
-              disabled={disabled || isBusy}
-              style={[
-                styles.makeDefaultButton,
-                (disabled || isBusy) && styles.makeDefaultDisabled,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Make ${title} default`}
-            >
-              {isBusy ? (
-                <ButtonLoader size={22} color={theme.colors.textLink} />
-              ) : (
-                <>
-                  <Icon name="star" size={12} color={theme.colors.textLink} />
-                  <Text style={styles.makeDefaultLabel}>Make Default</Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
         </View>
       </View>
 
@@ -227,6 +247,13 @@ export function ProfileVehicleCard({
           />
         </View>
       </BottomSheet>
+
+      <FullScreenImageModal
+        visible={lightboxOpen}
+        uri={imageUrl}
+        accessibilityLabel={`${title} image`}
+        onClose={() => setLightboxOpen(false)}
+      />
     </>
   );
 }
@@ -239,8 +266,7 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       borderWidth: 1,
       borderColor: theme.colors.border,
       marginBottom: 12,
-      padding: 16,
-      gap: 12,
+      padding: 12,
       ...theme.shadows.card,
       shadowColor: theme.colors.shadow,
     },
@@ -249,37 +275,27 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     },
     topRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-    },
-    iconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
       alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      flexShrink: 0,
-    },
-    iconWrapIdle: {
-      backgroundColor: theme.colors.iconBackground,
-      borderColor: theme.colors.border,
-    },
-    iconWrapDefault: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+      gap: 12,
     },
     body: {
       flex: 1,
       minWidth: 0,
-      gap: 4,
-      paddingTop: 1,
+      gap: 2,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 6,
     },
     titleLine: {
+      flex: 1,
+      minWidth: 0,
       flexDirection: 'row',
       alignItems: 'center',
       flexWrap: 'wrap',
-      gap: 8,
+      gap: 6,
     },
     title: {
       flexShrink: 1,
@@ -288,6 +304,10 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       lineHeight: 22,
       letterSpacing: -0.2,
       color: theme.colors.textPrimary,
+    },
+    defaultBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
     },
     subtitle: {
       fontFamily: theme.typography.fontFamily.medium,
@@ -298,21 +318,21 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     meta: {
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 11,
-      lineHeight: 16.5,
+      lineHeight: 15,
       color: theme.colors.textMuted,
     },
     menuButton: {
       width: 28,
       height: 28,
-      marginTop: -2,
       marginRight: -4,
+      flexShrink: 0,
     },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 10,
-      paddingLeft: 56,
+      gap: 8,
+      marginTop: 6,
     },
     connectorRow: {
       flex: 1,
@@ -322,17 +342,20 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       minWidth: 0,
     },
     connectorChip: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingHorizontal: 7,
+      paddingVertical: 1,
       borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.surfaceSunken,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      justifyContent: 'center',
     },
     connectorChipText: {
       fontFamily: theme.typography.fontFamily.medium,
       fontSize: 11,
-      lineHeight: 16,
+      lineHeight: 14,
+      includeFontPadding: false,
+      textAlignVertical: 'center',
       color: theme.colors.textSecondary,
     },
     connectorEmpty: {

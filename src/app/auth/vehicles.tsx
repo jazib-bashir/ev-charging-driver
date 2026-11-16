@@ -41,8 +41,12 @@ import {
   useRequestStatus,
 } from '@/components/ui/request-status';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { FullScreenImageModal } from '@/components/vehicle/full-screen-image-modal';
+import { VehicleCatalogCard } from '@/components/vehicle/vehicle-catalog-card';
+import { VehicleThumbnail } from '@/components/vehicle/vehicle-thumbnail';
 import { useTheme } from '@/theme';
 import type { DriverVehicle, VehicleCatalogItem } from '@/types/vehicle';
+import { getDriverVehicleImageUrl } from '@/utils/vehicle-image';
 
 type BusyKey = string | null;
 
@@ -79,6 +83,10 @@ export default function VehicleSelectionScreen() {
   const [pendingRemoval, setPendingRemoval] = useState<DriverVehicle | null>(
     null,
   );
+  const [lightbox, setLightbox] = useState<{
+    uri: string;
+    label: string;
+  } | null>(null);
 
   const isBusy = busyKey !== null;
 
@@ -86,6 +94,14 @@ export default function VehicleSelectionScreen() {
     () => savedVehicles.find((vehicle) => vehicle.isDefault) ?? null,
     [savedVehicles],
   );
+
+  const catalogById = useMemo(() => {
+    const map = new Map<string, VehicleCatalogItem>();
+    for (const item of catalog) {
+      map.set(item.id, item);
+    }
+    return map;
+  }, [catalog]);
 
   const savedCatalogIds = useMemo(() => {
     const ids = new Set<string>();
@@ -419,6 +435,8 @@ export default function VehicleSelectionScreen() {
               const loading =
                 busyKey === `saved:${vehicle.id}` ||
                 busyKey === `remove:${vehicle.id}`;
+              const title = driverVehicleTitle(vehicle);
+              const imageUrl = getDriverVehicleImageUrl(vehicle, catalogById);
 
               return (
                 <View
@@ -429,25 +447,26 @@ export default function VehicleSelectionScreen() {
                   ]}
                 >
                   <View style={styles.garageCardTop}>
-                    <View
-                      style={[
-                        styles.garageIcon,
-                        vehicle.isDefault && styles.garageIconSelected,
-                      ]}
-                    >
-                      <Icon
-                        name="car"
-                        size={20}
-                        color={
-                          vehicle.isDefault
-                            ? theme.colors.primary
-                            : theme.colors.textMuted
-                        }
-                      />
-                    </View>
+                    <VehicleThumbnail
+                      uri={imageUrl}
+                      accessibilityLabel={`${title} image`}
+                      width={64}
+                      height={64}
+                      iconSize={22}
+                      onPress={
+                        imageUrl
+                          ? () => {
+                              setLightbox({
+                                uri: imageUrl,
+                                label: `${title} image`,
+                              });
+                            }
+                          : undefined
+                      }
+                    />
                     <View style={styles.garageCopy}>
                       <Text style={styles.garageTitle} numberOfLines={2}>
-                        {driverVehicleTitle(vehicle)}
+                        {title}
                       </Text>
                       {plugs ? (
                         <Text style={styles.garagePlugs} numberOfLines={1}>
@@ -461,7 +480,7 @@ export default function VehicleSelectionScreen() {
                         disabled={isBusy || loading}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={`Remove ${driverVehicleTitle(vehicle)}`}
+                        accessibilityLabel={`Remove ${title}`}
                         style={styles.garageRemove}
                       >
                         <Icon
@@ -491,7 +510,7 @@ export default function VehicleSelectionScreen() {
                         disabled={isBusy || loading}
                         hitSlop={6}
                         accessibilityRole="button"
-                        accessibilityLabel={`Make ${driverVehicleTitle(vehicle)} default`}
+                        accessibilityLabel={`Make ${title} default`}
                         style={styles.garageActionPressable}
                       >
                         <Text style={styles.garageActionLink} numberOfLines={1}>
@@ -508,8 +527,8 @@ export default function VehicleSelectionScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={
                         vehicle.licensePlate
-                          ? `Edit plate for ${driverVehicleTitle(vehicle)}`
-                          : `Add number plate for ${driverVehicleTitle(vehicle)}`
+                          ? `Edit plate for ${title}`
+                          : `Add number plate for ${title}`
                       }
                       style={styles.garageActionPressable}
                     >
@@ -621,46 +640,15 @@ export default function VehicleSelectionScreen() {
               ) : null
             }
             renderItem={({ item }) => {
-              const plugs = connectorsLine([
-                item.acConnectorType,
-                item.dcConnectorType,
-                item.isFastChargingSupported ? 'Fast' : null,
-              ]);
               const loading = busyKey === `catalog:${item.id}`;
 
               return (
-                <Pressable
+                <VehicleCatalogCard
+                  item={item}
                   onPress={() => handleSelectCatalog(item)}
-                  disabled={isBusy || loading}
-                  style={[
-                    styles.catalogRow,
-                    (isBusy || loading) && styles.cardDisabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Add ${item.displayName}`}
-                >
-                  <Text style={styles.catalogTitle} numberOfLines={1}>
-                    {item.displayName}
-                  </Text>
-                  <View style={styles.catalogTrailing}>
-                    {plugs ? (
-                      <Text style={styles.catalogPlugs} numberOfLines={1}>
-                        {plugs}
-                      </Text>
-                    ) : null}
-                    {loading ? (
-                      <ButtonLoader size={22} color={theme.colors.textLink} />
-                    ) : (
-                      <View style={styles.addIconWrap}>
-                        <Icon
-                          name="add"
-                          size={18}
-                          color={theme.colors.textLink}
-                        />
-                      </View>
-                    )}
-                  </View>
-                </Pressable>
+                  disabled={isBusy}
+                  loading={loading}
+                />
               );
             }}
           />
@@ -809,6 +797,13 @@ export default function VehicleSelectionScreen() {
           </View>
         </View>
       </Modal>
+
+      <FullScreenImageModal
+        visible={lightbox !== null}
+        uri={lightbox?.uri ?? null}
+        accessibilityLabel={lightbox?.label}
+        onClose={() => setLightbox(null)}
+      />
     </View>
   );
 }
@@ -848,16 +843,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       backgroundColor: theme.colors.primaryMuted,
     },
     garageCardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    garageIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceSunken,
-      flexShrink: 0,
-    },
-    garageIconSelected: { backgroundColor: theme.colors.primarySoft },
     garageCopy: { flex: 1, minWidth: 0 },
     garageTitle: {
       fontFamily: theme.typography.fontFamily.brand,
@@ -893,9 +878,10 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     defaultTag: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
       paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingVertical: 4,
       borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.primarySoft,
       flexShrink: 0,
@@ -903,7 +889,10 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     defaultTagLabel: {
       fontFamily: theme.typography.fontFamily.bold,
       fontSize: 11,
+      lineHeight: 14,
       color: theme.colors.primary,
+      includeFontPadding: false,
+      textAlignVertical: 'center',
     },
     garageActionPressable: {
       flexShrink: 1,
@@ -962,44 +951,6 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
       padding: 0,
     },
     statusWrap: { marginHorizontal: theme.spacing.gutter, marginBottom: 8 },
-    catalogRow: {
-      minHeight: 56,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.lg,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      marginHorizontal: theme.spacing.gutter,
-      marginBottom: 8,
-      paddingHorizontal: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      ...card,
-    },
-    cardDisabled: { opacity: 0.7 },
-    catalogTitle: {
-      flex: 1,
-      fontFamily: theme.typography.fontFamily.semibold,
-      fontSize: 14,
-      color: theme.colors.textPrimary,
-      paddingRight: 10,
-    },
-    catalogTrailing: { flexDirection: 'row', alignItems: 'center' },
-    catalogPlugs: {
-      fontFamily: theme.typography.fontFamily.regular,
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      marginRight: 12,
-      maxWidth: 120,
-    },
-    addIconWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 11,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primaryMuted,
-    },
     emptyText: {
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: 13,

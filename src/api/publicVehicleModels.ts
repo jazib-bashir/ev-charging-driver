@@ -19,6 +19,21 @@ function isConnectorType(value: unknown): value is ConnectorType {
   );
 }
 
+function mapOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function mapOptionalRangeKm(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  return null;
+}
+
 function mapVehicleModel(raw: Record<string, unknown>): VehicleCatalogItem | null {
   const id = typeof raw.id === 'string' ? raw.id : '';
   const make = typeof raw.make === 'string' ? raw.make : '';
@@ -32,20 +47,19 @@ function mapVehicleModel(raw: Record<string, unknown>): VehicleCatalogItem | nul
     return null;
   }
 
-  const acConnectorType = isConnectorType(raw.acConnectorType)
-    ? raw.acConnectorType
-    : 'Type2';
-  const dcConnectorType = isConnectorType(raw.dcConnectorType)
-    ? raw.dcConnectorType
-    : 'CCS2';
-
   return {
     id,
     make,
     model,
     displayName,
-    acConnectorType,
-    dcConnectorType,
+    image: mapOptionalString(raw.image),
+    rangeKm: mapOptionalRangeKm(raw.rangeKm),
+    acConnectorType: isConnectorType(raw.acConnectorType)
+      ? raw.acConnectorType
+      : null,
+    dcConnectorType: isConnectorType(raw.dcConnectorType)
+      ? raw.dcConnectorType
+      : null,
     isFastChargingSupported: Boolean(raw.isFastChargingSupported),
   };
 }

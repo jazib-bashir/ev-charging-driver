@@ -4,6 +4,7 @@ export const CONNECTOR_TYPES = [
   'Type2',
   'CHAdeMO',
   'NACS',
+  'GBT',
 ] as const;
 
 export type ConnectorType = (typeof CONNECTOR_TYPES)[number];
@@ -14,8 +15,10 @@ export type VehicleCatalogItem = {
   make: string;
   model: string;
   displayName: string;
-  acConnectorType: ConnectorType;
-  dcConnectorType: ConnectorType;
+  image?: string | null;
+  rangeKm?: number | null;
+  acConnectorType?: ConnectorType | null;
+  dcConnectorType?: ConnectorType | null;
   isFastChargingSupported: boolean;
 };
 
