@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { KonnectEvLogo } from '@/components/brand/konnectev-logo';
 import { FeedbackIllustration } from '@/components/brand/illustrations';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { useTheme, type AppTheme } from '@/theme';
@@ -23,32 +23,32 @@ export function HomeJourneyConnectionIssue({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <KonnectEvLogo width={132} tone={theme.isDark ? 'onDark' : 'onLight'} />
-      </View>
+      <ScreenHero />
 
-      <View style={styles.center}>
-        <View style={styles.card}>
-          <FeedbackIllustration kind="offline" size={112} />
+      <View style={styles.body}>
+        <View style={styles.center}>
+          <View style={styles.card}>
+            <FeedbackIllustration kind="offline" size={112} />
 
-          <Text style={styles.eyebrow}>CONNECTION ISSUE</Text>
-          <Text style={styles.title}>We couldn’t confirm your session</Text>
-          <Text style={styles.body}>
-            We won’t assume your session has ended. Check your connection and try again.
-          </Text>
+            <Text style={styles.eyebrow}>CONNECTION ISSUE</Text>
+            <Text style={styles.title}>We couldn’t confirm your session</Text>
+            <Text style={styles.bodyText}>
+              We won’t assume your session has ended. Check your connection and try again.
+            </Text>
 
-          <Button
-            label="Retry session check"
-            onPress={onRetry}
-            loading={isRetrying}
-            leadingIcon="refresh"
-          />
-          <Button
-            label="Go to Home for now"
-            variant="tertiary"
-            onPress={onContinueHome}
-            disabled={isRetrying}
-          />
+            <Button
+              label="Retry session check"
+              onPress={onRetry}
+              loading={isRetrying}
+              leadingIcon="refresh"
+            />
+            <Button
+              label="Go to Home for now"
+              variant="tertiary"
+              onPress={onContinueHome}
+              disabled={isRetrying}
+            />
+          </View>
         </View>
       </View>
     </View>
@@ -60,11 +60,13 @@ function createStyles(theme: AppTheme) {
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    body: {
+      flex: 1,
       paddingHorizontal: theme.spacing.gutter,
       paddingTop: theme.spacing.md,
       paddingBottom: theme.spacing.xl,
     },
-    header: { flexDirection: 'row', alignItems: 'center' },
     center: { flex: 1, justifyContent: 'center', paddingBottom: theme.spacing.xxxl },
     card: {
       backgroundColor: theme.colors.surface,
@@ -92,7 +94,7 @@ function createStyles(theme: AppTheme) {
       letterSpacing: -0.6,
       lineHeight: 30,
     },
-    body: {
+    bodyText: {
       fontFamily: theme.typography.fontFamily.regular,
       fontSize: theme.typography.fontSize.sm,
       color: theme.colors.textMuted,

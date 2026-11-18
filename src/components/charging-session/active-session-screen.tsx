@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState, useMemo } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { fetchPublicChargers } from '@/api/publicChargers';
@@ -9,6 +9,7 @@ import { stopDriverChargingSession } from '@/api/chargingSessions';
 import { ScreenHero } from '@/components/layout/screen-hero';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { Icon } from '@/components/ui/icon';
 import { PageLoader } from '@/components/loaders';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { useActiveChargingSession } from '@/hooks/use-active-charging-session';
@@ -79,9 +80,28 @@ export function ActiveSessionScreen() {
     );
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
+
   return (
     <ScreenContainer edges={[]}>
-      <ScreenHero title="Active session" showBack />
+      <ScreenHero />
+      <View style={styles.toolbar}>
+        <Pressable
+          onPress={handleBack}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={8}
+        >
+          <Icon name="back" size={22} color={theme.colors.textPrimary} />
+        </Pressable>
+      </View>
       <ScreenContent>
         {isLoading ? <PageLoader message="Loading your session…" /> : null}
 
@@ -142,6 +162,23 @@ export function ActiveSessionScreen() {
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.xs,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
     content: {
       gap: theme.spacing.lg,
       paddingHorizontal: theme.spacing.gutter,

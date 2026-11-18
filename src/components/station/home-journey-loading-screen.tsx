@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { KonnectEvLogo } from '@/components/brand/konnectev-logo';
 import { WeaveLoader } from '@/components/brand/weave-loader';
+import { ScreenHero } from '@/components/layout/screen-hero';
 import { ButtonLoader } from '@/components/loaders/button-loader';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -22,46 +22,46 @@ export function HomeJourneyLoadingScreen({
 
   return (
     <View style={styles.screen} accessibilityLabel="Finding your charging journey">
-      <View style={styles.header}>
-        <KonnectEvLogo width={132} tone={theme.isDark ? 'onDark' : 'onLight'} />
-      </View>
+      <ScreenHero />
 
-      <View style={styles.center}>
-        <View style={styles.markTile}>
-          <WeaveLoader size={64} />
+      <View style={styles.body}>
+        <View style={styles.center}>
+          <View style={styles.markTile}>
+            <WeaveLoader size={64} />
+          </View>
+
+          <Text style={styles.title}>Finding your charging journey</Text>
+          <Text style={styles.subtitle}>Checking your account and active sessions…</Text>
         </View>
 
-        <Text style={styles.title}>Finding your charging journey</Text>
-        <Text style={styles.subtitle}>Checking your account and active sessions…</Text>
-      </View>
+        <View style={styles.checklist}>
+          <View style={styles.checkRow}>
+            {accountVerified ? (
+              <View style={styles.checkIcon}>
+                <Icon name="check" size={14} color={theme.colors.primary} />
+              </View>
+            ) : (
+              <View style={styles.checkSlot}>
+                <ButtonLoader size={22} color={theme.colors.textLink} />
+              </View>
+            )}
+            <Text style={[styles.checkLabel, accountVerified ? styles.checkLabelDone : styles.checkLabelActive]}>
+              {accountVerified ? 'Account verified' : 'Verifying account'}
+            </Text>
+          </View>
 
-      <View style={styles.checklist}>
-        <View style={styles.checkRow}>
-          {accountVerified ? (
-            <View style={styles.checkIcon}>
-              <Icon name="check" size={14} color={theme.colors.primary} />
-            </View>
-          ) : (
-            <View style={styles.checkSlot}>
-              <ButtonLoader size={22} color={theme.colors.textLink} />
-            </View>
-          )}
-          <Text style={[styles.checkLabel, accountVerified ? styles.checkLabelDone : styles.checkLabelActive]}>
-            {accountVerified ? 'Account verified' : 'Verifying account'}
-          </Text>
-        </View>
-
-        <View style={styles.checkRow}>
-          {accountVerified ? (
-            <View style={styles.checkSlot}>
-              <ButtonLoader size={22} color={theme.colors.textLink} />
-            </View>
-          ) : (
-            <View style={styles.checkPending} />
-          )}
-          <Text style={[styles.checkLabel, accountVerified ? styles.checkLabelActive : styles.checkLabelPending]}>
-            Resolving active session
-          </Text>
+          <View style={styles.checkRow}>
+            {accountVerified ? (
+              <View style={styles.checkSlot}>
+                <ButtonLoader size={22} color={theme.colors.textLink} />
+              </View>
+            ) : (
+              <View style={styles.checkPending} />
+            )}
+            <Text style={[styles.checkLabel, accountVerified ? styles.checkLabelActive : styles.checkLabelPending]}>
+              Resolving active session
+            </Text>
+          </View>
         </View>
       </View>
     </View>
@@ -73,11 +73,13 @@ function createStyles(theme: AppTheme) {
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    body: {
+      flex: 1,
       paddingHorizontal: theme.spacing.gutter,
       paddingTop: theme.spacing.md,
       paddingBottom: theme.spacing.xl,
     },
-    header: { flexDirection: 'row', alignItems: 'center' },
     center: {
       flex: 1,
       alignItems: 'center',

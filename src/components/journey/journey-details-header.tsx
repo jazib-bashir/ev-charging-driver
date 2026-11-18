@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ScreenHero } from '@/components/layout/screen-hero';
 import { Badge } from '@/components/ui/badge';
+import { Icon } from '@/components/ui/icon';
 import { useTheme, type AppTheme } from '@/theme';
 
 type JourneyDetailsHeaderProps = {
@@ -18,20 +19,46 @@ export function JourneyDetailsHeader({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <ScreenHero
-      title="Journey details"
-      onBack={onBack}
-      trailing={
+    <View>
+      <ScreenHero />
+      <View style={styles.toolbar}>
+        <Pressable
+          onPress={onBack}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={8}
+        >
+          <Icon name="back" size={22} color={theme.colors.textPrimary} />
+        </Pressable>
         <View style={styles.live}>
           <Badge label={liveLabel} variant="available" showDot />
         </View>
-      }
-    />
+      </View>
+    </View>
   );
 }
 
-function createStyles(_theme: AppTheme) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.xs,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
     live: {
       maxWidth: 160,
     },

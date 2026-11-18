@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { SkeletonLoader } from '@/components/loaders/skeleton-loader';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/theme';
 
@@ -25,25 +26,39 @@ export function VehicleThumbnail({
   style,
 }: VehicleThumbnailProps) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [imageFailed, setImageFailed] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   const trimmedUri = uri?.trim() || null;
   const showImage = Boolean(trimmedUri) && !imageFailed;
 
   useEffect(() => {
     setImageFailed(false);
+    setIsImageLoading(Boolean(trimmedUri));
   }, [trimmedUri]);
 
   const content = showImage ? (
-    <Image
-      source={{ uri: trimmedUri! }}
-      style={styles.image}
-      contentFit="contain"
-      recyclingKey={trimmedUri!}
-      onError={() => setImageFailed(true)}
-      accessibilityLabel={accessibilityLabel}
-    />
+    <>
+      <Image
+        source={{ uri: trimmedUri! }}
+        style={styles.image}
+        contentFit="contain"
+        recyclingKey={trimmedUri!}
+        onLoadStart={() => setIsImageLoading(true)}
+        onLoad={() => setIsImageLoading(false)}
+        onError={() => {
+          setImageFailed(true);
+          setIsImageLoading(false);
+        }}
+        accessibilityLabel={accessibilityLabel}
+      />
+      {isImageLoading ? (
+        <View style={styles.loaderOverlay} pointerEvents="none">
+          <SkeletonLoader width="100%" height={height} radius={theme.radius.md} />
+        </View>
+      ) : null}
+    </>
   ) : (
     <Icon name="car" size={iconSize} color={theme.colors.placeholderIcon} />
   );
@@ -70,7 +85,7 @@ export function VehicleThumbnail({
   return <View style={wrapStyle}>{content}</View>;
 }
 
-function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
+function createStyles(_theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
     wrap: {
       alignItems: 'center',
@@ -81,6 +96,9 @@ function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
     image: {
       width: '100%',
       height: '100%',
+    },
+    loaderOverlay: {
+      ...StyleSheet.absoluteFillObject,
     },
   });
 }

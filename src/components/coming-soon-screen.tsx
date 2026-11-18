@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { FeedbackIllustration } from '@/components/brand/illustrations';
 import { ScreenHero } from '@/components/layout/screen-hero';
+import { Icon } from '@/components/ui/icon';
 import { ScreenContainer, ScreenContent } from '@/components/ui/screen-container';
 import { Text } from '@/components/ui/text';
 import { useTheme } from '@/theme';
@@ -16,18 +17,28 @@ export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
+
   return (
     <ScreenContainer edges={[]}>
-      <ScreenHero
-        title={title}
-        onBack={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.replace('/');
-          }
-        }}
-      />
+      <ScreenHero />
+      <View style={styles.toolbar}>
+        <Pressable
+          onPress={handleBack}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={8}
+        >
+          <Icon name="back" size={22} color={theme.colors.textPrimary} />
+        </Pressable>
+      </View>
 
       <ScreenContent style={styles.content}>
         <View style={styles.art}>
@@ -44,6 +55,23 @@ export function ComingSoonScreen({ title }: ComingSoonScreenProps) {
 
 function createStyles(theme: ReturnType<typeof useTheme>['theme']) {
   return StyleSheet.create({
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.gutter,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.xs,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
     content: {
       alignItems: 'center',
       justifyContent: 'center',

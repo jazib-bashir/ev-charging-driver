@@ -383,7 +383,7 @@ export function StationDiscoveryScreen() {
 
   if (showJourneyLoading) {
     return (
-      <ScreenContainer edges={['top', 'bottom']}>
+      <ScreenContainer edges={[]}>
         <HomeJourneyLoadingScreen accountVerified={!isAuthLoading && Boolean(token)} />
       </ScreenContainer>
     );
@@ -391,7 +391,7 @@ export function StationDiscoveryScreen() {
 
   if (showConnectionIssue) {
     return (
-      <ScreenContainer edges={['top', 'bottom']}>
+      <ScreenContainer edges={[]}>
         <HomeJourneyConnectionIssue
           onRetry={() => {
             void handleRetryJourneyCheck();

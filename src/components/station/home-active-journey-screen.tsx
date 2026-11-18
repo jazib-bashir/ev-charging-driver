@@ -91,10 +91,7 @@ export function HomeActiveJourneyScreen({
 
   return (
     <View style={styles.screen} accessibilityLabel={`Home journey · ${statusLabel}`}>
-      <ScreenHero
-        title={stationName?.trim() || 'Charging station'}
-        subtitle={identitySubtitle ?? statusLabel}
-      />
+      <ScreenHero />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
