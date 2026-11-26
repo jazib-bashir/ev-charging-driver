@@ -13,7 +13,8 @@
       "icon": "./assets/brand/konnectev-android-432.png"
     },
     "android": {
-      "package": "com.gridflow.driver",
+      "package": "com.konnectev.driver",
+      "versionCode": 11,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#0D1117",

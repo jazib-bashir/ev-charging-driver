@@ -94,6 +94,7 @@ module.exports = {
               },
             },
           ],
+          ['./plugins/withAndroidProductionSigning.js', { enabled: true }],
         ]
       : []),
   ],
